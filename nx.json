@@ -1,0 +1,53 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+
+  "extends": "nx/presets/npm.json",
+
+  "affected": {
+    "defaultBase": "main"
+  },
+
+  "plugins": [
+    "@nx/js"
+  ],
+
+  "implicitDependencies": {
+    "package.json": "*",
+    "pnpm-lock.yaml": "*",
+    "yarn.lock": "*",
+    "npm-shrinkwrap.json": "*",
+    "tsconfig.json": "*",
+    "tsconfig.base.json": "*",
+    "eslint.config.*": "*",
+    "vitest.config.*": "*",
+    "vitest.workspace.*": "*",
+    "prettier.config.*": "*"
+  },
+
+  "namedInputs": {
+    "default": [
+      "{projectRoot}/**/*",
+      "!{projectRoot}/dist/**",
+      "!{projectRoot}/build/**",
+      "!{projectRoot}/coverage/**",
+      "!{projectRoot}/.nx/**"
+    ],
+    "production": [
+      "default",
+      "!{projectRoot}/**/*.spec.*",
+      "!{projectRoot}/**/*.test.*"
+    ]
+  },
+
+  "targetDefaults": {
+    "test": {
+      "inputs": [
+        "default",
+        "^default",
+        "{workspaceRoot}/vitest.config.*",
+        "{workspaceRoot}/vitest.workspace.*"
+      ],
+      "cache": true
+    }
+  }
+}

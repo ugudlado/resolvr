@@ -1,0 +1,52 @@
+# Dependencies
+**/node_modules
+.pnpm-store
+
+# Build outputs
+dist
+packages/server/public
+packages/ui/dist
+packages/schema/dist
+storybook-static
+
+# Environment & Config
+.env
+.env.local
+.envrc
+
+# OS Files
+.DS_Store
+
+# IDE
+.vscode
+.idea
+
+# Testing
+test-results
+test-results.json
+coverage
+
+# Build artifacts
+*.tar.gz
+vite.config.ts.*
+*.tsbuildinfo
+
+# Nx cache
+.nx/
+
+# Development
+feature_worktrees/
+.container-use
+
+# Playwright
+.playwright-mcp
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+**/test-results.json
+
+# Specs and Claude
+specs/
+specs-link
+specs-completed/
+.claude/settings.local.json
