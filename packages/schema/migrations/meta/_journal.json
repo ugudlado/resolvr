@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1767728962161,
+      "tag": "20260106194922_create_new_todos_table",
+      "breakpoints": true
+    }
+  ]
+}
