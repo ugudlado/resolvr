@@ -1,19 +1,31 @@
 {
   "permissions": {
     "allow": [
-      "mcp__linear-server__get_issue",
-      "mcp__linear-server__list_issues",
-      "mcp__linear-server__get_project",
-      "mcp__linear-server__list_projects",
-      "mcp__linear-server__get_user",
-      "mcp__linear-server__list_users",
-      "mcp__linear-server__get_team",
-      "mcp__linear-server__list_teams",
-      "mcp__linear-server__search_documentation",
-      "WebSearch",
+      "Bash(git:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(pnpm:*)",
+      "Bash(mkdir:*)",
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "Bash(cp:*)",
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(gh:*)",
+      "Edit(./**)",
+      "Write(./**)",
+      "mcp__plugin_linear_linear__get_issue",
+      "mcp__plugin_linear_linear__update_issue",
+      "mcp__plugin_linear_linear__create_issue",
+      "mcp__plugin_linear_linear__list_issues",
       "mcp__memory__search_nodes",
       "mcp__memory__create_entities",
-      "mcp__memory__add_observations"
+      "mcp__memory__add_observations",
+      "mcp__sequential-thinking__sequentialthinking"
+    ],
+    "deny": [
+      "Bash(git push:*)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true
 }

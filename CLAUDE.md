@@ -144,6 +144,39 @@ All packages include development logging:
 - **UI**: Browser console with CSS styling, API interceptors
 - **Mobile**: React Native console with emoji indicators
 
+## Platform-Specific Files
+
+Metro resolves files by platform extension:
+- `.web.tsx` - Web only
+- `.native.tsx` - iOS/Android only
+- `.tsx` - Fallback/shared
+
+### Conditional Native Imports
+Never use runtime `require()` for native modules - Metro still bundles them.
+Use platform-specific files instead:
+
+```typescript
+// BAD - Metro bundles both branches
+if (Platform.OS !== 'web') {
+  const { Something } = require('native-module');
+}
+
+// GOOD - Use platform files
+// Component.tsx (web fallback)
+// Component.native.tsx (native with imports)
+```
+
+## Linear Integration
+
+**Team Name**: [YOUR_TEAM_NAME]
+**Team ID**: `[YOUR_TEAM_ID]`
+**Project Name**: [YOUR_PROJECT_NAME]
+**Project ID**: `[YOUR_PROJECT_ID]`
+**Ticket Prefix**: `[PREFIX]-`
+**Team URL**: https://linear.app/[YOUR_ORG]/team/[PREFIX]/all
+
+Use this team and project when creating Linear tickets.
+
 ## Important Reminders
 
 1. Use `pnpm` (not npm) for package management
@@ -151,3 +184,7 @@ All packages include development logging:
 3. Check existing patterns before implementing new features
 4. API contracts are defined in `packages/schema/src/api/`
 5. Reusable components go in `packages/components/`
+
+## Known Issues
+
+See `TROUBLESHOOTING.md` for common issues and solutions.
