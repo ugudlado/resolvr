@@ -7,6 +7,20 @@ model: sonnet
 
 $ARGUMENTS
 
+## Plugins & Tools Used
+
+| Step | Plugin/Tool | Purpose |
+|------|-------------|---------|
+| Context | `linear` plugin | Fetch ticket details |
+| Context | `memory` MCP | Recall decisions from /specify |
+| Implementation | `context7` plugin | Fetch latest library docs |
+| Implementation | `typescript-lsp` plugin | Live type checking |
+| Implementation | Project skills | Domain patterns (mobile/frontend/backend) |
+| UI Components | `frontend-design` skill | Production-grade UI |
+| Phase Review | `pr-review-toolkit:code-reviewer` | Code quality review |
+| Final Review | `pr-review-toolkit` agents | Comprehensive review suite |
+| Final Review | `code-simplifier` agent | Simplify complex code |
+
 ## Process
 
 ### 1. Load Context
@@ -31,6 +45,9 @@ For each task:
 a. **Implement**: Write code following project conventions
    - **TDD Mode**: Write tests BEFORE implementation
    - **Non-TDD Mode**: Implementation only
+   - Use `context7` plugin (`mcp__plugin_context7_context7__query-docs`) for library documentation
+   - Use project skills (mobile-engineer, frontend-engineer, backend-engineer) for domain patterns
+   - Use `frontend-design` skill when building UI components
 
 b. **Validate**:
    ```bash
@@ -58,7 +75,7 @@ Use Task tool with `subagent_type=pr-review-toolkit:code-reviewer`:
 3. Re-run review
 4. If still < 9 after 3 iterations, escalate to user
 
-### 4. Commit
+### 4. Commit Phase
 
 After review passes, present changes to user:
 ```bash
@@ -101,11 +118,47 @@ Use `mcp__memory__add_observations` on the feature entity (`[LINEAR_ID]`):
 
 ### 8. Update Linear
 
-Update ticket status to "In Review" with implementation summary.
+Use `mcp__plugin_linear_linear__update_issue` to set status to "In Review" with implementation summary.
 
-### 9. Report
+### 9. Final Comprehensive Review
 
-Output: tasks completed, commits created, test results (TDD), any blockers.
+Run full review suite before marking complete:
+
+**a. Code Quality** - Task tool with `subagent_type=pr-review-toolkit:code-reviewer`
+- Adherence to spec requirements
+- Project conventions and patterns
+- Code style and organization
+
+**b. Silent Failures** - Task tool with `subagent_type=pr-review-toolkit:silent-failure-hunter`
+- Error handling completeness
+- Catch blocks that swallow errors
+- Missing fallback behaviors
+
+**c. Type Design** - Task tool with `subagent_type=pr-review-toolkit:type-design-analyzer`
+- Type quality and encapsulation
+- Invariant expression
+- Type safety
+
+**d. Test Coverage** (TDD mode) - Task tool with `subagent_type=pr-review-toolkit:pr-test-analyzer`
+- Test completeness
+- Edge cases covered
+- Test quality
+
+**e. Code Simplification** - Task tool with `subagent_type=code-simplifier:code-simplifier`
+- Simplify overly complex code
+- Remove unnecessary abstractions
+- Improve readability
+
+**Aggregate Score**: All reviews must pass (>= 9/10 where applicable)
+
+### 10. Report
+
+Output:
+- Tasks completed with status
+- Commits created
+- Test results (TDD mode)
+- Final review scores
+- Any blockers or notes
 
 ## Quality Standards
 

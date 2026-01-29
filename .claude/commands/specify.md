@@ -7,13 +7,32 @@ model: opus
 
 $ARGUMENTS
 
+## Plugins & Tools Used
+
+| Step | Plugin/Tool | Purpose |
+|------|-------------|---------|
+| Context | `memory` MCP | Recall past decisions and patterns |
+| Context | `Explore` agent | Understand relevant codebase areas |
+| Context | `context7` plugin | Fetch current library documentation |
+| Design | `sequential-thinking` MCP | Evaluate multiple approaches systematically |
+| Ticket | `linear` plugin | Create and manage Linear ticket |
+| Memory | `memory` MCP | Store decisions for /implement |
+
 ## Process
 
 ### 1. Gather Context
 
-- Search memory MCP (`mcp__memory__search_nodes`) for relevant patterns and past decisions
+**a. Search Memory**
+- Use `mcp__memory__search_nodes` for relevant patterns and past decisions
+
+**b. Explore Codebase**
 - Use Task tool with `subagent_type=Explore` to understand the relevant codebase area
 - Identify existing patterns, conventions, and integration points
+
+**c. Fetch Documentation**
+- Use `mcp__plugin_context7_context7__resolve-library-id` to find relevant libraries
+- Use `mcp__plugin_context7_context7__query-docs` for current API documentation
+- Query docs for libraries that will be used in implementation (e.g., Zustand, Expo APIs, React Native)
 
 ### 2. Create Linear Ticket
 
@@ -24,7 +43,28 @@ Use `mcp__plugin_linear_linear__create_issue`:
 
 Extract the Linear ID (e.g., HL-74) for subsequent steps.
 
-### 3. Write Specification
+### 3. Evaluate Approaches
+
+Use `mcp__sequential-thinking__sequentialthinking` to systematically evaluate implementation approaches:
+
+**Step 1**: Identify 2-4 viable approaches based on context gathered
+- Consider existing patterns in codebase
+- Consider library best practices from context7 docs
+- Consider trade-offs (complexity, performance, maintainability)
+
+**Step 2**: For each approach, analyze:
+- Pros and cons
+- Fit with existing architecture
+- Implementation complexity
+- Future extensibility
+
+**Step 3**: Select best approach with clear rationale
+
+**Step 4**: Verify selection against requirements
+
+Document the evaluation in the spec (see Architecture section below).
+
+### 4. Write Specification
 
 Create `specs/[LINEAR_ID]/spec.md`:
 
@@ -45,14 +85,24 @@ Create `specs/[LINEAR_ID]/spec.md`:
 - [ ] Optional requirement
 
 ## Architecture
-### Approach
-[Selected approach and rationale]
+
+### Approaches Considered
+| Approach | Pros | Cons |
+|----------|------|------|
+| [Approach 1] | [pros] | [cons] |
+| [Approach 2] | [pros] | [cons] |
+
+### Selected Approach
+**[Approach name]**: [rationale for selection]
 
 ### Components
 - [Component]: [responsibility]
 
 ### Files to Create/Modify
 - `path/to/file.ts` - [purpose/changes]
+
+### Library References
+- [Library]: [relevant API/pattern from context7 docs]
 
 ## Acceptance Criteria
 - [ ] Criterion 1
@@ -61,7 +111,7 @@ Create `specs/[LINEAR_ID]/spec.md`:
 - [NEEDS CLARIFICATION: question]
 ```
 
-### 4. Generate Task List
+### 5. Generate Task List
 
 Create `specs/[LINEAR_ID]/tasks.md`:
 
@@ -85,11 +135,11 @@ Read development mode from spec:
 - [P] = Parallelizable
 ```
 
-### 5. Request User Approval
+### 6. Request User Approval
 
 Present spec and tasks for review before creating worktree.
 
-### 6. Create Worktree (after approval)
+### 7. Create Worktree (after approval)
 
 ```bash
 MAIN_REPO=$(git worktree list | head -1 | awk '{print $1}')
@@ -111,28 +161,40 @@ for env_name in .env .env.local .env.development; do
   [ -f "$MAIN_REPO/$env_name" ] && ln -sf "$MAIN_REPO/$env_name" "./$env_name"
 done
 
-# Symlink gitignored env files inside each package directory
-for pkg_dir in "$MAIN_REPO"/packages/*/; do
-  pkg_name=$(basename "$pkg_dir")
-  worktree_pkg_dir="$WORKTREE_PATH/packages/$pkg_name"
-  [ -d "$worktree_pkg_dir" ] || continue
+# Symlink gitignored env files inside each subdirectory that has them
+for sub_dir in "$MAIN_REPO"/*/; do
+  sub_name=$(basename "$sub_dir")
+  worktree_sub_dir="$WORKTREE_PATH/$sub_name"
+  [ -d "$worktree_sub_dir" ] || continue
   for env_name in .env .env.local .env.development; do
-    [ -f "$pkg_dir$env_name" ] && ln -sf "$pkg_dir$env_name" "$worktree_pkg_dir/$env_name"
+    [ -f "$sub_dir$env_name" ] && ln -sf "$sub_dir$env_name" "$worktree_sub_dir/$env_name"
   done
 done
 ```
 
-### 7. Store Decisions in Memory
+### 8. Store Decisions in Memory
 
 Use `mcp__memory__create_entities` to save:
 - Entity name: `[LINEAR_ID]`
 - Type: `feature`
-- Observations: key decisions, architecture rationale, trade-offs considered
+- Observations:
+  - Key decisions and architecture rationale
+  - Trade-offs considered (from sequential-thinking evaluation)
+  - Library patterns to use (from context7 docs)
+  - Why rejected approaches were not chosen
 
-### 8. Update Linear Ticket
+### 9. Update Linear Ticket
 
-Add spec file location and worktree path to ticket description.
+Use `mcp__plugin_linear_linear__update_issue` to add:
+- Spec file location
+- Worktree path
+- Selected approach summary
 
-### 9. Report
+### 10. Report
 
-Output: Linear ticket ID, spec path, worktree path, ready for `/implement [LINEAR_ID]`.
+Output:
+- Linear ticket ID and URL
+- Spec path: `specs/[LINEAR_ID]/spec.md`
+- Tasks path: `specs/[LINEAR_ID]/tasks.md`
+- Worktree path: `~/code/feature_worktrees/[LINEAR_ID]`
+- Ready for `/implement [LINEAR_ID]`

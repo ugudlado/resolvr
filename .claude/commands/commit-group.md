@@ -1,5 +1,7 @@
 ---
 description: Create commits in logical groups
+gitignored: true
+project: true
 model: haiku
 ---
 
@@ -18,7 +20,7 @@ Create organized commits by grouping related changes logically.
    - For each group, show:
      - Brief description of what the group does
      - Files included
-     - Suggested commit message following conventional commit format
+     - Suggested commit message following format: `feat: [LIG-XXX] description` or `refactor: [LIG-XXX] description`
    - Ask user to approve or modify groupings
 
 3. **Create Commits**
@@ -27,6 +29,8 @@ Create organized commits by grouping related changes logically.
      - Create commit with the agreed message
      - Include co-author footer:
        ```
+       🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
        Co-Authored-By: Claude <noreply@anthropic.com>
        ```
 
@@ -57,15 +61,22 @@ Group 1: Schema changes (feat)
 - packages/schema/src/types.ts
 
 Group 2: Service layer implementation (feat)
-- packages/server/src/services/item.service.ts
+- packages/server/src/services/llm-summary.service.ts
 - packages/server/src/core/container-setup.ts
+- packages/server/src/core/container-tokens.ts
 
-Group 3: UI component updates (feat)
-- packages/ui/src/components/ItemList.tsx
-- packages/ui/src/pages/ItemDetailPage.tsx
+Group 3: Integration into hierarchy service (feat)
+- packages/server/src/services/hierarchy-service.ts
 
-Group 4: Test additions (test)
-- packages/server/src/services/__tests__/item.service.test.ts
+Group 4: UI type updates (refactor)
+- packages/ui/src/components/nodes/career-transition/wizard/steps/types.ts
+
+Group 5: UI display updates (feat)
+- packages/ui/src/pages/career-transition-detail.tsx
+- packages/ui/src/pages/interview-chapter-detail.tsx
+
+Group 6: Scripts and utilities (chore)
+- packages/server/scripts/*.ts
 ```
 
 ## Notes

@@ -38,39 +38,41 @@ pnpm dev           # Server + UI
 pnpm dev:mobile    # Mobile app (Expo)
 ```
 
-## Development Commands
+## Claude Workflow Commands
 
-### From Project Root
+| Command | Purpose |
+|---------|---------|
+| `/specify [description]` | Create Linear ticket, spec, tasks, worktree |
+| `/implement [LINEAR-ID]` | Execute tasks with review gates |
+| `/complete-feature [LINEAR-ID]` | Merge to main, cleanup worktree |
+| `/commit-group` | Organize commits logically |
+
+## Commands
 
 ```bash
-pnpm dev                # Start server + UI concurrently
-pnpm dev:mobile         # Start Expo mobile app
-pnpm build              # Build all packages
-pnpm lint               # Lint all packages
-pnpm test:unit          # Run unit tests (all packages)
-pnpm test:changed       # Run tests for changed packages only (Nx)
+pnpm dev              # Start server + UI concurrently
+pnpm dev:mobile       # Start Expo mobile app
+pnpm build            # Build all packages
+pnpm lint             # Lint all packages
+pnpm test:unit        # Run unit tests (all packages)
+pnpm test:changed     # Run tests for changed packages only (Nx)
 ```
 
-### Package-Specific Commands
+### Package-Specific
 
 ```bash
 cd packages/[package-name]
-
-pnpm dev          # Start development server
-pnpm build        # Build for production
-pnpm test:unit    # Run unit tests
-pnpm type-check   # Type checking
-pnpm lint         # Linting
-
-# Run specific test file
-pnpm vitest run --no-coverage src/services/__tests__/todo.service.test.ts
+pnpm dev              # Start development server
+pnpm build            # Build for production
+pnpm test:unit        # Run unit tests
+pnpm type-check       # Type checking
+pnpm lint             # Linting
 ```
 
-### Database Operations
+### Database
 
 ```bash
 cd packages/schema
-
 pnpm db:generate --name migration_name   # Generate migration
 pnpm db:migrate                          # Run migrations
 pnpm db:studio                           # Open Drizzle Studio
