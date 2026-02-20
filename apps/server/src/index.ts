@@ -6,7 +6,7 @@ import { errorHandler, notFoundHandler, requestLogger } from './middleware';
 
 const PORT = process.env.PORT || 3001;
 const DATABASE_URL =
-  process.env.DATABASE_URL || 'postgresql://localhost:5432/template_dev';
+  process.env.DATABASE_URL || 'postgresql://localhost:5432/review_dev';
 
 const app = express();
 

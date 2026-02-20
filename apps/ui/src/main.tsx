@@ -8,7 +8,7 @@ import './index.css';
 // Log app startup in development
 logger.info('App starting', {
   env: import.meta.env.MODE,
-  apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:3001',
+  localApi: '/local-api',
 });
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

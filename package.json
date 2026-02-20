@@ -1,12 +1,13 @@
 {
-  "name": "template",
+  "name": "review",
   "version": "0.0.1",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"pnpm --filter @todos/server dev\" \"pnpm --filter @todos/ui dev\"",
+    "dev": "pnpm --filter @todos/ui dev",
+    "dev:full": "concurrently \"pnpm --filter @todos/server dev\" \"pnpm --filter @todos/ui dev\"",
     "dev:mobile": "pnpm --filter @todos/mobile start",
-    "start": "concurrently \"pnpm --filter @todos/server start\" \"pnpm serve:ui\"",
+    "start": "pnpm serve:ui",
     "serve:ui": "node -e \"const http = require('http'); const fs = require('fs'); const path = require('path'); const server = http.createServer((req, res) => { let filePath = path.join(__dirname, 'dist/ui', req.url === '/' ? 'index.html' : req.url); if (!fs.existsSync(filePath) || fs.lstatSync(filePath).isDirectory()) filePath = path.join(__dirname, 'dist/ui/index.html'); const ext = path.extname(filePath); const contentType = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpg', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' }[ext] || 'text/plain'; fs.readFile(filePath, (err, data) => { if (err) { res.writeHead(500); res.end('Error loading file'); } else { res.writeHead(200, { 'Content-Type': contentType }); res.end(data); } }); }); server.listen(3000, () => console.log('UI server running on http://localhost:3000'));\"",
     "build": "pnpm --color run -r --sort build",
     "lint": "pnpm --color run -r lint",

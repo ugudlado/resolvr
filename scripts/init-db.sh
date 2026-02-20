@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Database Initialization Script for Template Project
+# Database Initialization Script for Review Project
 # ============================================================================
 #
 # Run: ./scripts/init-db.sh
@@ -9,9 +9,9 @@
 
 set -e  # Exit on error
 
-DB_NAME="template_dev"
-DB_USER="template_user"
-DB_PASS="template_pass"
+DB_NAME="review_dev"
+DB_USER="review_user"
+DB_PASS="review_pass"
 
 echo "🗄️  Initializing $DB_NAME database..."
 

@@ -41,14 +41,14 @@ sudo -u postgres psql
 
 ```bash
 # Run PostgreSQL in Docker
-docker run --name template-postgres \
+docker run --name review-postgres \
   -e POSTGRES_USER=postgres \
   -e POSTGRES_PASSWORD=postgres \
   -p 5432:5432 \
   -d postgres:16
 
 # Connect to it
-docker exec -it template-postgres psql -U postgres
+docker exec -it review-postgres psql -U postgres
 ```
 
 ## Initialize Database
@@ -61,9 +61,9 @@ psql -U postgres -f scripts/init-db.sql
 ```
 
 This creates:
-- **User**: `template_user` (password: `template_password`)
-- **Dev DB**: `template_dev`
-- **Test DB**: `template_test`
+- **User**: `review_user` (password: `review_password`)
+- **Dev DB**: `review_dev`
+- **Test DB**: `review_test`
 
 ## Configure Environment
 
@@ -72,7 +72,7 @@ This creates:
 cp .env.example .env
 
 # Edit .env with your database URL
-DATABASE_URL=postgresql://template_user:template_password@localhost:5432/template_dev
+DATABASE_URL=postgresql://review_user:review_password@localhost:5432/review_dev
 ```
 
 ## Run Migrations
@@ -86,7 +86,7 @@ pnpm db:migrate
 
 ```bash
 # Connect to dev database
-psql -U template_user -d template_dev
+psql -U review_user -d review_dev
 
 # List tables (after migrations)
 \dt
@@ -126,7 +126,7 @@ psql -U postgres -f scripts/init-db.sql
 The init script grants all necessary permissions. If issues persist:
 
 ```bash
-psql -U postgres -d template_dev -c "GRANT ALL ON SCHEMA public TO template_user;"
+psql -U postgres -d review_dev -c "GRANT ALL ON SCHEMA public TO review_user;"
 ```
 
 ### Port 5432 already in use
@@ -154,6 +154,6 @@ pnpm db:migrate
 pnpm db:studio
 
 # Reset database (drop all tables)
-psql -U postgres -d template_dev -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+psql -U postgres -d review_dev -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 pnpm db:migrate
 ```

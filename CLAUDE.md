@@ -115,7 +115,7 @@ pnpm db:studio                           # Open Drizzle Studio
 
 ```bash
 # Database
-DATABASE_URL=postgresql://template_user:template_pass@localhost:5432/template_dev
+DATABASE_URL=postgresql://review_user:review_pass@localhost:5432/review_dev
 
 # Server
 PORT=3001

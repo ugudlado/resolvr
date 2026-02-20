@@ -1,9 +1,9 @@
-import { TodosPage } from './pages/TodosPage';
+import { ReviewPage } from './pages/ReviewPage';
 
 function App() {
   return (
-    <div className="min-h-screen bg-gray-100">
-      <TodosPage />
+    <div className="min-h-screen bg-slate-100">
+      <ReviewPage />
     </div>
   );
 }
