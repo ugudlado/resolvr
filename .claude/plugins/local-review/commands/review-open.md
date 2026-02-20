@@ -16,7 +16,7 @@ Start the review UI so you can browse diffs and add inline comments.
 
 2. If not running, start it:
    ```bash
-   cd $CLAUDE_PLUGIN_ROOT/../../../ && pnpm dev
+   cd $CLAUDE_PLUGIN_ROOT/.. && pnpm dev
    ```
    Wait ~3 seconds for Vite to start, then open: http://localhost:3000
 
