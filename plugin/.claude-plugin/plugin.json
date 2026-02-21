@@ -4,13 +4,5 @@
   "description": "GitHub-style local code review with threaded comments. Claude can read review sessions, reply to threads, apply fixes, and resolve open questions.",
   "author": {
     "name": "ugudlado"
-  },
-  "hooks": {
-    "SessionStart": [
-      {
-        "type": "shell",
-        "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
-      }
-    ]
   }
 }
