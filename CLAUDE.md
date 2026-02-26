@@ -9,7 +9,7 @@
 
 ```
 .claude-plugin/     — Plugin metadata
-commands/           — Slash commands (open, resolve)
+commands/           — Slash commands (open, resolve, reply)
 agents/             — Subagent definitions (review-resolver)
 hooks/              — Session hooks (auto-start dev server)
 scripts/            — Shell scripts (context extraction)
@@ -19,8 +19,9 @@ apps/ui/            — React review app (Vite + Tailwind + TypeScript)
   src/pages/        — Page components (ReviewPage)
   src/services/     — API clients (localReviewApi)
   src/utils/        — Diff parsing and utilities
+  eslint.config.js  — ESLint 9 flat config (TypeScript + React)
   dist/             — Built output (committed for zero-build install)
-docs/plans/         — Design documents
+docs/plans/         — Design documents (local only, gitignored)
 .review/sessions/   — Runtime session storage (gitignored)
 ```
 
@@ -31,6 +32,7 @@ pnpm dev          # Start Vite dev server at http://localhost:3000
 pnpm build        # Build UI for production
 pnpm test:unit    # Run unit tests
 pnpm lint         # Lint all files
+pnpm format       # Format all source files with Prettier
 ```
 
 ## Architecture
@@ -56,10 +58,16 @@ pnpm lint         # Lint all files
 # The Vite dev server runs on port 3000 by default
 ```
 
+## Code Quality
+
+- **ESLint**: Config at `apps/ui/eslint.config.js` (ESLint 9 flat config)
+- **Prettier**: Config at `.prettierrc` with Tailwind CSS plugin
+- **Pre-commit**: Husky runs lint-staged (eslint + prettier on staged ts/tsx files)
+- ESLint binary lives in `apps/ui/node_modules` — lint-staged uses `pnpm -C apps/ui exec eslint`
+
 ## Important Reminders
 
 1. Use `pnpm` (not npm) for package management
 2. API routes are defined in `apps/ui/vite.config.ts` as Vite plugin middleware
 3. Session files live in `.review/sessions/` (gitignored)
 4. Built dist is committed to git for zero-build plugin installation
-5. Never push to remote unless explicitly requested
