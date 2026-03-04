@@ -1,8 +1,8 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { featureApi, type FeatureInfo } from "../services/featureApi";
 import { getStatusConfig } from "../utils/featureStatus";
-import type { FeatureStatus } from "../types/sessions";
+import { useFeatures } from "../hooks/useFeaturesContext";
+
 import { formatFeatureLabel } from "../utils/formatFeatureLabel";
 
 interface FeatureNavBarProps {
@@ -35,23 +35,25 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
   // Feature switcher dropdown state
   // -------------------------------------------------------------------------
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [features, setFeatures] = useState<FeatureInfo[]>([]);
+  const { features, refresh: refreshFeatures } = useFeatures();
   const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fetch features on mount and when dropdown opens (for fresh data)
+  // Clean up copy timeout on unmount
   useEffect(() => {
-    let cancelled = false;
-    void featureApi.getFeatures().then(({ features: f }) => {
-      if (!cancelled) setFeatures(f);
-    });
     return () => {
-      cancelled = true;
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
     };
-  }, [dropdownOpen]);
+  }, []);
+
+  // Refresh features when dropdown opens (for fresh data)
+  useEffect(() => {
+    if (dropdownOpen) refreshFeatures();
+  }, [dropdownOpen, refreshFeatures]);
 
   // Focus search input when dropdown opens
   useEffect(() => {
@@ -133,9 +135,7 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
             {/* Status badge — shown when features are loaded */}
             {currentFeature &&
               (() => {
-                const config = getStatusConfig(
-                  currentFeature.status as FeatureStatus,
-                );
+                const config = getStatusConfig(currentFeature.status);
                 return (
                   <span
                     className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${config.color} ${config.bgColor}`}
@@ -175,7 +175,7 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
                   </div>
                 ) : (
                   filtered.map((f) => {
-                    const fConfig = getStatusConfig(f.status as FeatureStatus);
+                    const fConfig = getStatusConfig(f.status);
                     return (
                       <button
                         key={f.id}
@@ -218,9 +218,14 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
             <button
               type="button"
               onClick={() => {
+                if (copyTimeoutRef.current)
+                  clearTimeout(copyTimeoutRef.current);
                 void navigator.clipboard.writeText(currentFeature.worktreePath);
                 setCopied(true);
-                setTimeout(() => setCopied(false), 1500);
+                copyTimeoutRef.current = setTimeout(
+                  () => setCopied(false),
+                  1500,
+                );
               }}
               className="shrink-0 rounded p-1 text-slate-500 transition-colors hover:bg-[var(--bg-elevated)] hover:text-slate-300"
               aria-label="Copy worktree path"
