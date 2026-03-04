@@ -16,6 +16,14 @@ Or add to your project's `.claude/settings.json`:
 }
 ```
 
+## Recommended Companion Plugin
+
+This plugin works best with [pr-review-toolkit](https://github.com/anthropics/claude-code-plugins) for automated code review agents (code-reviewer, silent-failure-hunter, code-simplifier, etc.). Install it alongside local-review:
+
+```bash
+claude install-plugin pr-review-toolkit
+```
+
 ## Workflow
 
 1. **Open the UI** — `/local-review:open`
@@ -48,8 +56,8 @@ Or add to your project's `.claude/settings.json`:
 
 ```bash
 pnpm install
-pnpm dev          # Start Vite dev server at http://localhost:3000
-pnpm build        # Build for production (output in apps/ui/dist/)
+pnpm dev          # Start Vite dev server at http://localhost:37002
+pnpm build        # Build for production (output in src/apps/ui/dist/)
 pnpm test:unit    # Run tests
 ```
 
