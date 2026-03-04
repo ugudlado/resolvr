@@ -1,8 +1,0 @@
-{
-  "name": "local-review",
-  "version": "1.0.0",
-  "description": "GitHub-style local code review with threaded comments. Claude can read review sessions, reply to threads, apply fixes, and resolve open questions.",
-  "author": {
-    "name": "local"
-  }
-}
