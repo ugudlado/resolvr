@@ -24,8 +24,8 @@ export function FileIcon({ status }: { status: DiffFile["status"] }) {
 }
 
 interface FileSidebarProps {
-  leftTab: "files" | "overview";
-  onTabChange: (tab: "files" | "overview") => void;
+  leftTab?: "files" | "overview";
+  onTabChange?: (tab: "files" | "overview") => void;
   pendingCount: number;
   visibleFiles: DiffFile[];
   selectedFilePath: string;
@@ -36,14 +36,16 @@ interface FileSidebarProps {
   onFolderToggle: (path: string) => void;
   unresolvedThreadCountByFile: Map<string, number>;
   changeCountByFile: Map<string, number>;
-  threads: ReviewThread[];
-  outdatedThreadIds: Set<string>;
-  overviewFilter: "all" | "open" | "resolved" | "outdated";
-  onOverviewFilterChange: (f: "all" | "open" | "resolved" | "outdated") => void;
-  onThreadClick: (thread: ReviewThread) => void;
-  onReset: () => void;
-  summaryNotes: string;
-  onSummaryNotesChange: (v: string) => void;
+  threads?: ReviewThread[];
+  outdatedThreadIds?: Set<string>;
+  overviewFilter?: "all" | "open" | "resolved" | "outdated";
+  onOverviewFilterChange?: (
+    f: "all" | "open" | "resolved" | "outdated",
+  ) => void;
+  onThreadClick?: (thread: ReviewThread) => void;
+  onReset?: () => void;
+  /** When true, hide the Overview tab and only show Files. */
+  hideOverviewTab?: boolean;
 }
 
 export function FileSidebar({
@@ -65,42 +67,43 @@ export function FileSidebar({
   onOverviewFilterChange,
   onThreadClick,
   onReset,
-  summaryNotes,
-  onSummaryNotesChange,
+  hideOverviewTab = false,
 }: FileSidebarProps) {
   const folderRows = buildFolderRows(visibleFiles, collapsedFolders);
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-[#30363d] bg-[#161b22]">
-      {/* Tab switcher */}
-      <div className="flex border-b border-[#30363d]">
-        <button
-          type="button"
-          onClick={() => onTabChange("files")}
-          className={`flex-1 py-1.5 text-[11px] font-medium ${
-            leftTab === "files"
-              ? "border-b-2 border-[#1f6feb] text-slate-200"
-              : "text-slate-500 hover:text-slate-300"
-          }`}
-        >
-          Files
-        </button>
-        <button
-          type="button"
-          onClick={() => onTabChange("overview")}
-          className={`flex-1 py-1.5 text-[11px] font-medium ${
-            leftTab === "overview"
-              ? "border-b-2 border-[#1f6feb] text-slate-200"
-              : "text-slate-500 hover:text-slate-300"
-          }`}
-        >
-          Overview{pendingCount > 0 ? ` (${pendingCount})` : ""}
-        </button>
-      </div>
+    <aside className="flex w-64 shrink-0 flex-col border-r border-[var(--border-default)] bg-[var(--bg-surface)]">
+      {/* Tab switcher (hidden when overview tab is disabled) */}
+      {!hideOverviewTab && (
+        <div className="flex border-b border-[var(--border-default)]">
+          <button
+            type="button"
+            onClick={() => onTabChange?.("files")}
+            className={`flex-1 py-1.5 text-[11px] font-medium ${
+              leftTab === "files"
+                ? "border-b-2 border-[var(--accent-blue)] text-slate-200"
+                : "text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            Files
+          </button>
+          <button
+            type="button"
+            onClick={() => onTabChange?.("overview")}
+            className={`flex-1 py-1.5 text-[11px] font-medium ${
+              leftTab === "overview"
+                ? "border-b-2 border-[var(--accent-blue)] text-slate-200"
+                : "text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            Overview{pendingCount > 0 ? ` (${pendingCount})` : ""}
+          </button>
+        </div>
+      )}
 
       {leftTab === "files" && (
         <>
-          <div className="flex items-center justify-between border-b border-[#30363d] px-3 py-2">
+          <div className="flex items-center justify-between border-b border-[var(--border-default)] px-3 py-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Files
             </span>
@@ -121,15 +124,18 @@ export function FileSidebar({
                 No changed files
               </p>
             ) : showFolderTree ? (
-              folderRows.map((row) => {
+              folderRows.map((row, index) => {
                 if (row.kind === "folder") {
                   return (
                     <button
                       key={row.key}
                       type="button"
                       onClick={() => onFolderToggle(row.path)}
-                      className="flex w-full items-center gap-1.5 px-3 py-1 text-left text-xs text-slate-500 hover:bg-white/5 hover:text-slate-300"
-                      style={{ paddingLeft: `${12 + row.depth * 14}px` }}
+                      className="stagger-fade-in flex w-full items-center gap-1.5 px-3 py-1 text-left text-xs text-slate-500 hover:bg-white/5 hover:text-slate-300"
+                      style={{
+                        paddingLeft: `${12 + row.depth * 14}px`,
+                        animationDelay: `${index * 50}ms`,
+                      }}
                     >
                       <span className="text-[10px]">
                         {row.collapsed ? "▶" : "▼"}
@@ -149,10 +155,11 @@ export function FileSidebar({
                     type="button"
                     onClick={() => onFileSelect(file.path)}
                     title={file.path}
-                    className={`flex w-full items-center justify-between gap-1 py-1 text-left text-xs transition-colors ${active ? "bg-[#1f6feb]/20 text-slate-200" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"}`}
+                    className={`stagger-fade-in sidebar-item flex w-full items-center justify-between gap-1 py-1 text-left text-xs transition-colors ${active ? "bg-[var(--accent-blue)]/20 text-slate-200" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"}`}
                     style={{
                       paddingLeft: `${12 + row.depth * 14}px`,
                       paddingRight: "12px",
+                      animationDelay: `${index * 50}ms`,
                     }}
                   >
                     <div className="flex min-w-0 items-center gap-1.5">
@@ -175,7 +182,7 @@ export function FileSidebar({
                 );
               })
             ) : (
-              visibleFiles.map((file) => {
+              visibleFiles.map((file, index) => {
                 const active = file.path === selectedFilePath;
                 const unresolved =
                   unresolvedThreadCountByFile.get(file.path) || 0;
@@ -185,7 +192,8 @@ export function FileSidebar({
                     type="button"
                     onClick={() => onFileSelect(file.path)}
                     title={file.path}
-                    className={`flex w-full items-center justify-between gap-1 px-3 py-1 text-left text-xs transition-colors ${active ? "bg-[#1f6feb]/20 text-slate-200" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"}`}
+                    className={`stagger-fade-in sidebar-item flex w-full items-center justify-between gap-1 px-3 py-1 text-left text-xs transition-colors ${active ? "bg-[var(--accent-blue)]/20 text-slate-200" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"}`}
+                    style={{ animationDelay: `${index * 50}ms` }}
                   >
                     <div className="flex min-w-0 items-center gap-1.5">
                       <FileIcon status={file.status} />
@@ -211,30 +219,22 @@ export function FileSidebar({
         </>
       )}
 
-      {leftTab === "overview" && (
-        <OverviewTab
-          threads={threads}
-          outdatedThreadIds={outdatedThreadIds}
-          overviewFilter={overviewFilter}
-          onFilterChange={onOverviewFilterChange}
-          onThreadClick={onThreadClick}
-          onReset={onReset}
-        />
-      )}
-
-      {/* Summary notes */}
-      <div className="border-t border-[#30363d] p-3">
-        <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-          Review notes
-        </label>
-        <textarea
-          value={summaryNotes}
-          onChange={(e) => onSummaryNotesChange(e.target.value)}
-          rows={3}
-          placeholder="High-level findings…"
-          className="w-full resize-none rounded border border-[#30363d] bg-[#0d1117] px-2 py-1.5 text-xs text-slate-300 placeholder-slate-700 outline-none focus:border-[#1f6feb]"
-        />
-      </div>
+      {leftTab === "overview" &&
+        threads &&
+        outdatedThreadIds &&
+        overviewFilter &&
+        onOverviewFilterChange &&
+        onThreadClick &&
+        onReset && (
+          <OverviewTab
+            threads={threads}
+            outdatedThreadIds={outdatedThreadIds}
+            overviewFilter={overviewFilter}
+            onFilterChange={onOverviewFilterChange}
+            onThreadClick={onThreadClick}
+            onReset={onReset}
+          />
+        )}
     </aside>
   );
 }

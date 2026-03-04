@@ -49,8 +49,8 @@ export function OverviewTab({
             onClick={() => onFilterChange(key)}
             className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
               overviewFilter === key
-                ? "bg-[#1f6feb] text-white"
-                : "border border-[#30363d] text-slate-400 hover:bg-[#21262d]"
+                ? "bg-[var(--accent-blue)] text-white"
+                : "border border-[var(--border-default)] text-slate-400 hover:bg-[var(--bg-elevated)]"
             }`}
           >
             {label}
@@ -79,9 +79,9 @@ export function OverviewTab({
         return (
           <div
             key={filePath}
-            className="rounded border border-[#30363d] bg-[#161b22]"
+            className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)]"
           >
-            <div className="border-b border-[#30363d] px-2 py-1.5 text-[10px] text-slate-400">
+            <div className="border-b border-[var(--border-default)] px-2 py-1.5 text-[10px] text-slate-400">
               <span className="font-mono">{filePath.split("/").pop()}</span>
               {openCount > 0 && (
                 <span className="ml-1 text-amber-400">· {openCount} open</span>
@@ -92,7 +92,7 @@ export function OverviewTab({
                 </span>
               )}
             </div>
-            <div className="divide-y divide-[#21262d]">
+            <div className="divide-y divide-[var(--bg-elevated)]">
               {fileThreads.map((thread) => {
                 const isOutdated = outdatedThreadIds.has(thread.id);
                 const firstMsg = thread.messages[0];
@@ -111,7 +111,7 @@ export function OverviewTab({
                     key={thread.id}
                     type="button"
                     onClick={() => onThreadClick(thread)}
-                    className="w-full px-2 py-1.5 text-left hover:bg-[#21262d]"
+                    className="w-full px-2 py-1.5 text-left hover:bg-[var(--bg-elevated)]"
                   >
                     <div className="flex items-baseline gap-1.5">
                       <span className={`text-[10px] ${statusColor}`}>
@@ -127,7 +127,7 @@ export function OverviewTab({
                       </span>
                     </div>
                     {isOutdated && thread.anchorContent && (
-                      <code className="mt-0.5 block truncate rounded bg-[#0d1117] px-1 py-0.5 text-[9px] text-slate-500">
+                      <code className="mt-0.5 block truncate rounded bg-[var(--bg-base)] px-1 py-0.5 text-[9px] text-slate-500">
                         {thread.anchorContent}
                       </code>
                     )}

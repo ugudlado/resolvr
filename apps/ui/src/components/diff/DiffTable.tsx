@@ -77,7 +77,7 @@ export function DiffTable({
                 >
                   <td
                     colSpan={5}
-                    className="bg-[#1f2937] py-1 pl-4 text-[11px] text-slate-500"
+                    className="bg-[var(--diff-hunk-bg)] py-1 pl-4 text-[11px] text-slate-500"
                   >
                     {hunk.header}
                   </td>
@@ -145,15 +145,20 @@ export function DiffTable({
                   composeAnchorLine === targetLine;
 
                 let rowBg = "";
-                if (line.kind === "add") rowBg = "bg-[#0d4a1a]";
-                else if (line.kind === "del") rowBg = "bg-[#4a0d0d]";
-                else if (line.kind === "meta") rowBg = "bg-[#1f2937]";
+                if (line.kind === "add") rowBg = "bg-[var(--diff-added-bg)]";
+                else if (line.kind === "del")
+                  rowBg = "bg-[var(--diff-deleted-bg)]";
+                else if (line.kind === "meta")
+                  rowBg = "bg-[var(--diff-hunk-bg)]";
 
                 let gutterBg = "";
-                if (line.kind === "add") gutterBg = "bg-[#0a3d15]";
-                else if (line.kind === "del") gutterBg = "bg-[#3d0a0a]";
-                else if (line.kind === "meta") gutterBg = "bg-[#1a2332]";
-                else gutterBg = "bg-[#0d1117]";
+                if (line.kind === "add")
+                  gutterBg = "bg-[var(--diff-added-gutter)]";
+                else if (line.kind === "del")
+                  gutterBg = "bg-[var(--diff-deleted-gutter)]";
+                else if (line.kind === "meta")
+                  gutterBg = "bg-[var(--diff-hunk-gutter)]";
+                else gutterBg = "bg-[var(--bg-base)]";
 
                 const selectionHighlight = selected
                   ? "ring-1 ring-inset ring-blue-500/50 bg-blue-900/20"
@@ -162,7 +167,7 @@ export function DiffTable({
                 rows.push(
                   <tr
                     key={`${selectedFile.path}-${hunkIndex}-${i}`}
-                    className={`group border-b border-[#21262d] ${rowBg} ${selectionHighlight}`}
+                    className={`group border-b border-[var(--bg-elevated)] ${rowBg} ${selectionHighlight}`}
                     onMouseEnter={() => {
                       if (!dragSelection || !targetSide || !targetLine) return;
                       if (
@@ -175,7 +180,7 @@ export function DiffTable({
                   >
                     {/* Add-comment button */}
                     <td
-                      className={`w-6 border-r border-[#21262d] text-center align-top ${gutterBg}`}
+                      className={`w-6 border-r border-[var(--bg-elevated)] text-center align-top ${gutterBg}`}
                     >
                       {targetSide && targetLine ? (
                         <button
@@ -188,7 +193,7 @@ export function DiffTable({
                               effectiveLine ?? 1,
                             );
                           }}
-                          className="h-full w-full text-slate-700 opacity-0 transition hover:text-[#1f6feb] group-hover:opacity-100"
+                          className="h-full w-full text-slate-700 opacity-0 transition hover:text-[var(--accent-blue)] group-hover:opacity-100"
                           title="Add comment (drag for range)"
                         >
                           +
@@ -197,13 +202,13 @@ export function DiffTable({
                     </td>
                     {/* Old line number */}
                     <td
-                      className={`w-12 select-none border-r border-[#21262d] px-2 py-0.5 text-right text-[10px] text-slate-600 ${gutterBg}`}
+                      className={`w-12 select-none border-r border-[var(--bg-elevated)] px-2 py-0.5 text-right text-[10px] text-slate-600 ${gutterBg}`}
                     >
                       {line.oldLineNumber ?? ""}
                     </td>
                     {/* New line number */}
                     <td
-                      className={`w-12 select-none border-r border-[#21262d] px-2 py-0.5 text-right text-[10px] text-slate-600 ${gutterBg}`}
+                      className={`w-12 select-none border-r border-[var(--bg-elevated)] px-2 py-0.5 text-right text-[10px] text-slate-600 ${gutterBg}`}
                     >
                       {line.newLineNumber ?? ""}
                     </td>
@@ -297,16 +302,16 @@ export function DiffTable({
                     rows.push(
                       <tr
                         key={`expand-${selectedFile.path}-${hunkIndex}-${ln}`}
-                        className="bg-[#0d1117]"
+                        className="bg-[var(--bg-base)]"
                       >
-                        <td className="w-6 border-r border-[#21262d] bg-[#0d1117]" />
-                        <td className="w-12 select-none border-r border-[#21262d] bg-[#0d1117] px-2 py-0.5 text-right text-[10px] text-slate-600">
+                        <td className="w-6 border-r border-[var(--bg-elevated)] bg-[var(--bg-base)]" />
+                        <td className="w-12 select-none border-r border-[var(--bg-elevated)] bg-[var(--bg-base)] px-2 py-0.5 text-right text-[10px] text-slate-600">
                           {ln}
                         </td>
-                        <td className="w-12 select-none border-r border-[#21262d] bg-[#0d1117] px-2 py-0.5 text-right text-[10px] text-slate-600">
+                        <td className="w-12 select-none border-r border-[var(--bg-elevated)] bg-[var(--bg-base)] px-2 py-0.5 text-right text-[10px] text-slate-600">
                           {ln}
                         </td>
-                        <td className="w-5 select-none bg-[#0d1117] px-1 py-0.5" />
+                        <td className="w-5 select-none bg-[var(--bg-base)] px-1 py-0.5" />
                         <td className="py-0.5 pl-2 pr-4 text-slate-500">
                           <pre className="whitespace-pre-wrap break-all">
                             {content}
@@ -325,7 +330,7 @@ export function DiffTable({
       </div>
 
       {/* Hunk minimap */}
-      <div className="flex w-12 shrink-0 flex-col border-l border-[#30363d] bg-[#161b22] py-2">
+      <div className="flex w-12 shrink-0 flex-col border-l border-[var(--border-default)] bg-[var(--bg-surface)] py-2">
         <div className="mb-2 text-center text-[9px] font-semibold uppercase tracking-wider text-slate-700">
           hunks
         </div>
@@ -343,13 +348,13 @@ export function DiffTable({
                     .getElementById(hunkDomId(selectedFile.path, index))
                     ?.scrollIntoView({ block: "start", behavior: "smooth" });
                 }}
-                className="flex w-9 flex-col items-center rounded border border-[#30363d] bg-[#21262d] py-1.5 text-[9px] text-slate-500 hover:bg-[#30363d] hover:text-slate-300"
+                className="flex w-9 flex-col items-center rounded border border-[var(--border-default)] bg-[var(--bg-elevated)] py-1.5 text-[9px] text-slate-500 hover:bg-[var(--border-default)] hover:text-slate-300"
                 title={hunk.header}
               >
                 <span>{index + 1}</span>
-                <div className="mt-1 h-1 w-6 rounded-full bg-[#30363d]">
+                <div className="mt-1 h-1 w-6 rounded-full bg-[var(--border-default)]">
                   <div
-                    className="h-full rounded-full bg-[#1f6feb]"
+                    className="h-full rounded-full bg-[var(--accent-blue)]"
                     style={{ width: `${Math.min(100, (changed / 12) * 100)}%` }}
                   />
                 </div>

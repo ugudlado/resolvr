@@ -103,7 +103,7 @@ export function FullFileView({
               return (
                 <tr
                   key={lineNum}
-                  className={`group border-b border-[#21262d] ${selected ? "bg-blue-900/20 ring-1 ring-inset ring-blue-500/50" : ""}`}
+                  className={`group border-b border-[var(--bg-elevated)] ${selected ? "bg-blue-900/20 ring-1 ring-inset ring-blue-500/50" : ""}`}
                   onMouseEnter={() => {
                     if (!dragSelection) return;
                     if (
@@ -114,20 +114,20 @@ export function FullFileView({
                     onDragUpdate(selectedFile.path, "new", lineNum);
                   }}
                 >
-                  <td className="w-6 border-r border-[#21262d] bg-[#0d1117] text-center align-top">
+                  <td className="w-6 border-r border-[var(--bg-elevated)] bg-[var(--bg-base)] text-center align-top">
                     <button
                       type="button"
                       onMouseDown={(e) => {
                         e.preventDefault();
                         onBeginSelection(selectedFile.path, "new", lineNum);
                       }}
-                      className="h-full w-full text-slate-700 opacity-0 transition hover:text-[#1f6feb] group-hover:opacity-100"
+                      className="h-full w-full text-slate-700 opacity-0 transition hover:text-[var(--accent-blue)] group-hover:opacity-100"
                       title="Add comment (drag for range)"
                     >
                       +
                     </button>
                   </td>
-                  <td className="w-12 select-none border-r border-[#21262d] bg-[#0d1117] px-2 py-0.5 text-right text-[10px] text-slate-600">
+                  <td className="w-12 select-none border-r border-[var(--bg-elevated)] bg-[var(--bg-base)] px-2 py-0.5 text-right text-[10px] text-slate-600">
                     {lineNum}
                   </td>
                   <td className="py-0.5 pl-2 pr-4 text-slate-300">

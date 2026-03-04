@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   type CommitInfo,
   localReviewApi,
@@ -8,24 +8,37 @@ import {
   type ReviewThread,
 } from "../services/localReviewApi";
 import { parseUnifiedDiff } from "../utils/diffParser";
-import {
-  type Selection,
-  uid,
-  getLineContent,
-  isThreadOutdated,
-  normalizeSelection,
-  threadAnchorKey,
-} from "../utils/diffUtils";
+import { uid, getLineContent, isThreadOutdated } from "../utils/diffUtils";
 import { FileSidebar, FileIcon } from "../components/sidebar/FileSidebar";
-import { FullFileView } from "../components/diff/FullFileView";
-import { DiffTable } from "../components/diff/DiffTable";
+import { DiffViewWrapper } from "../components/diff/DiffViewWrapper";
+import { ComposeWidget } from "../components/diff/ThreadWidget";
+import { ThreadDisplay } from "../components/diff/ThreadWidget";
+import {
+  DiffSelectionPopover,
+  type DiffSelectionInfo,
+} from "../components/diff/DiffSelectionPopover";
+import { SelectionComposePortal } from "../components/diff/SelectionComposePortal";
+import {
+  LineRangeSelector,
+  type LineRangeSelection,
+} from "../components/diff/LineRangeSelector";
 import { useReviewSession } from "../hooks/useReviewSession";
+import { ReviewVerdict } from "../components/shared/ReviewVerdict";
 import { useDiffNavigation } from "../hooks/useDiffNavigation";
-import { ReviewToolbar } from "../components/review/ReviewToolbar";
+import { CodeThreadsPanel } from "../components/review/CodeThreadsPanel";
+import type { ReviewThread as SessionReviewThread } from "../types/sessions";
+import { APP_NAME } from "../config/app";
 
-export function ReviewPage() {
+export interface ReviewPageProps {
+  /** Pre-set worktree path — hides worktree selector when provided. */
+  worktreePath?: string;
+  /** When true, hides the top "Local Review" title (used when embedded in feature layout). */
+  embedded?: boolean;
+}
+
+export function ReviewPage({ worktreePath, embedded }: ReviewPageProps = {}) {
   const [repoContext, setRepoContext] = useState<RepoContext | null>(null);
-  const [selectedWorktree, setSelectedWorktree] = useState("");
+  const [selectedWorktree, setSelectedWorktree] = useState(worktreePath ?? "");
   const [sourceBranch, setSourceBranch] = useState("");
   const [targetBranch, setTargetBranch] = useState("main");
 
@@ -35,30 +48,24 @@ export function ReviewPage() {
   const [selectedCommit, setSelectedCommit] = useState("");
   const [selectedCommitDiff, setSelectedCommitDiff] = useState("");
 
-  const [showPendingOnly, setShowPendingOnly] = useState(false);
+  const [showPendingOnly] = useState(false);
   const [showFolderTree, setShowFolderTree] = useState(true);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(
     new Set(),
   );
-  const [leftTab, setLeftTab] = useState<"files" | "overview">("files");
+  const leftTab = "files" as const;
 
-  const [fullFileMode, setFullFileMode] = useState(false);
-  const [fullFileContent, setFullFileContent] = useState<string | null>(null);
-  const [fullFileError, setFullFileError] = useState(false);
-  const [fullFileLoading, setFullFileLoading] = useState(false);
+  /** Line where the compose widget is open, or null if closed. */
+  const [composingAt, setComposingAt] = useState<{
+    lineNumber: number;
+    startLineNumber?: number;
+    side: "old" | "new";
+    selectedText?: string;
+    /** True when opened via the + button / range selector (uses portal). */
+    usePortal?: boolean;
+  } | null>(null);
 
-  const [dragSelection, setDragSelection] = useState<Selection | null>(null);
-  const [composeSelection, setComposeSelection] = useState<Selection | null>(
-    null,
-  );
-  const [composeDraft, setComposeDraft] = useState("");
-
-  const [expandedGaps, setExpandedGaps] = useState<Map<string, Set<number>>>(
-    new Map(),
-  );
-  const [expansionContent, setExpansionContent] = useState<Map<string, string>>(
-    new Map(),
-  );
+  const [diffMode, setDiffMode] = useState<"split" | "unified">("unified");
 
   const reviewPanelRef = useRef<HTMLDivElement | null>(null);
   // Track the last viewKey for which we auto-selected a file, so we don't override
@@ -81,13 +88,8 @@ export function ReviewPage() {
   const {
     threads,
     setThreads,
-    replyDrafts,
-    setReplyDrafts,
-    summaryNotes,
-    setSummaryNotes,
     status,
     setStatus,
-    resetSession,
     addReply,
     updateThreadStatus,
     reviewVerdict,
@@ -104,17 +106,6 @@ export function ReviewPage() {
     parsedFiles[0] ||
     null;
 
-  const threadsByKey = useMemo(() => {
-    const map = new Map<string, ReviewThread[]>();
-    for (const thread of threads) {
-      const key = threadAnchorKey(thread);
-      const list = map.get(key) || [];
-      list.push(thread);
-      map.set(key, list);
-    }
-    return map;
-  }, [threads]);
-
   const outdatedThreadIds = useMemo(() => {
     const ids = new Set<string>();
     for (const thread of threads) {
@@ -122,6 +113,78 @@ export function ReviewPage() {
     }
     return ids;
   }, [threads, parsedFiles]);
+
+  /** Threads for the currently selected file, keyed as "side:line" for DiffViewWrapper. */
+  const threadsByLine = useMemo(() => {
+    if (!selectedFile) return new Map<string, SessionReviewThread[]>();
+    const map = new Map<string, SessionReviewThread[]>();
+    for (const thread of threads) {
+      if (thread.filePath !== selectedFile.path) continue;
+      const line = thread.lineEnd || thread.line;
+      const key = `${thread.side}:${line}`;
+      // Adapt old thread shape to new SessionReviewThread for DiffViewWrapper
+      const adapted: SessionReviewThread = {
+        id: thread.id,
+        anchor: {
+          type: "diff-line",
+          hash: "",
+          path: thread.filePath,
+          preview: thread.anchorContent || `Line ${thread.line}`,
+          line: thread.line,
+          lineEnd: thread.lineEnd,
+          side: thread.side,
+        },
+        status: thread.status,
+        messages: thread.messages,
+        lastUpdatedAt: thread.lastUpdatedAt,
+      };
+      const list = map.get(key) || [];
+      list.push(adapted);
+      map.set(key, list);
+    }
+    return map;
+  }, [threads, selectedFile]);
+
+  /** Pre-parse the full diff into per-file sections (only re-runs when activeDiff changes). */
+  const hunksByFile = useMemo(() => {
+    const map = new Map<string, string[]>();
+    if (!activeDiff) return map;
+    const lines = activeDiff.split("\n");
+    let currentPath = "";
+    let fileSection: string[] = [];
+
+    for (const line of lines) {
+      if (line.startsWith("diff --git")) {
+        // Flush previous file section
+        if (currentPath && fileSection.length > 0) {
+          const existing = map.get(currentPath) || [];
+          existing.push(fileSection.join("\n"));
+          map.set(currentPath, existing);
+          fileSection = [];
+        }
+        // Extract path from "diff --git a/path b/path" (handles c/, w/ prefixes too)
+        // Use non-greedy \S+? so the prefix stops at the first slash (a/, b/, c/, w/)
+        const match = line.match(/diff --git \S+?\/(.+) \S+?\/\1/);
+        currentPath = match?.[1] ?? "";
+        if (currentPath) fileSection = [line];
+        continue;
+      }
+      if (!currentPath) continue;
+      fileSection.push(line);
+    }
+    // Flush last file section
+    if (currentPath && fileSection.length > 0) {
+      const existing = map.get(currentPath) || [];
+      existing.push(fileSection.join("\n"));
+      map.set(currentPath, existing);
+    }
+    return map;
+  }, [activeDiff]);
+
+  /** Raw diff sections for the selected file (cheap lookup from pre-parsed map). */
+  const selectedFileHunks = selectedFile
+    ? (hunksByFile.get(selectedFile.path) ?? [])
+    : [];
 
   const pendingCount = threads.filter((t) => t.status !== "approved").length;
 
@@ -178,9 +241,15 @@ export function ReviewPage() {
 
   const refreshRepoContext = async () => {
     try {
-      const context = await localReviewApi.getContext();
+      const context = await localReviewApi.getContext(worktreePath);
       setRepoContext(context);
-      setSelectedWorktree(context.currentWorktree);
+
+      // When embedded with a specific worktree, use that; otherwise use current
+      if (worktreePath) {
+        setSelectedWorktree(worktreePath);
+      } else {
+        setSelectedWorktree(context.currentWorktree);
+      }
 
       // Try to restore branches from the most recent session
       let restored = false;
@@ -258,57 +327,75 @@ export function ReviewPage() {
     }
   };
 
-  const beginSelection = (
-    filePath: string,
-    side: "old" | "new",
-    line: number,
-  ) => {
-    setComposeSelection(null);
-    setComposeDraft("");
-    setDragSelection({ filePath, side, startLine: line, endLine: line });
-  };
+  /** Called when user clicks "+" on a diff line to open the compose widget. */
+  const handleAddComment = useCallback(
+    (lineNumber: number, side: "old" | "new") => {
+      setComposingAt({ lineNumber, side });
+    },
+    [],
+  );
 
-  const commitSelection = () => {
-    if (!dragSelection) return;
-    setComposeSelection(normalizeSelection(dragSelection));
-    setComposeDraft("");
-    setDragSelection(null);
-  };
+  /** Called when user selects text in the diff and clicks "Comment". */
+  const handleSelectionComment = useCallback((info: DiffSelectionInfo) => {
+    setComposingAt({
+      lineNumber: info.lineNumber,
+      startLineNumber: info.startLineNumber,
+      side: info.side,
+      selectedText: info.text,
+    });
+  }, []);
 
-  const addThreadFromSelection = () => {
-    if (!composeSelection) return;
-    const draft = composeDraft.trim();
-    if (!draft) return;
-    const now = new Date().toISOString();
-    const normalized = normalizeSelection(composeSelection);
+  /** Called when user click+drags on the + button to select a range. */
+  const handleLineRangeComment = useCallback((sel: LineRangeSelection) => {
+    setComposingAt({
+      lineNumber: sel.endLine,
+      startLineNumber:
+        sel.startLine !== sel.endLine ? sel.startLine : undefined,
+      side: sel.side,
+      usePortal: true,
+    });
+  }, []);
 
-    const message: ReviewMessage = {
-      id: uid(),
-      authorType: "human",
-      author: "reviewer",
-      text: draft,
-      createdAt: now,
-    };
-    const thread: ReviewThread = {
-      id: uid(),
-      filePath: normalized.filePath,
-      line: normalized.startLine,
-      lineEnd: normalized.endLine,
-      side: normalized.side,
-      anchorContent: getLineContent(
-        parsedFiles,
-        normalized.filePath,
-        normalized.startLine,
-        normalized.side,
-      ),
-      status: "open",
-      messages: [message],
-      lastUpdatedAt: now,
-    };
-    setThreads((prev) => [...prev, thread]);
-    setComposeSelection(null);
-    setComposeDraft("");
-  };
+  /** Called when the compose widget submits a new thread. */
+  const handleComposeSubmit = useCallback(
+    (
+      anchor: {
+        path: string;
+        line: number;
+        lineEnd?: number;
+        side: "old" | "new";
+      },
+      text: string,
+    ) => {
+      const now = new Date().toISOString();
+      const message: ReviewMessage = {
+        id: uid(),
+        authorType: "human",
+        author: "reviewer",
+        text,
+        createdAt: now,
+      };
+      const thread: ReviewThread = {
+        id: uid(),
+        filePath: anchor.path,
+        line: anchor.line,
+        lineEnd: anchor.lineEnd,
+        side: anchor.side,
+        anchorContent: getLineContent(
+          parsedFiles,
+          anchor.path,
+          anchor.line,
+          anchor.side,
+        ),
+        status: "open",
+        messages: [message],
+        lastUpdatedAt: now,
+      };
+      setThreads((prev) => [...prev, thread]);
+      setComposingAt(null);
+    },
+    [parsedFiles, setThreads],
+  );
 
   useEffect(() => {
     void refreshRepoContext();
@@ -342,31 +429,7 @@ export function ReviewPage() {
   useEffect(() => {
     if (!selectedFilePath) return;
     localStorage.setItem(`review.selectedFile.${viewKey}`, selectedFilePath);
-    setFullFileContent(null);
-    setFullFileError(false);
   }, [viewKey, selectedFilePath]);
-
-  useEffect(() => {
-    if (!fullFileMode || !selectedFilePath) return;
-    setFullFileLoading(true);
-    setFullFileError(false);
-    setFullFileContent(null);
-    localReviewApi
-      .getFileContent({
-        worktreePath: selectedWorktree || undefined,
-        filePath: selectedFilePath,
-      })
-      .then((content) => setFullFileContent(content))
-      .catch(() => setFullFileError(true))
-      .finally(() => setFullFileLoading(false));
-  }, [fullFileMode, selectedFilePath, selectedWorktree]);
-
-  useEffect(() => {
-    if (!dragSelection) return;
-    const handleMouseUp = () => commitSelection();
-    window.addEventListener("mouseup", handleMouseUp);
-    return () => window.removeEventListener("mouseup", handleMouseUp);
-  }, [dragSelection]);
 
   useDiffNavigation({
     commits,
@@ -383,20 +446,6 @@ export function ReviewPage() {
   };
 
   useEffect(() => {
-    if (!composeSelection) return;
-    const normalized = normalizeSelection(composeSelection);
-    const key = `review.compose.${viewKey}|${normalized.filePath}|${normalized.side}|${normalized.startLine}|${normalized.endLine}`;
-    setComposeDraft(localStorage.getItem(key) || "");
-  }, [composeSelection, viewKey]);
-
-  useEffect(() => {
-    if (!composeSelection) return;
-    const normalized = normalizeSelection(composeSelection);
-    const key = `review.compose.${viewKey}|${normalized.filePath}|${normalized.side}|${normalized.startLine}|${normalized.endLine}`;
-    localStorage.setItem(key, composeDraft);
-  }, [composeSelection, composeDraft, viewKey]);
-
-  useEffect(() => {
     const panel = reviewPanelRef.current;
     if (!panel || !selectedFilePath) return;
     const scrollKey = `review.scroll.${viewKey}|${selectedFilePath}`;
@@ -407,53 +456,46 @@ export function ReviewPage() {
     return () => panel.removeEventListener("scroll", onScroll);
   }, [viewKey, selectedFilePath]);
 
-  const expandGap = async (filePath: string, gapIndex: number) => {
-    if (!expansionContent.has(filePath)) {
-      try {
-        const content = await localReviewApi.getFileContent({
-          worktreePath: selectedWorktree || undefined,
-          filePath,
-        });
-        setExpansionContent((prev) => new Map(prev).set(filePath, content));
-      } catch {
-        return;
-      }
-    }
-    setExpandedGaps((prev) => {
-      const next = new Map(prev);
-      const fileSet = new Set(next.get(filePath) || []);
-      fileSet.add(gapIndex);
-      next.set(filePath, fileSet);
-      return next;
-    });
-  };
-
   return (
-    <div className="flex h-screen flex-col bg-[#0d1117] text-slate-200">
+    <div
+      className={`flex flex-col bg-[var(--bg-base)] text-slate-200 ${embedded ? "h-full" : "h-screen"}`}
+    >
       {/* Top toolbar */}
-      <header className="flex shrink-0 items-center gap-3 border-b border-[#30363d] bg-[#161b22] px-4 py-2.5">
-        <span className="mr-1 text-sm font-semibold text-slate-200">
-          Local Review
-        </span>
+      <header className="flex shrink-0 items-center gap-3 border-b border-[var(--border-muted)] bg-[var(--bg-surface)] px-4 py-2.5">
+        {!embedded && (
+          <span className="mr-1 text-sm font-semibold text-slate-200">
+            {APP_NAME}
+          </span>
+        )}
 
-        <div className="flex items-center gap-1.5 rounded-md border border-[#30363d] bg-[#0d1117] px-2 py-1">
-          <span className="text-xs text-slate-500">compare</span>
-          <select
-            value={sourceBranch}
-            onChange={(e) => setSourceBranch(e.target.value)}
-            className="bg-transparent text-xs text-slate-200 outline-none"
-          >
-            {(repoContext?.branches || []).map((b) => (
-              <option key={b} value={b}>
-                {b}
-              </option>
-            ))}
-          </select>
-        </div>
+        {embedded ? (
+          <>
+            <span className="rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-2 py-1 text-xs text-slate-200">
+              {sourceBranch || "..."}
+            </span>
+            <span className="text-slate-600">→</span>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-1.5 rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-2 py-1">
+              <span className="text-xs text-slate-500">compare</span>
+              <select
+                value={sourceBranch}
+                onChange={(e) => setSourceBranch(e.target.value)}
+                className="bg-transparent text-xs text-slate-200 outline-none"
+              >
+                {(repoContext?.branches || []).map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <span className="text-slate-600">→</span>
+          </>
+        )}
 
-        <span className="text-slate-600">→</span>
-
-        <div className="flex items-center gap-1.5 rounded-md border border-[#30363d] bg-[#0d1117] px-2 py-1">
+        <div className="flex items-center gap-1.5 rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-2 py-1">
           <span className="text-xs text-slate-500">base</span>
           <select
             value={targetBranch}
@@ -468,7 +510,7 @@ export function ReviewPage() {
           </select>
         </div>
 
-        <div className="flex items-center gap-1.5 rounded-md border border-[#30363d] bg-[#0d1117] px-2 py-1">
+        <div className="flex items-center gap-1.5 rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-2 py-1">
           <span className="text-xs text-slate-500">commit</span>
           <select
             value={selectedCommit}
@@ -492,6 +534,7 @@ export function ReviewPage() {
             }}
             className="text-xs text-slate-400 hover:text-slate-200"
             title="Previous commit [ key"
+            aria-label="Previous commit [ key"
           >
             ‹
           </button>
@@ -509,6 +552,7 @@ export function ReviewPage() {
             }}
             className="text-xs text-slate-400 hover:text-slate-200"
             title="Next commit ] key"
+            aria-label="Next commit ] key"
           >
             ›
           </button>
@@ -516,43 +560,26 @@ export function ReviewPage() {
 
         <div className="ml-auto flex items-center gap-2">
           {pendingCount > 0 && (
-            <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-300 ring-1 ring-amber-500/30">
+            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
               {pendingCount} open
             </span>
           )}
-          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200">
-            <input
-              type="checkbox"
-              checked={showPendingOnly}
-              onChange={(e) => setShowPendingOnly(e.target.checked)}
-              className="accent-amber-500"
-            />
-            Pending only
-          </label>
-          <button
-            type="button"
-            onClick={() =>
-              void refreshDiffBundle(
-                selectedWorktree,
-                sourceBranch,
-                targetBranch,
-              )
-            }
-            className="rounded border border-[#30363d] bg-[#21262d] px-2.5 py-1 text-xs text-slate-300 hover:bg-[#30363d]"
-          >
-            Refresh
-          </button>
+          <ReviewVerdict
+            verdict={reviewVerdict}
+            onVerdictChange={(v) => {
+              if (v === "approved") handleApprove();
+              else handleRequestChanges();
+            }}
+            openThreadCount={pendingCount}
+          />
         </div>
       </header>
 
-      <ReviewToolbar
-        reviewVerdict={reviewVerdict}
-        onApprove={handleApprove}
-        onRequestChanges={handleRequestChanges}
-      />
-
       {/* Status bar */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-[#30363d] bg-[#161b22] px-4 py-1 text-[11px] text-slate-500">
+      <div
+        aria-live="polite"
+        className="flex shrink-0 items-center gap-2 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-1 text-[11px] text-slate-500"
+      >
         <span>{status}</span>
         <span className="mx-2 text-slate-700">|</span>
         <span>{visibleFiles.length} files</span>
@@ -576,8 +603,8 @@ export function ReviewPage() {
       <div className="flex min-h-0 flex-1">
         {/* File sidebar */}
         <FileSidebar
+          hideOverviewTab
           leftTab={leftTab}
-          onTabChange={setLeftTab}
           pendingCount={pendingCount}
           visibleFiles={visibleFiles}
           selectedFilePath={selectedFilePath}
@@ -595,27 +622,6 @@ export function ReviewPage() {
           }}
           unresolvedThreadCountByFile={unresolvedThreadCountByFile}
           changeCountByFile={changeCountByFile}
-          threads={threads}
-          outdatedThreadIds={outdatedThreadIds}
-          totalFiles={parsedFiles.length}
-          onThreadClick={(thread) => {
-            if (!outdatedThreadIds.has(thread.id)) {
-              setLeftTab("files");
-              setSelectedFilePath(thread.filePath);
-              const key = threadAnchorKey(thread);
-              setTimeout(() => {
-                const el = document.getElementById(
-                  `thread-anchor-${key.replace(/[^a-zA-Z0-9_-]/g, "_")}`,
-                );
-                el?.scrollIntoView({ behavior: "smooth", block: "center" });
-              }, 100);
-            }
-          }}
-          onReset={async () => {
-            await resetSession();
-          }}
-          summaryNotes={summaryNotes}
-          onSummaryNotesChange={setSummaryNotes}
         />
 
         {/* Diff panel */}
@@ -627,106 +633,155 @@ export function ReviewPage() {
           ) : (
             <>
               {/* File header */}
-              <div className="flex shrink-0 items-center gap-2 border-b border-[#30363d] bg-[#161b22] px-4 py-2">
+              <div className="flex shrink-0 items-center gap-2 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2">
                 <FileIcon status={selectedFile.status} />
                 <span className="font-mono text-sm text-slate-300">
                   {selectedFile.path}
                 </span>
-                <span className="ml-auto flex items-center gap-3">
-                  <span className="text-xs text-slate-600">
-                    {changeCountByFile.get(selectedFile.path) || 0} changes
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setFullFileMode((m) => !m)}
-                    className={`rounded px-2 py-0.5 text-xs transition ${fullFileMode ? "bg-[#1f6feb] text-white" : "text-slate-400 hover:text-slate-200"}`}
-                    title={
-                      fullFileMode ? "Switch to diff view" : "View full file"
-                    }
-                  >
-                    {fullFileMode ? "Diff" : "Full file"}
-                  </button>
+                <span className="ml-auto text-xs text-slate-600">
+                  {changeCountByFile.get(selectedFile.path) || 0} changes
                 </span>
+                <button
+                  className={`ml-2 rounded px-2 py-0.5 text-xs font-medium transition-colors ${
+                    diffMode === "unified"
+                      ? "bg-[var(--border-default)] text-slate-300"
+                      : "text-slate-500 hover:text-slate-300"
+                  }`}
+                  onClick={() => setDiffMode("unified")}
+                >
+                  Unified
+                </button>
+                <button
+                  className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
+                    diffMode === "split"
+                      ? "bg-[var(--border-default)] text-slate-300"
+                      : "text-slate-500 hover:text-slate-300"
+                  }`}
+                  onClick={() => setDiffMode("split")}
+                >
+                  Split
+                </button>
               </div>
 
-              {/* Full file view */}
-              {fullFileMode && (
-                <FullFileView
-                  fullFileLoading={fullFileLoading}
-                  fullFileError={fullFileError}
-                  fullFileContent={fullFileContent}
-                  selectedFile={selectedFile}
-                  threadsByKey={threadsByKey}
-                  outdatedThreadIds={outdatedThreadIds}
-                  showPendingOnly={showPendingOnly}
-                  dragSelection={dragSelection}
-                  composeSelection={composeSelection}
-                  composeDraft={composeDraft}
-                  replyDrafts={replyDrafts}
-                  onReplyChange={(threadId, value) =>
-                    setReplyDrafts((prev) => ({ ...prev, [threadId]: value }))
-                  }
-                  onReply={(threadId) => addReply(threadId)}
-                  onStatusChange={(threadId, status) =>
-                    updateThreadStatus(threadId, status)
-                  }
-                  onDraftChange={setComposeDraft}
-                  onSubmitCompose={addThreadFromSelection}
-                  onCancelCompose={() => {
-                    setComposeSelection(null);
-                    setComposeDraft("");
-                  }}
-                  onBeginSelection={beginSelection}
-                  onDragUpdate={(_filePath, _side, lineNum) =>
-                    setDragSelection((prev) =>
-                      prev ? { ...prev, endLine: lineNum } : prev,
-                    )
-                  }
-                  panelRef={reviewPanelRef}
+              {/* Diff content via @git-diff-view/react */}
+              <div
+                ref={reviewPanelRef}
+                className="relative min-h-0 flex-1 overflow-auto"
+              >
+                <DiffSelectionPopover
+                  containerRef={reviewPanelRef}
+                  onComment={handleSelectionComment}
                 />
-              )}
-
-              {/* Diff content + hunk minimap */}
-              {!fullFileMode && (
-                <DiffTable
-                  selectedFile={selectedFile}
-                  threadsByKey={threadsByKey}
-                  outdatedThreadIds={outdatedThreadIds}
-                  showPendingOnly={showPendingOnly}
-                  dragSelection={dragSelection}
-                  composeSelection={composeSelection}
-                  composeDraft={composeDraft}
-                  replyDrafts={replyDrafts}
-                  onReplyChange={(threadId, value) =>
-                    setReplyDrafts((prev) => ({ ...prev, [threadId]: value }))
-                  }
-                  onReply={(threadId) => addReply(threadId)}
-                  onStatusChange={(threadId, status) =>
-                    updateThreadStatus(threadId, status)
-                  }
-                  onDraftChange={setComposeDraft}
-                  onSubmitCompose={addThreadFromSelection}
-                  onCancelCompose={() => {
-                    setComposeSelection(null);
-                    setComposeDraft("");
-                  }}
-                  onBeginSelection={beginSelection}
-                  onDragUpdate={(_filePath, _side, lineNum) =>
-                    setDragSelection((prev) =>
-                      prev ? { ...prev, endLine: lineNum } : prev,
-                    )
-                  }
-                  panelRef={reviewPanelRef}
-                  expandedGaps={expandedGaps}
-                  expansionContent={expansionContent}
-                  onExpandGap={(filePath, gapIndex) =>
-                    void expandGap(filePath, gapIndex)
-                  }
+                <LineRangeSelector
+                  containerRef={reviewPanelRef}
+                  onComment={handleLineRangeComment}
                 />
-              )}
+                <DiffViewWrapper
+                  hunks={selectedFileHunks}
+                  fileName={selectedFile.path}
+                  mode={diffMode}
+                  enableComments
+                  onAddComment={handleAddComment}
+                  threadsByLine={threadsByLine}
+                  renderWidget={({ lineNumber, side, onClose }) =>
+                    composingAt?.lineNumber === lineNumber &&
+                    composingAt?.side === side &&
+                    !composingAt?.selectedText &&
+                    !composingAt?.startLineNumber &&
+                    !composingAt?.usePortal ? (
+                      <ComposeWidget
+                        lineNumber={lineNumber}
+                        side={side}
+                        filePath={selectedFile.path}
+                        onSubmit={(anchor, text) => {
+                          handleComposeSubmit(anchor, text);
+                          onClose();
+                        }}
+                        onClose={() => {
+                          setComposingAt(null);
+                          onClose();
+                        }}
+                      />
+                    ) : null
+                  }
+                  renderThreads={({ threads: lineThreads }) => (
+                    <ThreadDisplay
+                      threads={lineThreads}
+                      onReply={(threadId, text) => addReply(threadId, text)}
+                      onStatusChange={(threadId, newStatus) =>
+                        updateThreadStatus(threadId, newStatus)
+                      }
+                    />
+                  )}
+                  wrap={false}
+                  fontSize={13}
+                />
+                {/* Portal-based compose for text-selection or line-range comments */}
+                {(composingAt?.selectedText ||
+                  composingAt?.startLineNumber ||
+                  composingAt?.usePortal) &&
+                  selectedFile && (
+                    <SelectionComposePortal
+                      containerRef={reviewPanelRef}
+                      lineNumber={composingAt.lineNumber}
+                      startLineNumber={composingAt.startLineNumber}
+                      side={composingAt.side}
+                      filePath={selectedFile.path}
+                      selectedText={composingAt.selectedText ?? ""}
+                      onSubmit={(anchor, text) => {
+                        handleComposeSubmit(anchor, text);
+                      }}
+                      onClose={() => setComposingAt(null)}
+                    />
+                  )}
+              </div>
             </>
           )}
         </div>
+
+        {/* Right panel — threads */}
+        <CodeThreadsPanel
+          threads={threads}
+          selectedFilePath={selectedFilePath}
+          outdatedThreadIds={outdatedThreadIds}
+          addReply={addReply}
+          updateThreadStatus={updateThreadStatus}
+          onThreadClick={(thread) => {
+            setSelectedFilePath(thread.filePath);
+            // After file switch + re-render, scroll to the thread's line
+            const targetLine = thread.lineEnd || thread.line;
+            const side = thread.side || "new";
+            const attr =
+              side === "new" ? "data-line-new-num" : "data-line-old-num";
+            const scrollToLine = () => {
+              const panel = reviewPanelRef.current;
+              if (!panel) return;
+              const rows = panel.querySelectorAll(
+                `tr.diff-line[data-state="diff"]`,
+              );
+              for (const row of rows) {
+                const span = row.querySelector(`[${attr}]`);
+                if (!span) continue;
+                const num = parseInt(span.getAttribute(attr) ?? "", 10);
+                if (num === targetLine) {
+                  row.scrollIntoView({
+                    behavior: "smooth",
+                    block: "center",
+                  });
+                  // Brief highlight flash
+                  row.classList.add("line-range-highlight");
+                  setTimeout(
+                    () => row.classList.remove("line-range-highlight"),
+                    2000,
+                  );
+                  return;
+                }
+              }
+            };
+            // Wait for diff to render after file switch
+            requestAnimationFrame(() => requestAnimationFrame(scrollToLine));
+          }}
+        />
       </div>
     </div>
   );

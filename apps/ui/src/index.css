@@ -1,12 +1,462 @@
+@import "@fontsource/geist-sans";
+@import "@fontsource/geist-mono";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ---------------------------------------------------------------------------
+ * Design Tokens — single source of truth for all visual values
+ * --------------------------------------------------------------------------- */
+
+@layer base {
+  :root {
+    /* Backgrounds */
+    --bg-base: #0d1117;
+    --bg-surface: #161b22;
+    --bg-elevated: #21262d;
+    --bg-overlay: #30363d;
+
+    /* Borders */
+    --border-default: #30363d;
+    --border-muted: #21262d;
+
+    /* Text */
+    --text-primary: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-tertiary: #6e7681;
+    --text-muted: #484f58;
+
+    /* Accents */
+    --accent-blue: #1f6feb;
+    --accent-blue-muted: rgba(31, 111, 235, 0.2);
+    --accent-blue-text: #58a6ff;
+
+    /* Semantic — Diff */
+    --diff-added-bg: #0d4a1a;
+    --diff-added-gutter: #0a3d15;
+    --diff-deleted-bg: #4a0d0d;
+    --diff-deleted-gutter: #3d0a0a;
+    --diff-hunk-bg: #1f2937;
+    --diff-hunk-gutter: #1a2332;
+
+    /* Semantic — Status */
+    --color-success: #3fb950;
+    --color-warning: #d29922;
+    --color-danger: #f85149;
+    --color-info: #58a6ff;
+
+    /* Status badges */
+    --status-open: #d29922;
+    --status-open-bg: rgba(210, 153, 34, 0.2);
+    --status-resolved: #8b5cf6;
+    --status-resolved-bg: rgba(139, 92, 246, 0.2);
+    --status-approved: #3fb950;
+    --status-approved-bg: rgba(63, 185, 80, 0.2);
+
+    /* Pipeline (from spec) */
+    --pipeline-spec: #bc8cff;
+    --pipeline-implement: #58a6ff;
+    --pipeline-review: #f0883e;
+    --pipeline-done: #3fb950;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+
+    /* Transitions */
+    --transition-fast: 150ms ease;
+    --transition-normal: 250ms ease;
+    --transition-slow: 350ms ease;
+  }
+
+  /* Focus ring for keyboard navigation */
+  *:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Remove focus ring for mouse clicks */
+  *:focus:not(:focus-visible) {
+    outline: none;
+  }
+}
+
 body {
   margin: 0;
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
-    "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  color: var(--text-primary);
+  background: var(--bg-base);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ---------------------------------------------------------------------------
+ * Spec content — enhanced typography for markdown spec rendering
+ * --------------------------------------------------------------------------- */
+
+.spec-content {
+  --spec-text: var(--text-primary);
+  --spec-heading: var(--text-primary);
+  --spec-muted: var(--text-secondary);
+  --spec-link: var(--accent-blue-text);
+  --spec-border: var(--border-default);
+  --spec-code-bg: var(--bg-surface);
+  --spec-blockquote-border: var(--accent-blue);
+
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--spec-text);
+}
+
+/* Headings — clear hierarchy with subtle separators */
+.spec-content h1 {
+  font-size: 1.75em;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--spec-heading);
+  border-bottom: 1px solid var(--spec-border);
+  padding-bottom: 0.4em;
+  margin-top: 2em;
+  margin-bottom: 1em;
+}
+.spec-content h2 {
+  font-size: 1.35em;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--spec-heading);
+  border-bottom: 1px solid var(--spec-border);
+  padding-bottom: 0.3em;
+  margin-top: 1.8em;
+  margin-bottom: 0.8em;
+}
+.spec-content h3 {
+  font-size: 1.15em;
+  font-weight: 600;
+  color: var(--spec-heading);
+  margin-top: 1.5em;
+  margin-bottom: 0.6em;
+}
+.spec-content h4,
+.spec-content h5,
+.spec-content h6 {
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--spec-heading);
+  margin-top: 1.2em;
+  margin-bottom: 0.4em;
+}
+
+/* Links */
+.spec-content a {
+  color: var(--spec-link);
+  text-decoration: none;
+}
+.spec-content a:hover {
+  text-decoration: underline;
+}
+
+/* Inline code — pill style */
+.spec-content :not(pre) > code {
+  background: var(--spec-code-bg);
+  border: 1px solid var(--spec-border);
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+  font-size: 0.85em;
+  font-family:
+    "SF Mono", "Fira Code", "JetBrains Mono", Menlo, Consolas, monospace;
+  color: var(--text-primary);
+}
+
+/* Code blocks — enhanced with border and header space */
+.spec-content pre {
+  background: var(--spec-code-bg) !important;
+  border: 1px solid var(--spec-border);
+  border-radius: 8px;
+  padding: 1em 1.2em;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.spec-content pre code {
+  font-family:
+    "SF Mono", "Fira Code", "JetBrains Mono", Menlo, Consolas, monospace;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  font-size: inherit;
+}
+
+/* Fenced code blocks rendered via SpecRenderer (uses <div> to avoid react-markdown <pre> stripping) */
+.spec-content .spec-code-block {
+  background: var(--spec-code-bg) !important;
+  border: 1px solid var(--spec-border);
+  border-radius: 8px;
+  padding: 1em 1.2em;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre;
+}
+.spec-content .spec-code-block code {
+  font-family:
+    "SF Mono", "Fira Code", "JetBrains Mono", Menlo, Consolas, monospace;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  font-size: inherit;
+  white-space: pre;
+}
+
+/* Blockquotes — accent border with subtle background */
+.spec-content blockquote {
+  border-left: 3px solid var(--spec-blockquote-border);
+  background: var(--accent-blue-muted);
+  padding: 0.5em 1em;
+  margin-left: 0;
+  border-radius: 0 6px 6px 0;
+  color: var(--spec-muted);
+}
+
+/* Tables — GitHub-style dark */
+.spec-content table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9em;
+}
+.spec-content th {
+  background: var(--spec-code-bg);
+  border: 1px solid var(--spec-border);
+  padding: 0.5em 0.75em;
+  text-align: left;
+  font-weight: 600;
+  color: var(--spec-heading);
+  font-size: 0.85em;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.spec-content td {
+  border: 1px solid var(--spec-border);
+  padding: 0.5em 0.75em;
+}
+.spec-content tr:nth-child(even) {
+  background: rgba(22, 27, 34, 0.5);
+}
+
+/* Lists — tighter spacing, custom markers */
+.spec-content ul {
+  list-style: disc;
+  padding-left: 1.5em;
+}
+.spec-content ol {
+  list-style: decimal;
+  padding-left: 1.5em;
+}
+.spec-content li {
+  margin-bottom: 0.3em;
+}
+.spec-content li::marker {
+  color: var(--spec-muted);
+}
+
+/* Task lists (GFM checkboxes) */
+.spec-content input[type="checkbox"] {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--spec-border);
+  border-radius: 3px;
+  background: var(--spec-code-bg);
+  vertical-align: middle;
+  margin-right: 0.4em;
+  position: relative;
+  cursor: default;
+}
+.spec-content input[type="checkbox"]:checked {
+  background: var(--color-success);
+  border-color: var(--color-success);
+}
+.spec-content input[type="checkbox"]:checked::after {
+  content: "\2713";
+  position: absolute;
+  top: -1px;
+  left: 2px;
+  font-size: 10px;
+  color: white;
+  font-weight: bold;
+}
+
+/* Horizontal rules */
+.spec-content hr {
+  border: none;
+  border-top: 1px solid var(--spec-border);
+  margin: 2em 0;
+}
+
+/* Images */
+.spec-content img {
+  border-radius: 8px;
+  border: 1px solid var(--spec-border);
+  max-width: 100%;
+}
+
+/* ---------------------------------------------------------------------------
+ * Override @git-diff-view/react's `.diff-line-extend-wrapper *` rule which
+ * resets color to `initial` (black), making thread text invisible on dark bg.
+ * Only target the wrapper and prose content — NOT colored badges/indicators.
+ * --------------------------------------------------------------------------- */
+.diff-line-extend-wrapper {
+  color: var(--text-primary);
+}
+.diff-line-extend-wrapper .prose-review,
+.diff-line-extend-wrapper .prose-review * {
+  color: var(--text-primary);
+}
+
+/* ---------------------------------------------------------------------------
+ * Review comment markdown — lightweight prose for thread messages
+ * --------------------------------------------------------------------------- */
+
+.prose-review p {
+  margin: 0.3em 0;
+}
+.prose-review p:first-child {
+  margin-top: 0;
+}
+.prose-review p:last-child {
+  margin-bottom: 0;
+}
+.prose-review code {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 3px;
+  padding: 0.1em 0.35em;
+  font-size: 0.9em;
+  font-family: "SF Mono", "Fira Code", Menlo, Consolas, monospace;
+  color: var(--text-primary);
+}
+.prose-review pre {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 0.6em 0.8em;
+  overflow-x: auto;
+  margin: 0.4em 0;
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+.prose-review pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+.prose-review ul,
+.prose-review ol {
+  padding-left: 1.3em;
+  margin: 0.3em 0;
+}
+.prose-review li {
+  margin-bottom: 0.15em;
+}
+.prose-review blockquote {
+  border-left: 2px solid var(--accent-blue);
+  padding-left: 0.6em;
+  margin: 0.3em 0;
+  color: var(--text-secondary);
+}
+.prose-review a {
+  color: var(--accent-blue-text);
+  text-decoration: none;
+}
+.prose-review a:hover {
+  text-decoration: underline;
+}
+.prose-review strong {
+  color: var(--text-primary);
+}
+.prose-review h1,
+.prose-review h2,
+.prose-review h3 {
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0.4em 0 0.2em;
+}
+
+/* ---------------------------------------------------------------------------
+ * Skeleton loading animation
+ * --------------------------------------------------------------------------- */
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Transition & animation utilities
+ * --------------------------------------------------------------------------- */
+
+@layer utilities {
+  .thread-enter {
+    animation: slideDown 250ms ease-out;
+  }
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .compose-enter {
+    animation: fadeSlideDown 200ms ease-out;
+  }
+  @keyframes fadeSlideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .sidebar-item {
+    transition:
+      transform var(--transition-fast),
+      background-color var(--transition-fast);
+  }
+  .sidebar-item:hover {
+    transform: translateX(2px);
+  }
+
+  .status-badge {
+    transition:
+      background-color var(--transition-normal),
+      color var(--transition-normal);
+  }
+
+  .stagger-fade-in {
+    animation: fadeIn 200ms ease-out both;
+  }
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }

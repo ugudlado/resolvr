@@ -22,9 +22,9 @@ export function ActivityPanel({
   if (!running && entries.length === 0) return null;
 
   return (
-    <aside className="flex w-72 shrink-0 flex-col border-l border-[#30363d] bg-[#0d1117]">
+    <aside className="flex w-72 shrink-0 flex-col border-l border-[var(--border-default)] bg-[var(--bg-base)]">
       {/* Header */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-[#30363d] px-3 py-2">
+      <div className="flex shrink-0 items-center gap-2 border-b border-[var(--border-default)] px-3 py-2">
         {running ? (
           <>
             <span className="h-2 w-2 animate-pulse rounded-full bg-indigo-400" />
@@ -66,7 +66,7 @@ export function ActivityPanel({
             onClick={() =>
               onEntryClick(entry.threadId, entry.filePath, entry.line)
             }
-            className="group flex flex-col gap-0.5 rounded border border-[#30363d] bg-[#161b22] px-2.5 py-2 text-left hover:border-indigo-600/40 hover:bg-[#1a2030]"
+            className="group flex flex-col gap-0.5 rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 py-2 text-left hover:border-indigo-600/40 hover:bg-[var(--bg-surface)]"
           >
             <div className="flex items-center gap-1.5">
               <span

@@ -30,7 +30,7 @@ interface UseReviewSessionResult {
   status: string;
   setStatus: Dispatch<SetStateAction<string>>;
   resetSession: () => Promise<void>;
-  addReply: (threadId: string) => void;
+  addReply: (threadId: string, text?: string) => void;
   updateThreadStatus: (
     threadId: string,
     nextStatus: ReviewThread["status"],
@@ -182,8 +182,8 @@ export function useReviewSession({
     setStatus("Session reset");
   };
 
-  const addReply = (threadId: string) => {
-    const draft = (replyDrafts[threadId] || "").trim();
+  const addReply = (threadId: string, text?: string) => {
+    const draft = (text ?? replyDrafts[threadId] ?? "").trim();
     if (!draft) return;
     const now = new Date().toISOString();
     const message: ReviewMessage = {
