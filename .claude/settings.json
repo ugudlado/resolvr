@@ -1,38 +1,103 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git:*)",
-      "Bash(npm:*)",
-      "Bash(npx:*)",
-      "Bash(pnpm:*)",
-      "Bash(mkdir:*)",
-      "Bash(rm:*)",
-      "Bash(mv:*)",
-      "Bash(cp:*)",
-      "Bash(cat:*)",
-      "Bash(ls:*)",
-      "Bash(gh:*)",
+      "Bash",
       "Edit(./**)",
       "Write(./**)",
-      "mcp__plugin_linear_linear__get_issue",
-      "mcp__plugin_linear_linear__update_issue",
-      "mcp__plugin_linear_linear__create_issue",
-      "mcp__plugin_linear_linear__list_issues",
-      "mcp__memory__search_nodes",
-      "mcp__memory__create_entities",
-      "mcp__memory__add_observations",
-      "mcp__sequential-thinking__sequentialthinking"
+      "mcp__*",
+      "mcp__chrome-devtools",
+      "Skill",
+      "WebFetch",
+      "WebSearch"
     ]
   },
   "enableAllProjectMcpServers": true,
   "hooks": {
-    "PostToolUse": [
+    "SessionStart": [
       {
-        "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "npx prettier --write \"$CLAUDE_FILE_PATH\" 2>/dev/null || true"
+            "command": "bash .claude/hooks/session-context.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/worktree-boundary.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/protected-files.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/auto-format.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/typecheck-on-edit.sh"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/activity-log.sh",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/smart-notify.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/loop-detector.sh"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/pre-compact-context.sh"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/subagent-gate.sh"
           }
         ]
       }

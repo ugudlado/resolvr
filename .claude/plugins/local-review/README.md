@@ -27,16 +27,15 @@ pnpm dev   # from repo root — starts Vite at http://localhost:3000
 
 ## Commands
 
-| Command                                    | Description                                                   |
-| ------------------------------------------ | ------------------------------------------------------------- |
-| `/review-open [session-file]`              | Open the UI and optionally load a session                     |
-| `/review-resolve [session-file]`           | Resolve all open threads in the latest (or specified) session |
-| `/review-reply <thread-id> [session-file]` | Reply to a specific thread by ID                              |
+| Command | Description |
+|---------|-------------|
+| `/review-open [session-file]` | Open the UI and optionally load a session |
+| `/review-resolve [session-file]` | Resolve all open threads in the latest (or specified) session |
+| `/review-reply <thread-id> [session-file]` | Reply to a specific thread by ID |
 
 ## Agent
 
 **review-resolver** (magenta) — reads a thread + its code context and decides:
-
 - Apply a fix → when issue is clear and solution is unambiguous
 - Reply with explanation → when the comment asks "why"
 - Ask a clarifying question → when context is missing or multiple valid approaches exist

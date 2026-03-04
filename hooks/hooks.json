@@ -1,12 +1,12 @@
 {
-  "description": "Auto-starts the local-review Vite dev server and opens the browser on session start",
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh",
+            "async": true
           }
         ]
       }

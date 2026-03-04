@@ -1,29 +1,22 @@
-#!/bin/bash
-# Auto-start the local-review Vite dev server on session start.
-# Runs in background so it doesn't block Claude startup.
+#!/usr/bin/env bash
+set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PORT=3000
+PORT=37002
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 
-# Already running? Nothing to do.
-if lsof -i ":$PORT" | grep -q LISTEN 2>/dev/null; then
+# Check if server is already running
+if lsof -i :"$PORT" -sTCP:LISTEN &>/dev/null; then
   exit 0
 fi
 
-# Start Vite in background, log to .review/server.log
-mkdir -p "$REPO_ROOT/.review"
-nohup bash -c "cd '$REPO_ROOT/apps/ui' && pnpm dev" \
-  > "$REPO_ROOT/.review/server.log" 2>&1 &
+# Start the Vite dev server in the background
+cd "$PLUGIN_ROOT/.."
+nohup pnpm dev >/dev/null 2>&1 &
 
-disown $!
-
-# Wait for server to be ready, then open browser
-(
-  for i in $(seq 1 10); do
-    sleep 1
-    if lsof -i ":$PORT" | grep -q LISTEN 2>/dev/null; then
-      open "http://localhost:$PORT"
-      break
-    fi
-  done
-) &
+# Wait for server to be ready (max 10s)
+for i in $(seq 1 20); do
+  if curl -s "http://localhost:$PORT" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.5
+done

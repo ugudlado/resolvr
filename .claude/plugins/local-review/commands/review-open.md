@@ -10,21 +10,17 @@ Start the review UI so you can browse diffs and add inline comments.
 ## Steps
 
 1. Check if the UI dev server is already running:
-
    ```bash
    lsof -i :3000 | grep LISTEN
    ```
 
 2. If not running, start it:
-
    ```bash
    cd $CLAUDE_PLUGIN_ROOT/.. && pnpm dev
    ```
-
    Wait ~3 seconds for Vite to start, then open: http://localhost:3000
 
 3. If a session file was provided (`$ARGUMENTS`), tell the user:
-
    > Session file: `.review/sessions/$ARGUMENTS`
    > In the UI, use "Load Session" to restore it.
 

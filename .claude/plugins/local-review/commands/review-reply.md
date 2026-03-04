@@ -29,7 +29,6 @@ If not found, list all thread IDs from the session so the user can pick.
 ### 3. Show thread context
 
 Print the thread details:
-
 - File: `filePath` lines `line`-`lineEnd` (`side` side)
 - Status: `status`
 - Messages: show the conversation
@@ -37,7 +36,6 @@ Print the thread details:
 ### 4. Launch review-resolver agent
 
 Launch a `local-review:review-resolver` agent for this single thread with:
-
 - Full thread JSON
 - The actual file content from disk
 - The diff hunk around the thread's lines
