@@ -1,10 +1,9 @@
 import { useState, useMemo } from "react";
 import type { ReviewThread } from "../../services/localReviewApi";
-import { ThreadCard } from "./ThreadCard";
+import { ThreadCard } from "../shared/ThreadCard";
 import { ThreadStatusTabs } from "../shared/ThreadStatusTabs";
 import { useThreadPartition } from "../../hooks/useThreadPartition";
-
-type ThreadFilter = "open" | "resolved";
+import type { ThreadFilter } from "../../types/sessions";
 
 export interface CodeThreadsPanelProps {
   threads: ReviewThread[];
@@ -47,7 +46,6 @@ export function CodeThreadsPanel({
   onThreadClick,
 }: CodeThreadsPanelProps) {
   const [activeFilter, setActiveFilter] = useState<ThreadFilter>("open");
-  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
 
   const { openThreads, resolvedThreads } = useThreadPartition(threads);
 
@@ -117,22 +115,9 @@ export function CodeThreadsPanel({
                     )}
                     <ThreadCard
                       thread={thread}
-                      replyDraft={replyDrafts[thread.id] ?? ""}
-                      onReplyChange={(value) =>
-                        setReplyDrafts((prev) => ({
-                          ...prev,
-                          [thread.id]: value,
-                        }))
-                      }
-                      onReply={() => {
-                        addReply(thread.id, replyDrafts[thread.id]);
-                        setReplyDrafts((prev) => ({
-                          ...prev,
-                          [thread.id]: "",
-                        }));
-                      }}
-                      onStatusChange={(status) =>
-                        updateThreadStatus(thread.id, status)
+                      onReply={(threadId, text) => addReply(threadId, text)}
+                      onStatusChange={(threadId, status) =>
+                        updateThreadStatus(threadId, status)
                       }
                     />
                   </div>

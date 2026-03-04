@@ -7,8 +7,8 @@ import {
   isLineInSelection,
   normalizeSelection,
 } from "../../utils/diffUtils";
-import { ThreadCard } from "../review/ThreadCard";
-import { ComposeBox } from "../review/ComposeBox";
+import { ThreadCard } from "../shared/ThreadCard";
+import { ComposeBox } from "../shared/ComposeBox";
 
 interface FullFileViewProps {
   fullFileLoading: boolean;
@@ -20,13 +20,12 @@ interface FullFileViewProps {
   showPendingOnly: boolean;
   dragSelection: Selection | null;
   composeSelection: Selection | null;
-  composeDraft: string;
-  replyDrafts: Record<string, string>;
-  onReplyChange: (threadId: string, value: string) => void;
-  onReply: (threadId: string) => void;
-  onStatusChange: (threadId: string, status: ReviewThread["status"]) => void;
-  onDraftChange: (value: string) => void;
-  onSubmitCompose: () => void;
+  onReply: (threadId: string, text: string) => void;
+  onStatusChange: (
+    threadId: string,
+    status: "open" | "resolved" | "approved",
+  ) => void;
+  onSubmitCompose: (text: string) => void;
   onCancelCompose: () => void;
   onBeginSelection: (
     filePath: string,
@@ -47,12 +46,8 @@ export function FullFileView({
   showPendingOnly,
   dragSelection,
   composeSelection,
-  composeDraft,
-  replyDrafts,
-  onReplyChange,
   onReply,
   onStatusChange,
-  onDraftChange,
   onSubmitCompose,
   onCancelCompose,
   onBeginSelection,
@@ -138,23 +133,16 @@ export function FullFileView({
                       <ThreadCard
                         key={thread.id}
                         thread={thread}
-                        replyDraft={replyDrafts[thread.id] || ""}
-                        onReplyChange={(value) =>
-                          onReplyChange(thread.id, value)
-                        }
-                        onReply={() => onReply(thread.id)}
-                        onStatusChange={(status) =>
-                          onStatusChange(thread.id, status)
-                        }
+                        onReply={onReply}
+                        onStatusChange={onStatusChange}
                       />
                     ))}
                     {isComposerAnchor && composeSelection ? (
                       <ComposeBox
-                        selection={normalizeSelection(composeSelection)}
-                        draft={composeDraft}
-                        onDraftChange={onDraftChange}
                         onSubmit={onSubmitCompose}
                         onCancel={onCancelCompose}
+                        autoFocus
+                        quotedText={`new lines ${normalizeSelection(composeSelection).startLine}${normalizeSelection(composeSelection).endLine !== normalizeSelection(composeSelection).startLine ? `–${normalizeSelection(composeSelection).endLine}` : ""}`}
                       />
                     ) : null}
                   </td>
