@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -6,6 +7,7 @@ import { promisify } from "node:util";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { parseTasksMarkdown } from "./src/utils/tasksParser";
 
 const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -53,6 +55,51 @@ type WorktreeInfo = {
   branch: string;
   isCurrent: boolean;
 };
+
+type WorktreeListItem = {
+  path: string;
+  branch: string;
+  head: string;
+  isMain: boolean;
+};
+
+type FeatureInfo = {
+  id: string;
+  worktreePath: string;
+  branch: string;
+  status: string;
+  hasSpec: boolean;
+  hasTasks: boolean;
+};
+
+function deriveFeatureStatusServer(
+  specSession: Record<string, unknown> | null,
+  codeSession: Record<string, unknown> | null,
+  hasSpec: boolean,
+): string {
+  // Check code review first (later in lifecycle)
+  if (codeSession) {
+    const codeVerdict = codeSession.verdict;
+    if (codeVerdict === "approved") return "complete";
+    if (codeVerdict === "changes_requested") return "code";
+    // Code session exists but no verdict — it's in review
+    return "code_review";
+  }
+
+  // Check spec review
+  if (specSession) {
+    const specVerdict = specSession.verdict;
+    if (specVerdict === "approved") return "code";
+    if (specVerdict === "changes_requested") return "design";
+    // Spec session exists but no verdict — it's in review
+    return "design_review";
+  }
+
+  // Has spec file but no session
+  if (hasSpec) return "design";
+
+  return "new";
+}
 
 async function ensureSessionsDir(): Promise<void> {
   await fs.mkdir(sessionsDir, { recursive: true });
@@ -365,10 +412,361 @@ export default defineConfig({
           })();
         });
 
+        // SPA fallback: rewrite non-API, non-asset GET requests to /index.html
+        // so that React Router handles client-side navigation on direct page
+        // loads and refreshes (including /features/*, /, and any future routes).
+        // We rewrite req.url and call next() instead of serving the file directly
+        // so Vite's built-in HTML transform (HMR injection, module resolution)
+        // still runs.
+        server.middlewares.use((req, _res, next) => {
+          const url = req.url ?? "";
+          // Skip API routes
+          if (url.startsWith("/local-api/")) return next();
+          // Skip static assets (URLs containing a file extension)
+          if (url.includes(".")) return next();
+          // Skip Vite internal paths (HMR, module resolution)
+          if (url.startsWith("/@")) return next();
+          // Rewrite to index.html and let Vite serve it with transforms
+          req.url = "/index.html";
+          next();
+        });
+
         server.middlewares.use("/local-api", async (req, res) => {
           try {
             const requestUrl = new URL(req.url || "/", "http://localhost");
             const routePath = requestUrl.pathname;
+
+            if (req.method === "GET" && routePath === "/worktrees") {
+              try {
+                const output = await execGit(
+                  ["worktree", "list", "--porcelain"],
+                  repoRoot,
+                );
+                const blocks = output
+                  .split("\n\n")
+                  .filter((chunk) => chunk.trim().length > 0);
+                const worktrees: WorktreeListItem[] = blocks.map(
+                  (block, index) => {
+                    const lines = block.split("\n");
+                    const pathLine = lines.find((l) =>
+                      l.startsWith("worktree "),
+                    );
+                    const headLine = lines.find((l) => l.startsWith("HEAD "));
+                    const branchLine = lines.find((l) =>
+                      l.startsWith("branch "),
+                    );
+                    const wtPath = pathLine
+                      ? pathLine.slice("worktree ".length).trim()
+                      : "";
+                    const head = headLine
+                      ? headLine.slice("HEAD ".length).trim()
+                      : "";
+                    let branch = "";
+                    if (branchLine) {
+                      branch = branchLine
+                        .slice("branch ".length)
+                        .trim()
+                        .replace(/^refs\/heads\//, "");
+                    }
+                    return {
+                      path: wtPath,
+                      branch,
+                      head,
+                      isMain: index === 0,
+                    };
+                  },
+                );
+                sendJson(res, 200, { worktrees });
+              } catch (err) {
+                const message =
+                  err instanceof Error ? err.message : "git error";
+                sendJson(res, 200, { worktrees: [], error: message });
+              }
+              return;
+            }
+
+            if (req.method === "GET" && routePath === "/features") {
+              try {
+                const output = await execGit(
+                  ["worktree", "list", "--porcelain"],
+                  repoRoot,
+                );
+                const blocks = output
+                  .split("\n\n")
+                  .filter((chunk) => chunk.trim().length > 0);
+
+                const parsedWorktrees = blocks.map((block) => {
+                  const lines = block.split("\n");
+                  const pathLine = lines.find((l) => l.startsWith("worktree "));
+                  const branchLine = lines.find((l) => l.startsWith("branch "));
+                  const wtPath = pathLine
+                    ? pathLine.slice("worktree ".length).trim()
+                    : "";
+                  let branch = "";
+                  if (branchLine) {
+                    branch = branchLine
+                      .slice("branch ".length)
+                      .trim()
+                      .replace(/^refs\/heads\//, "");
+                  }
+                  return { path: wtPath, branch };
+                });
+
+                // Filter to worktrees that have specs/active/{slug}/ directory
+                const withSpecsActive = await Promise.all(
+                  parsedWorktrees.map(async (wt) => {
+                    if (!wt.path) return null;
+                    try {
+                      const slug = path.basename(wt.path);
+                      await fs.access(
+                        path.join(wt.path, "specs", "active", slug),
+                      );
+                      return wt;
+                    } catch {
+                      return null;
+                    }
+                  }),
+                );
+
+                const featureWorktrees = withSpecsActive.filter(
+                  (wt): wt is { path: string; branch: string } => wt !== null,
+                );
+
+                const features = await Promise.all(
+                  featureWorktrees.map(async (wt): Promise<FeatureInfo> => {
+                    const featureId = path.basename(wt.path);
+                    const specSessionPath = path.join(
+                      repoRoot,
+                      ".review",
+                      "sessions",
+                      `${featureId}-spec.json`,
+                    );
+                    const codeSessionPath = path.join(
+                      repoRoot,
+                      ".review",
+                      "sessions",
+                      `${featureId}-code.json`,
+                    );
+
+                    const [specSession, codeSession, hasSpec, hasTasks] =
+                      await Promise.all([
+                        (async () => {
+                          try {
+                            const content = await fs.readFile(
+                              specSessionPath,
+                              "utf-8",
+                            );
+                            return JSON.parse(content) as Record<
+                              string,
+                              unknown
+                            >;
+                          } catch {
+                            return null;
+                          }
+                        })(),
+                        (async () => {
+                          try {
+                            const content = await fs.readFile(
+                              codeSessionPath,
+                              "utf-8",
+                            );
+                            return JSON.parse(content) as Record<
+                              string,
+                              unknown
+                            >;
+                          } catch {
+                            return null;
+                          }
+                        })(),
+                        (async () => {
+                          try {
+                            const slug = path.basename(wt.path);
+                            await fs.access(
+                              path.join(
+                                wt.path,
+                                "specs",
+                                "active",
+                                slug,
+                                "spec.md",
+                              ),
+                            );
+                            return true;
+                          } catch {
+                            return false;
+                          }
+                        })(),
+                        (async () => {
+                          try {
+                            const slug = path.basename(wt.path);
+                            await fs.access(
+                              path.join(
+                                wt.path,
+                                "specs",
+                                "active",
+                                slug,
+                                "tasks.md",
+                              ),
+                            );
+                            return true;
+                          } catch {
+                            return false;
+                          }
+                        })(),
+                      ]);
+
+                    let branch = wt.branch;
+                    if (!branch || branch.includes("detached")) {
+                      try {
+                        branch = await getCurrentBranch(wt.path);
+                      } catch {
+                        branch = "detached";
+                      }
+                    }
+
+                    return {
+                      id: featureId,
+                      worktreePath: wt.path,
+                      branch,
+                      status: deriveFeatureStatusServer(
+                        specSession,
+                        codeSession,
+                        hasSpec,
+                      ),
+                      hasSpec,
+                      hasTasks,
+                    };
+                  }),
+                );
+
+                // Also scan specs/archived/ for completed features
+                const archivedDir = path.join(repoRoot, "specs", "archived");
+                try {
+                  const archivedEntries = await fs.readdir(archivedDir, {
+                    withFileTypes: true,
+                  });
+                  for (const entry of archivedEntries) {
+                    if (!entry.isDirectory()) continue;
+                    const archivedId = entry.name;
+                    // Skip if already found as active worktree feature
+                    if (features.some((f) => f.id === archivedId)) continue;
+                    const hasSpec = fsSync.existsSync(
+                      path.join(archivedDir, archivedId, archivedId, "spec.md"),
+                    );
+                    const hasTasks = fsSync.existsSync(
+                      path.join(
+                        archivedDir,
+                        archivedId,
+                        archivedId,
+                        "tasks.md",
+                      ),
+                    );
+                    if (hasSpec || hasTasks) {
+                      features.push({
+                        id: archivedId,
+                        worktreePath: repoRoot,
+                        branch: "main",
+                        status: "complete",
+                        hasSpec,
+                        hasTasks,
+                      });
+                    }
+                  }
+                } catch {
+                  // No archived directory — that's fine
+                }
+
+                sendJson(res, 200, { features });
+              } catch (err) {
+                const message =
+                  err instanceof Error ? err.message : "git error";
+                sendJson(res, 200, { features: [], error: message });
+              }
+              return;
+            }
+
+            // GET|PUT /features/:id/spec
+            if (
+              (req.method === "GET" || req.method === "PUT") &&
+              routePath.startsWith("/features/") &&
+              routePath.endsWith("/spec")
+            ) {
+              const parts = routePath.split("/");
+              // parts = ["", "features", id, "spec"]
+              const rawFeatureId = parts[2];
+              const featureId = rawFeatureId ? safeId(rawFeatureId) : null;
+              if (!featureId) {
+                sendJson(res, 400, { error: "Invalid feature id" });
+                return;
+              }
+              // Find worktree by basename
+              const worktreeOutput = await execGit(
+                ["worktree", "list", "--porcelain"],
+                repoRoot,
+              );
+              const specWtBlocks = worktreeOutput
+                .split("\n\n")
+                .filter((chunk) => chunk.trim().length > 0);
+              let specWorktreePath: string | null = null;
+              for (const block of specWtBlocks) {
+                const pathLine = block
+                  .split("\n")
+                  .find((l) => l.startsWith("worktree "));
+                if (!pathLine) continue;
+                const candidate = pathLine.slice("worktree ".length).trim();
+                if (path.basename(candidate) === featureId) {
+                  specWorktreePath = candidate;
+                  break;
+                }
+              }
+              // Fallback to archived specs if no worktree found
+              let specBase: string;
+              if (specWorktreePath) {
+                specBase = path.join(
+                  specWorktreePath,
+                  "specs",
+                  "active",
+                  featureId,
+                );
+              } else {
+                const archivedPath = path.join(
+                  repoRoot,
+                  "specs",
+                  "archived",
+                  featureId,
+                  featureId,
+                );
+                if (fsSync.existsSync(archivedPath)) {
+                  specBase = archivedPath;
+                } else {
+                  sendJson(res, 404, { error: "Feature not found" });
+                  return;
+                }
+              }
+              const specMdPath = path.join(specBase, "spec.md");
+
+              if (req.method === "PUT") {
+                const body = await readBody(req);
+                const { content } = JSON.parse(body);
+                if (typeof content !== "string") {
+                  sendJson(res, 400, { error: "content must be a string" });
+                  return;
+                }
+                await fs.writeFile(specMdPath, content, "utf-8");
+                sendJson(res, 200, { ok: true });
+                return;
+              }
+
+              try {
+                const content = await fs.readFile(specMdPath, "utf-8");
+                sendJson(res, 200, {
+                  content,
+                  path: `specs/active/${featureId}/spec.md`,
+                });
+              } catch {
+                sendJson(res, 404, { error: "spec.md not found" });
+              }
+              return;
+            }
 
             if (req.method === "GET" && routePath === "/context") {
               const requestedWorktree = requestUrl.searchParams.get("worktree");
@@ -524,6 +922,458 @@ export default defineConfig({
               return;
             }
 
+            // GET /features/:id/tasks
+            if (
+              req.method === "GET" &&
+              routePath.startsWith("/features/") &&
+              routePath.endsWith("/tasks")
+            ) {
+              const parts = routePath.split("/");
+              // parts = ["", "features", id, "tasks"]
+              const featureId = parts[2];
+              if (!featureId || !safeId(featureId)) {
+                sendJson(res, 400, { error: "Invalid feature id" });
+                return;
+              }
+              // Find worktree by basename
+              const worktreeOutput = await execGit(
+                ["worktree", "list", "--porcelain"],
+                repoRoot,
+              );
+              const wtBlocks = worktreeOutput
+                .split("\n\n")
+                .filter((chunk) => chunk.trim().length > 0);
+              let featureWorktreePath: string | null = null;
+              for (const block of wtBlocks) {
+                const pathLine = block
+                  .split("\n")
+                  .find((l) => l.startsWith("worktree "));
+                if (!pathLine) continue;
+                const wtPath = pathLine.slice("worktree ".length).trim();
+                if (path.basename(wtPath) === featureId) {
+                  featureWorktreePath = wtPath;
+                  break;
+                }
+              }
+              let tasksFilePath: string;
+              if (featureWorktreePath) {
+                tasksFilePath = path.join(
+                  featureWorktreePath,
+                  "specs",
+                  "active",
+                  featureId,
+                  "tasks.md",
+                );
+              } else {
+                const archivedTasks = path.join(
+                  repoRoot,
+                  "specs",
+                  "archived",
+                  featureId,
+                  featureId,
+                  "tasks.md",
+                );
+                if (fsSync.existsSync(archivedTasks)) {
+                  tasksFilePath = archivedTasks;
+                } else {
+                  sendJson(res, 404, {
+                    error: "Feature worktree not found",
+                  });
+                  return;
+                }
+              }
+              let tasksContent: string;
+              try {
+                tasksContent = await fs.readFile(tasksFilePath, "utf-8");
+              } catch {
+                sendJson(res, 404, { error: "tasks.md not found" });
+                return;
+              }
+              const tasks = parseTasksMarkdown(tasksContent);
+              sendJson(res, 200, { tasks });
+              return;
+            }
+
+            // GET /features/:id/diagrams
+            if (
+              req.method === "GET" &&
+              routePath.startsWith("/features/") &&
+              routePath.endsWith("/diagrams") &&
+              routePath.split("/").length === 4
+            ) {
+              const parts = routePath.split("/");
+              // parts = ["", "features", id, "diagrams"]
+              const featureId = parts[2];
+              if (!featureId || !safeId(featureId)) {
+                sendJson(res, 400, { error: "Invalid feature id" });
+                return;
+              }
+              // Find worktree by basename
+              const worktreeOutput = await execGit(
+                ["worktree", "list", "--porcelain"],
+                repoRoot,
+              );
+              const wtBlocks = worktreeOutput
+                .split("\n\n")
+                .filter((chunk) => chunk.trim().length > 0);
+              let featureWorktreePath: string | null = null;
+              for (const block of wtBlocks) {
+                const pathLine = block
+                  .split("\n")
+                  .find((l) => l.startsWith("worktree "));
+                if (!pathLine) continue;
+                const wtPath = pathLine.slice("worktree ".length).trim();
+                if (path.basename(wtPath) === featureId) {
+                  featureWorktreePath = wtPath;
+                  break;
+                }
+              }
+              if (!featureWorktreePath) {
+                sendJson(res, 404, { error: "Feature worktree not found" });
+                return;
+              }
+              const diagramsDir = path.join(
+                featureWorktreePath,
+                "specs",
+                "active",
+                featureId,
+                "diagrams",
+              );
+              let diagrams: string[] = [];
+              try {
+                const entries = await fs.readdir(diagramsDir);
+                diagrams = entries.filter((f) => f.endsWith(".drawio"));
+              } catch {
+                // diagrams/ doesn't exist — return empty array
+              }
+              sendJson(res, 200, { diagrams });
+              return;
+            }
+
+            // GET /features/:id/diagrams/:name
+            if (
+              req.method === "GET" &&
+              routePath.startsWith("/features/") &&
+              routePath.split("/").length === 5 &&
+              routePath.split("/")[3] === "diagrams"
+            ) {
+              const parts = routePath.split("/");
+              // parts = ["", "features", id, "diagrams", name]
+              const featureId = parts[2];
+              const diagramName = parts[4];
+              if (!featureId || !safeId(featureId)) {
+                sendJson(res, 400, { error: "Invalid feature id" });
+                return;
+              }
+              if (!diagramName || !diagramName.endsWith(".drawio")) {
+                sendJson(res, 400, {
+                  error: "Only .drawio files are allowed",
+                });
+                return;
+              }
+              // Validate diagram name doesn't contain path traversal
+              if (
+                diagramName.includes("/") ||
+                diagramName.includes("\\") ||
+                diagramName.includes("..")
+              ) {
+                sendJson(res, 400, { error: "Invalid diagram name" });
+                return;
+              }
+              // Find worktree by basename
+              const worktreeOutput = await execGit(
+                ["worktree", "list", "--porcelain"],
+                repoRoot,
+              );
+              const wtBlocks = worktreeOutput
+                .split("\n\n")
+                .filter((chunk) => chunk.trim().length > 0);
+              let featureWorktreePath: string | null = null;
+              for (const block of wtBlocks) {
+                const pathLine = block
+                  .split("\n")
+                  .find((l) => l.startsWith("worktree "));
+                if (!pathLine) continue;
+                const wtPath = pathLine.slice("worktree ".length).trim();
+                if (path.basename(wtPath) === featureId) {
+                  featureWorktreePath = wtPath;
+                  break;
+                }
+              }
+              if (!featureWorktreePath) {
+                sendJson(res, 404, { error: "Feature worktree not found" });
+                return;
+              }
+              const diagramFilePath = path.join(
+                featureWorktreePath,
+                "specs",
+                "active",
+                featureId,
+                "diagrams",
+                diagramName,
+              );
+              try {
+                const content = await fs.readFile(diagramFilePath, "utf-8");
+                sendJson(res, 200, { content, name: diagramName });
+              } catch {
+                sendJson(res, 404, { error: "Diagram not found" });
+              }
+              return;
+            }
+
+            // --------------- Code session endpoints (/features/:id/code-session) ---------------
+
+            const codeSessionMatch = routePath.match(
+              /^\/features\/([^/]+)\/code-session(\/threads\/([^/]+))?$/,
+            );
+
+            if (codeSessionMatch) {
+              const rawId = codeSessionMatch[1];
+              const threadId = codeSessionMatch[3] ?? null;
+              const featureId = safeId(rawId);
+              if (!featureId) {
+                sendJson(res, 400, { error: "Invalid feature id" });
+                return;
+              }
+
+              await ensureSessionsDir();
+              const sessionFilePath = path.join(
+                sessionsDir,
+                `${featureId}-code.json`,
+              );
+
+              // GET /features/:id/code-session
+              if (req.method === "GET" && !threadId) {
+                try {
+                  const content = await fs.readFile(sessionFilePath, "utf-8");
+                  sendJson(res, 200, { session: JSON.parse(content) });
+                } catch {
+                  sendJson(res, 200, { session: null });
+                }
+                return;
+              }
+
+              // POST /features/:id/code-session
+              if (req.method === "POST" && !threadId) {
+                const rawBody = await readBody(req);
+                const session = JSON.parse(rawBody);
+                recentlySaved.add(sessionFilePath);
+                await fs.writeFile(
+                  sessionFilePath,
+                  JSON.stringify(session, null, 2),
+                  "utf-8",
+                );
+                setTimeout(() => recentlySaved.delete(sessionFilePath), 500);
+                sendJson(res, 200, { ok: true });
+                return;
+              }
+
+              // DELETE /features/:id/code-session
+              if (req.method === "DELETE" && !threadId) {
+                try {
+                  await fs.unlink(sessionFilePath);
+                } catch {
+                  // File doesn't exist — that's fine
+                }
+                sendJson(res, 200, { ok: true });
+                return;
+              }
+
+              // PATCH /features/:id/code-session/threads/:threadId
+              if (req.method === "PATCH" && threadId) {
+                let sessionContent: string;
+                try {
+                  sessionContent = await fs.readFile(sessionFilePath, "utf-8");
+                } catch {
+                  sendJson(res, 404, { error: "Session not found" });
+                  return;
+                }
+
+                const session = JSON.parse(sessionContent) as {
+                  threads?: Array<{
+                    id: string;
+                    status?: string;
+                    messages?: unknown[];
+                    [key: string]: unknown;
+                  }>;
+                  [key: string]: unknown;
+                };
+
+                const threads = session.threads ?? [];
+                const threadIndex = threads.findIndex((t) => t.id === threadId);
+                if (threadIndex === -1) {
+                  sendJson(res, 404, { error: "Thread not found" });
+                  return;
+                }
+
+                const rawBody = await readBody(req);
+                const patch = JSON.parse(rawBody) as {
+                  status?: string;
+                  messages?: unknown[];
+                };
+
+                const updatedThread = { ...threads[threadIndex] };
+                if (patch.status !== undefined) {
+                  updatedThread.status = patch.status;
+                }
+                if (patch.messages !== undefined) {
+                  updatedThread.messages = [
+                    ...((updatedThread.messages as unknown[]) ?? []),
+                    ...patch.messages,
+                  ];
+                }
+                threads[threadIndex] = updatedThread;
+                session.threads = threads;
+
+                recentlySaved.add(sessionFilePath);
+                await fs.writeFile(
+                  sessionFilePath,
+                  JSON.stringify(session, null, 2),
+                  "utf-8",
+                );
+                setTimeout(() => recentlySaved.delete(sessionFilePath), 500);
+                sendJson(res, 200, { ok: true, thread: updatedThread });
+                return;
+              }
+            }
+
+            // --------------- Spec session endpoints (/features/:id/spec-session) ---------------
+
+            const specSessionRouteMatch = routePath.match(
+              /^\/features\/([^/]+)\/spec-session(\/threads\/([^/]+))?$/,
+            );
+
+            if (specSessionRouteMatch) {
+              const rawId = specSessionRouteMatch[1];
+              const threadId = specSessionRouteMatch[3] ?? null;
+              const featureId = safeId(rawId);
+              if (!featureId) {
+                sendJson(res, 400, { error: "Invalid feature id" });
+                return;
+              }
+
+              await ensureSessionsDir();
+              const specSessionFilePath = path.join(
+                sessionsDir,
+                `${featureId}-spec.json`,
+              );
+
+              // GET /features/:id/spec-session
+              if (req.method === "GET" && !threadId) {
+                try {
+                  const content = await fs.readFile(
+                    specSessionFilePath,
+                    "utf-8",
+                  );
+                  sendJson(res, 200, { session: JSON.parse(content) });
+                } catch {
+                  sendJson(res, 200, { session: null });
+                }
+                return;
+              }
+
+              // POST /features/:id/spec-session
+              if (req.method === "POST" && !threadId) {
+                const rawBody = await readBody(req);
+                const session = JSON.parse(rawBody);
+                recentlySaved.add(specSessionFilePath);
+                await fs.writeFile(
+                  specSessionFilePath,
+                  JSON.stringify(session, null, 2),
+                  "utf-8",
+                );
+                setTimeout(
+                  () => recentlySaved.delete(specSessionFilePath),
+                  500,
+                );
+                sendJson(res, 200, { ok: true });
+                return;
+              }
+
+              // DELETE /features/:id/spec-session
+              if (req.method === "DELETE" && !threadId) {
+                try {
+                  await fs.unlink(specSessionFilePath);
+                } catch {
+                  // File doesn't exist — that's fine
+                }
+                sendJson(res, 200, { ok: true });
+                return;
+              }
+
+              // PATCH /features/:id/spec-session/threads/:threadId
+              if (req.method === "PATCH" && threadId) {
+                let specSessionContent: string;
+                try {
+                  specSessionContent = await fs.readFile(
+                    specSessionFilePath,
+                    "utf-8",
+                  );
+                } catch {
+                  sendJson(res, 404, { error: "Spec session not found" });
+                  return;
+                }
+
+                const specSession = JSON.parse(specSessionContent) as {
+                  threads?: Array<{
+                    id: string;
+                    status?: string;
+                    messages?: unknown[];
+                    lastUpdatedAt?: string;
+                    [key: string]: unknown;
+                  }>;
+                  metadata?: { createdAt?: string; updatedAt?: string };
+                  [key: string]: unknown;
+                };
+
+                const specThreads = specSession.threads ?? [];
+                const specThreadIndex = specThreads.findIndex(
+                  (t) => t.id === threadId,
+                );
+                if (specThreadIndex === -1) {
+                  sendJson(res, 404, { error: "Thread not found" });
+                  return;
+                }
+
+                const rawBody = await readBody(req);
+                const patch = JSON.parse(rawBody) as {
+                  status?: string;
+                  messages?: unknown[];
+                };
+
+                const updatedSpecThread = { ...specThreads[specThreadIndex] };
+                if (patch.status !== undefined) {
+                  updatedSpecThread.status = patch.status;
+                }
+                if (patch.messages !== undefined) {
+                  // Append new messages rather than replace
+                  updatedSpecThread.messages = [
+                    ...(updatedSpecThread.messages ?? []),
+                    ...patch.messages,
+                  ];
+                }
+                updatedSpecThread.lastUpdatedAt = new Date().toISOString();
+                specThreads[specThreadIndex] = updatedSpecThread;
+                specSession.threads = specThreads;
+                if (specSession.metadata) {
+                  specSession.metadata.updatedAt = new Date().toISOString();
+                }
+
+                recentlySaved.add(specSessionFilePath);
+                await fs.writeFile(
+                  specSessionFilePath,
+                  JSON.stringify(specSession, null, 2),
+                  "utf-8",
+                );
+                setTimeout(
+                  () => recentlySaved.delete(specSessionFilePath),
+                  500,
+                );
+                sendJson(res, 200, { ok: true, thread: updatedSpecThread });
+                return;
+              }
+            }
+
             if (req.method === "GET" && routePath === "/file") {
               const requestedWorktree = requestUrl.searchParams.get("worktree");
               const filePath = requestUrl.searchParams.get("path");
@@ -558,7 +1408,7 @@ export default defineConfig({
     },
   ],
   server: {
-    port: 3000,
+    port: 37003,
   },
   build: {
     outDir: "dist",
