@@ -22,14 +22,18 @@ type DaemonState = {
   sessionId: string | null;
   isResolving: boolean;
   pendingResolve: (() => Promise<void>) | null;
+  pendingReject: ((reason: Error) => void) | null;
   cwd: string | null;
+  lastError: string | null;
 };
 
 const state: DaemonState = {
   sessionId: null,
   isResolving: false,
   pendingResolve: null,
+  pendingReject: null,
   cwd: null,
+  lastError: null,
 };
 
 const SYSTEM_PROMPT = `You are the review resolver for the local-review Claude Code plugin.
@@ -39,6 +43,8 @@ When asked to resolve review threads, you will:
 2. For spec sessions: read the spec file directly and locate the anchored section
 3. Reply to each thread with analysis, apply fixes when unambiguous, ask clarifying questions when needed
 4. PATCH each result to the local API at http://localhost:37002`;
+
+const SDK_TIMEOUT_MS = 120_000;
 
 /** Collect text from assistant messages in the SDK stream. */
 function extractText(messages: SDKMessage[]): string {
@@ -52,7 +58,13 @@ function extractText(messages: SDKMessage[]): string {
       }
     }
   }
-  return parts.join("\n");
+  const text = parts.join("\n");
+  if (!text.trim()) {
+    console.warn(
+      "[resolver-daemon] Agent produced no text output — result parsing will return defaults",
+    );
+  }
+  return text;
 }
 
 /** Drain an SDK query stream, collecting messages and session ID. */
@@ -70,6 +82,20 @@ async function drainQuery(
   return { messages, sessionId };
 }
 
+/** Wrap drainQuery with a timeout to prevent indefinite hangs. */
+async function drainQueryWithTimeout(
+  q: ReturnType<typeof query>,
+  timeoutMs: number = SDK_TIMEOUT_MS,
+): Promise<{ messages: SDKMessage[]; sessionId: string | null }> {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(
+      () => reject(new Error(`SDK query timed out after ${timeoutMs}ms`)),
+      timeoutMs,
+    ),
+  );
+  return Promise.race([drainQuery(q), timeout]);
+}
+
 /**
  * Cold-starts a Claude Agent SDK session with the review resolver context.
  * Captures the session_id for future resume calls.
@@ -77,6 +103,7 @@ async function drainQuery(
  */
 export async function coldStart(cwd: string): Promise<void> {
   state.cwd = cwd;
+  state.lastError = null;
   try {
     const q = query({
       prompt: `Your working directory is: ${cwd}\nAcknowledge you are ready to resolve review threads. Reply with just: ready`,
@@ -92,7 +119,7 @@ export async function coldStart(cwd: string): Promise<void> {
       },
     });
 
-    const { sessionId } = await drainQuery(q);
+    const { sessionId } = await drainQueryWithTimeout(q);
 
     if (sessionId) {
       state.sessionId = sessionId;
@@ -100,10 +127,15 @@ export async function coldStart(cwd: string): Promise<void> {
         `[resolver-daemon] Cold-started. Session: ${state.sessionId}`,
       );
     } else {
-      console.warn("[resolver-daemon] Cold-start: no session_id received");
+      state.lastError =
+        "Cold-start completed but no session_id was returned. " +
+        "Check that @anthropic-ai/claude-agent-sdk is properly configured.";
+      console.error(`[resolver-daemon] ${state.lastError}`);
     }
   } catch (err) {
-    console.warn("[resolver-daemon] Cold-start failed:", err);
+    const message = err instanceof Error ? err.message : String(err);
+    state.lastError = `Cold-start failed: ${message}`;
+    console.error("[resolver-daemon] Cold-start failed:", err);
   }
 }
 
@@ -125,8 +157,11 @@ async function buildResolvePrompt(
     openThreadCount = (session.threads ?? []).filter(
       (t) => t.status === "open",
     ).length;
-  } catch {
-    // Best-effort
+  } catch (err) {
+    console.error(
+      `[resolver-daemon] Failed to read session file for thread count: ${sessionFile}`,
+      err,
+    );
   }
 
   const relSessionFile = path.relative(cwd, sessionFile);
@@ -170,22 +205,48 @@ Return JSON: {"resolved": <number>, "clarifications": <number>, "fixes": ["<file
 
 /**
  * Parses a ResolveResult from the agent's text output.
+ * Uses a targeted regex to find the last JSON object with expected keys.
  */
 function parseResolveOutput(text: string): ResolveResult {
+  const defaultResult: ResolveResult = {
+    resolved: 0,
+    clarifications: 0,
+    fixes: [],
+  };
+
+  if (!text.trim()) {
+    console.error(
+      "[resolver-daemon] Agent returned empty output — cannot parse result",
+    );
+    return defaultResult;
+  }
+
   try {
-    const match = /\{[\s\S]*\}/.exec(text);
-    if (match) {
-      const inner = JSON.parse(match[0]) as Partial<ResolveResult>;
+    // Find all JSON-like objects and try the last one first (most likely the result)
+    const jsonMatches = text.match(
+      /\{[^{}]*(?:"resolved"|"clarifications")[^{}]*\}/g,
+    );
+    if (jsonMatches && jsonMatches.length > 0) {
+      const lastMatch = jsonMatches[jsonMatches.length - 1];
+      const inner = JSON.parse(lastMatch) as Partial<ResolveResult>;
       return {
         resolved: inner.resolved ?? 0,
         clarifications: inner.clarifications ?? 0,
         fixes: inner.fixes ?? [],
       };
     }
-  } catch {
-    // Fall through
+    console.error(
+      "[resolver-daemon] No JSON object with expected keys found in agent output. Raw (first 500 chars):",
+      text.slice(0, 500),
+    );
+  } catch (err) {
+    console.error("[resolver-daemon] Failed to parse agent JSON output:", err);
+    console.error(
+      "[resolver-daemon] Raw output (first 500 chars):",
+      text.slice(0, 500),
+    );
   }
-  return { resolved: 0, clarifications: 0, fixes: [] };
+  return defaultResult;
 }
 
 async function executeResolve(
@@ -194,9 +255,17 @@ async function executeResolve(
   featureId: string,
   cwd: string,
 ): Promise<ResolveResult> {
+  // Retry cold-start if session is not initialized
+  if (!state.sessionId && state.cwd) {
+    console.log(
+      "[resolver-daemon] Session not initialized, attempting cold-start retry...",
+    );
+    await coldStart(state.cwd);
+  }
+
   if (!state.sessionId) {
     throw new Error(
-      "Resolver daemon not initialized — cold-start may have failed",
+      `Resolver daemon not initialized — ${state.lastError ?? "cold-start may have failed"}`,
     );
   }
 
@@ -218,10 +287,11 @@ async function executeResolve(
       settingSources: ["project"],
       allowedTools: ["Read", "Edit", "Grep", "Glob", "Bash"],
       permissionMode: "bypassPermissions",
+      maxTurns: 50,
     },
   });
 
-  const { messages, sessionId } = await drainQuery(q);
+  const { messages, sessionId } = await drainQueryWithTimeout(q);
 
   // Keep session_id current
   if (sessionId) {
@@ -234,6 +304,7 @@ async function executeResolve(
 /**
  * Resolves open threads in a session, serializing concurrent requests.
  * If a resolve is already running, the new request is queued (latest wins).
+ * Superseded queued requests are rejected so their Promises don't leak.
  */
 export async function resolve(
   sessionFile: string,
@@ -242,14 +313,19 @@ export async function resolve(
   cwd: string,
 ): Promise<ResolveResult> {
   if (state.isResolving) {
+    // Reject previously queued resolve if one exists (superseded)
+    if (state.pendingReject) {
+      state.pendingReject(new Error("Superseded by newer resolve request"));
+    }
     return new Promise<ResolveResult>((resolvePromise, rejectPromise) => {
+      state.pendingReject = rejectPromise;
       state.pendingResolve = async () => {
         try {
           resolvePromise(
             await executeResolve(sessionFile, sessionType, featureId, cwd),
           );
         } catch (err) {
-          rejectPromise(err);
+          rejectPromise(err instanceof Error ? err : new Error(String(err)));
         }
       };
     });
@@ -263,6 +339,7 @@ export async function resolve(
     if (state.pendingResolve) {
       const next = state.pendingResolve;
       state.pendingResolve = null;
+      state.pendingReject = null;
       void next();
     }
   }
@@ -272,10 +349,12 @@ export function getStatus(): {
   ready: boolean;
   resolving: boolean;
   sessionId: string | null;
+  lastError: string | null;
 } {
   return {
     ready: state.sessionId !== null,
     resolving: state.isResolving,
     sessionId: state.sessionId,
+    lastError: state.lastError,
   };
 }

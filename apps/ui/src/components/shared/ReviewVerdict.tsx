@@ -36,12 +36,14 @@ export function ReviewVerdict({
   const resolveStatus = useResolveStatus();
 
   // Only show status for this feature's resolve events
+  const matchesFeature = (s: { featureId: string }) =>
+    !featureId || s.featureId === featureId;
   const isResolving =
-    resolveStatus.state === "resolving" &&
-    (!featureId || resolveStatus.featureId === featureId);
+    resolveStatus.state === "resolving" && matchesFeature(resolveStatus);
   const justCompleted =
-    resolveStatus.state === "completed" &&
-    (!featureId || resolveStatus.featureId === featureId);
+    resolveStatus.state === "completed" && matchesFeature(resolveStatus);
+  const hasFailed =
+    resolveStatus.state === "failed" && matchesFeature(resolveStatus);
 
   return (
     <div className="flex items-center gap-2">
@@ -123,6 +125,11 @@ export function ReviewVerdict({
           {resolveStatus.clarifications > 0
             ? `, ${String(resolveStatus.clarifications)} need clarification`
             : ""}
+        </span>
+      )}
+      {hasFailed && (
+        <span className="text-xs text-red-400" title={resolveStatus.error}>
+          Resolve failed
         </span>
       )}
     </div>

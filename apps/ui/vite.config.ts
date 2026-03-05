@@ -1,17 +1,18 @@
-import fs from "node:fs/promises";
-import fsSync from "node:fs";
-import path from "node:path";
+import react from "@vitejs/plugin-react";
 import { execFile } from "node:child_process";
+import fsSync from "node:fs";
+import fs from "node:fs/promises";
+import type { IncomingMessage, ServerResponse } from "node:http";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import type { IncomingMessage, ServerResponse } from "node:http";
+import type { ViteDevServer } from "vite";
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import { parseTasksMarkdown } from "./src/utils/tasksParser";
 import {
   coldStart as daemonColdStart,
   resolve as daemonResolve,
 } from "./src/server/resolver-daemon";
+import { parseTasksMarkdown } from "./src/utils/tasksParser";
 
 const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -154,6 +155,67 @@ function countFilesChanged(
   if (typeof diff !== "string") return 0;
   const matches = diff.match(/^diff --git /gm);
   return matches ? matches.length : 0;
+}
+
+/**
+ * Read previous verdict from a session file, handling only ENOENT silently.
+ */
+async function readPreviousVerdict(
+  filePath: string,
+  verdictKey: string = "reviewVerdict",
+): Promise<string | null> {
+  try {
+    const prev = JSON.parse(await fs.readFile(filePath, "utf-8")) as Record<
+      string,
+      unknown
+    >;
+    return (prev[verdictKey] as string) ?? null;
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+      console.error(
+        "[local-review-api] Failed to read previous session for verdict comparison:",
+        err,
+      );
+    }
+    return null;
+  }
+}
+
+/**
+ * Trigger auto-resolve when verdict changes to changes_requested.
+ * Sends WS events for started, completed, and failed states.
+ */
+function triggerAutoResolve(
+  server: ViteDevServer,
+  sessionFile: string,
+  sessionType: "code" | "spec",
+  featureId: string,
+  openThreadCount: number,
+): void {
+  server.ws.send({
+    type: "custom",
+    event: "review:resolve-started",
+    data: { featureId, threadCount: openThreadCount },
+  });
+  void daemonResolve(sessionFile, sessionType, featureId, repoRoot)
+    .then((result) => {
+      server.ws.send({
+        type: "custom",
+        event: "review:resolve-completed",
+        data: { featureId, ...result },
+      });
+    })
+    .catch((err: unknown) => {
+      console.error("[resolver-daemon] Resolve failed:", err);
+      server.ws.send({
+        type: "custom",
+        event: "review:resolve-failed",
+        data: {
+          featureId,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      });
+    });
 }
 
 async function ensureSessionsDir(): Promise<void> {
@@ -971,15 +1033,7 @@ export default defineConfig({
                 createdAt: payload.createdAt || new Date().toISOString(),
               };
               // Read previous verdict before overwriting
-              let prevVerdict: string | null = null;
-              try {
-                const prev = JSON.parse(
-                  await fs.readFile(filePath, "utf-8"),
-                ) as SessionPayload;
-                prevVerdict = prev.reviewVerdict ?? null;
-              } catch {
-                // No existing session
-              }
+              const prevVerdict = await readPreviousVerdict(filePath);
 
               recentlySaved.add(filePath);
               await fs.writeFile(
@@ -1003,26 +1057,20 @@ export default defineConfig({
                 prevVerdict !== "changes_requested" &&
                 openThreads.length > 0
               ) {
-                // Derive featureId from the worktree path
                 const featureId = session.worktreePath
                   ? path.basename(session.worktreePath)
                   : fileName.replace(".json", "");
-                server.ws.send({
-                  type: "custom",
-                  event: "review:resolve-started",
-                  data: { featureId, threadCount: openThreads.length },
-                });
-                void daemonResolve(filePath, "code", featureId, repoRoot)
-                  .then((result) => {
-                    server.ws.send({
-                      type: "custom",
-                      event: "review:resolve-completed",
-                      data: { featureId, ...result },
-                    });
-                  })
-                  .catch((err: unknown) => {
-                    console.error("[resolver-daemon] Resolve failed:", err);
-                  });
+                // Derive session type from file name convention
+                const sessionType = fileName.includes("-spec")
+                  ? ("spec" as const)
+                  : ("code" as const);
+                triggerAutoResolve(
+                  server,
+                  filePath,
+                  sessionType,
+                  featureId,
+                  openThreads.length,
+                );
               }
               return;
             }
@@ -1283,15 +1331,7 @@ export default defineConfig({
                 const session = JSON.parse(rawBody) as SessionPayload;
 
                 // Read previous verdict before overwriting
-                let prevVerdict: string | null = null;
-                try {
-                  const prev = JSON.parse(
-                    await fs.readFile(sessionFilePath, "utf-8"),
-                  ) as SessionPayload;
-                  prevVerdict = prev.reviewVerdict ?? null;
-                } catch {
-                  // No existing session
-                }
+                const prevVerdict = await readPreviousVerdict(sessionFilePath);
 
                 recentlySaved.add(sessionFilePath);
                 await fs.writeFile(
@@ -1311,27 +1351,13 @@ export default defineConfig({
                   prevVerdict !== "changes_requested" &&
                   openThreads.length > 0
                 ) {
-                  server.ws.send({
-                    type: "custom",
-                    event: "review:resolve-started",
-                    data: { featureId, threadCount: openThreads.length },
-                  });
-                  void daemonResolve(
+                  triggerAutoResolve(
+                    server,
                     sessionFilePath,
                     "code",
                     featureId,
-                    repoRoot,
-                  )
-                    .then((result) => {
-                      server.ws.send({
-                        type: "custom",
-                        event: "review:resolve-completed",
-                        data: { featureId, ...result },
-                      });
-                    })
-                    .catch((err: unknown) => {
-                      console.error("[resolver-daemon] Resolve failed:", err);
-                    });
+                    openThreads.length,
+                  );
                 }
                 return;
               }
@@ -1449,15 +1475,10 @@ export default defineConfig({
                 };
 
                 // Read previous verdict before overwriting
-                let prevSpecVerdict: string | null = null;
-                try {
-                  const prev = JSON.parse(
-                    await fs.readFile(specSessionFilePath, "utf-8"),
-                  ) as { verdict?: string | null };
-                  prevSpecVerdict = prev.verdict ?? null;
-                } catch {
-                  // No existing session
-                }
+                const prevSpecVerdict = await readPreviousVerdict(
+                  specSessionFilePath,
+                  "verdict",
+                );
 
                 recentlySaved.add(specSessionFilePath);
                 await fs.writeFile(
@@ -1480,30 +1501,13 @@ export default defineConfig({
                   prevSpecVerdict !== "changes_requested" &&
                   openSpecThreads.length > 0
                 ) {
-                  server.ws.send({
-                    type: "custom",
-                    event: "review:resolve-started",
-                    data: { featureId, threadCount: openSpecThreads.length },
-                  });
-                  void daemonResolve(
+                  triggerAutoResolve(
+                    server,
                     specSessionFilePath,
                     "spec",
                     featureId,
-                    repoRoot,
-                  )
-                    .then((result) => {
-                      server.ws.send({
-                        type: "custom",
-                        event: "review:resolve-completed",
-                        data: { featureId, ...result },
-                      });
-                    })
-                    .catch((err: unknown) => {
-                      console.error(
-                        "[resolver-daemon] Spec resolve failed:",
-                        err,
-                      );
-                    });
+                    openSpecThreads.length,
+                  );
                 }
                 return;
               }
