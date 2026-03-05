@@ -12,7 +12,7 @@ import { uid, getLineContent, isThreadOutdated } from "../utils/diffUtils";
 import { FileSidebar, FileIcon } from "../components/sidebar/FileSidebar";
 import { DiffViewWrapper } from "../components/diff/DiffViewWrapper";
 import { ComposeWidget } from "../components/diff/ThreadWidget";
-import { ThreadDisplay } from "../components/diff/ThreadWidget";
+import { DiffInlineThread } from "../components/diff/DiffInlineThread";
 import {
   DiffSelectionPopover,
   type DiffSelectionInfo,
@@ -25,7 +25,8 @@ import {
 import { useReviewSession } from "../hooks/useReviewSession";
 import { ReviewVerdict } from "../components/shared/ReviewVerdict";
 import { useDiffNavigation } from "../hooks/useDiffNavigation";
-import { CodeThreadsPanel } from "../components/review/CodeThreadsPanel";
+import { useFeatureHeader } from "../hooks/useFeatureHeader";
+import { DiffThreadNav } from "../components/diff/DiffThreadNav";
 import type { ReviewThread as SessionReviewThread } from "../types/sessions";
 import { APP_NAME } from "../config/app";
 
@@ -445,6 +446,30 @@ export function ReviewPage({ worktreePath, embedded }: ReviewPageProps = {}) {
     setReviewVerdict("changes_requested");
   };
 
+  // Inject verdict into FeatureNavBar when embedded
+  const { setHeaderActions } = useFeatureHeader();
+
+  useEffect(() => {
+    if (!embedded) return;
+    setHeaderActions(
+      <div className="flex items-center gap-2">
+        <ReviewVerdict
+          verdict={reviewVerdict}
+          onVerdictChange={(v) => {
+            if (v === "approved") handleApprove();
+            else handleRequestChanges();
+          }}
+          openThreadCount={pendingCount}
+        />
+      </div>,
+    );
+  }, [embedded, reviewVerdict, pendingCount, setHeaderActions]);
+
+  // Clean up header actions on unmount
+  useEffect(() => {
+    return () => setHeaderActions(null);
+  }, [setHeaderActions]);
+
   useEffect(() => {
     const panel = reviewPanelRef.current;
     if (!panel || !selectedFilePath) return;
@@ -458,31 +483,31 @@ export function ReviewPage({ worktreePath, embedded }: ReviewPageProps = {}) {
 
   return (
     <div
-      className={`flex flex-col bg-[var(--bg-base)] text-slate-200 ${embedded ? "h-full" : "h-screen"}`}
+      className={`flex flex-col bg-[var(--canvas)] text-[var(--ink)] ${embedded ? "h-full" : "h-screen"}`}
     >
       {/* Top toolbar */}
-      <header className="flex shrink-0 items-center gap-3 border-b border-[var(--border-muted)] bg-[var(--bg-surface)] px-4 py-2.5">
+      <header className="flex shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--canvas-raised)] px-4 py-2.5">
         {!embedded && (
-          <span className="mr-1 text-sm font-semibold text-slate-200">
+          <span className="mr-1 text-sm font-semibold text-[var(--ink)]">
             {APP_NAME}
           </span>
         )}
 
         {embedded ? (
           <>
-            <span className="rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-2 py-1 text-xs text-slate-200">
+            <span className="rounded-md border border-[var(--border)] bg-[var(--canvas)] px-2 py-1 text-xs text-[var(--ink)]">
               {sourceBranch || "..."}
             </span>
-            <span className="text-slate-600">→</span>
+            <span className="text-[var(--ink-ghost)]">&rarr;</span>
           </>
         ) : (
           <>
-            <div className="flex items-center gap-1.5 rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-2 py-1">
-              <span className="text-xs text-slate-500">compare</span>
+            <div className="flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--canvas)] px-2 py-1">
+              <span className="text-xs text-[var(--ink-faint)]">compare</span>
               <select
                 value={sourceBranch}
                 onChange={(e) => setSourceBranch(e.target.value)}
-                className="bg-transparent text-xs text-slate-200 outline-none"
+                className="bg-transparent text-xs text-[var(--ink)] outline-none"
               >
                 {(repoContext?.branches || []).map((b) => (
                   <option key={b} value={b}>
@@ -491,16 +516,16 @@ export function ReviewPage({ worktreePath, embedded }: ReviewPageProps = {}) {
                 ))}
               </select>
             </div>
-            <span className="text-slate-600">→</span>
+            <span className="text-[var(--ink-ghost)]">&rarr;</span>
           </>
         )}
 
-        <div className="flex items-center gap-1.5 rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-2 py-1">
-          <span className="text-xs text-slate-500">base</span>
+        <div className="flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--canvas)] px-2 py-1">
+          <span className="text-xs text-[var(--ink-faint)]">base</span>
           <select
             value={targetBranch}
             onChange={(e) => setTargetBranch(e.target.value)}
-            className="bg-transparent text-xs text-slate-200 outline-none"
+            className="bg-transparent text-xs text-[var(--ink)] outline-none"
           >
             {(repoContext?.branches || []).map((b) => (
               <option key={b} value={b}>
@@ -510,12 +535,12 @@ export function ReviewPage({ worktreePath, embedded }: ReviewPageProps = {}) {
           </select>
         </div>
 
-        <div className="flex items-center gap-1.5 rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-2 py-1">
-          <span className="text-xs text-slate-500">commit</span>
+        <div className="flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--canvas)] px-2 py-1">
+          <span className="text-xs text-[var(--ink-faint)]">commit</span>
           <select
             value={selectedCommit}
             onChange={(e) => void applyCommitSelection(e.target.value)}
-            className="max-w-[220px] bg-transparent text-xs text-slate-200 outline-none"
+            className="max-w-[220px] bg-transparent text-xs text-[var(--ink)] outline-none"
           >
             <option value="">All changes</option>
             {commits.map((c) => (
@@ -524,7 +549,7 @@ export function ReviewPage({ worktreePath, embedded }: ReviewPageProps = {}) {
               </option>
             ))}
           </select>
-          <span className="text-slate-600">·</span>
+          <span className="text-[var(--ink-ghost)]">&middot;</span>
           <button
             type="button"
             onClick={() => {
@@ -532,7 +557,7 @@ export function ReviewPage({ worktreePath, embedded }: ReviewPageProps = {}) {
               const idx = commits.findIndex((c) => c.hash === selectedCommit);
               void applyCommitSelection(idx <= 0 ? "" : commits[idx - 1].hash);
             }}
-            className="text-xs text-slate-400 hover:text-slate-200"
+            className="text-xs text-[var(--ink-muted)] hover:text-[var(--ink)]"
             title="Previous commit [ key"
             aria-label="Previous commit [ key"
           >
@@ -550,7 +575,7 @@ export function ReviewPage({ worktreePath, embedded }: ReviewPageProps = {}) {
               if (idx < commits.length - 1)
                 void applyCommitSelection(commits[idx + 1].hash);
             }}
-            className="text-xs text-slate-400 hover:text-slate-200"
+            className="text-xs text-[var(--ink-muted)] hover:text-[var(--ink)]"
             title="Next commit ] key"
             aria-label="Next commit ] key"
           >
@@ -558,42 +583,39 @@ export function ReviewPage({ worktreePath, embedded }: ReviewPageProps = {}) {
           </button>
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
-          {pendingCount > 0 && (
-            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
-              {pendingCount} open
-            </span>
-          )}
-          <ReviewVerdict
-            verdict={reviewVerdict}
-            onVerdictChange={(v) => {
-              if (v === "approved") handleApprove();
-              else handleRequestChanges();
-            }}
-            openThreadCount={pendingCount}
-          />
-        </div>
+        {!embedded && (
+          <div className="ml-auto flex items-center gap-2">
+            <ReviewVerdict
+              verdict={reviewVerdict}
+              onVerdictChange={(v) => {
+                if (v === "approved") handleApprove();
+                else handleRequestChanges();
+              }}
+              openThreadCount={pendingCount}
+            />
+          </div>
+        )}
       </header>
 
       {/* Status bar */}
       <div
         aria-live="polite"
-        className="flex shrink-0 items-center gap-2 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-1 text-[11px] text-slate-500"
+        className="flex shrink-0 items-center gap-2 border-b border-[var(--border)] bg-[var(--canvas-raised)] px-4 py-1 text-[11px] text-[var(--ink-faint)]"
       >
         <span>{status}</span>
-        <span className="mx-2 text-slate-700">|</span>
+        <span className="mx-2 text-[var(--ink-ghost)]">|</span>
         <span>{visibleFiles.length} files</span>
-        <span className="mx-2 text-slate-700">|</span>
+        <span className="mx-2 text-[var(--ink-ghost)]">|</span>
         <span>{threads.length} threads</span>
-        <span className="mx-2 text-slate-700">|</span>
+        <span className="mx-2 text-[var(--ink-ghost)]">|</span>
         <span>[ ] to navigate commits</span>
         {reviewVerdict === "approved" && (
-          <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-emerald-300 ring-1 ring-emerald-500/30">
+          <span className="rounded-full bg-[var(--accent-emerald-dim)] px-2 py-0.5 text-[10px] font-medium text-[var(--accent-emerald)]">
             Approved
           </span>
         )}
         {reviewVerdict === "changes_requested" && (
-          <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-medium text-rose-300 ring-1 ring-rose-500/30">
+          <span className="rounded-full bg-[var(--accent-rose-dim)] px-2 py-0.5 text-[10px] font-medium text-[var(--accent-rose)]">
             Changes Requested
           </span>
         )}
@@ -627,25 +649,25 @@ export function ReviewPage({ worktreePath, embedded }: ReviewPageProps = {}) {
         {/* Diff panel */}
         <div className="flex min-w-0 flex-1 flex-col">
           {!selectedFile ? (
-            <div className="flex flex-1 items-center justify-center text-sm text-slate-600">
+            <div className="flex flex-1 items-center justify-center text-sm text-[var(--ink-ghost)]">
               Select a file to review
             </div>
           ) : (
             <>
               {/* File header */}
-              <div className="flex shrink-0 items-center gap-2 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2">
+              <div className="flex shrink-0 items-center gap-2 border-b border-[var(--border)] bg-[var(--canvas-raised)] px-4 py-2">
                 <FileIcon status={selectedFile.status} />
-                <span className="font-mono text-sm text-slate-300">
+                <span className="font-[family-name:JetBrains_Mono,monospace] text-sm text-[var(--ink)]">
                   {selectedFile.path}
                 </span>
-                <span className="ml-auto text-xs text-slate-600">
+                <span className="ml-auto text-xs text-[var(--ink-ghost)]">
                   {changeCountByFile.get(selectedFile.path) || 0} changes
                 </span>
                 <button
                   className={`ml-2 rounded px-2 py-0.5 text-xs font-medium transition-colors ${
                     diffMode === "unified"
-                      ? "bg-[var(--border-default)] text-slate-300"
-                      : "text-slate-500 hover:text-slate-300"
+                      ? "bg-[var(--canvas-elevated)] text-[var(--ink)]"
+                      : "text-[var(--ink-faint)] hover:text-[var(--ink)]"
                   }`}
                   onClick={() => setDiffMode("unified")}
                 >
@@ -654,8 +676,8 @@ export function ReviewPage({ worktreePath, embedded }: ReviewPageProps = {}) {
                 <button
                   className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
                     diffMode === "split"
-                      ? "bg-[var(--border-default)] text-slate-300"
-                      : "text-slate-500 hover:text-slate-300"
+                      ? "bg-[var(--canvas-elevated)] text-[var(--ink)]"
+                      : "text-[var(--ink-faint)] hover:text-[var(--ink)]"
                   }`}
                   onClick={() => setDiffMode("split")}
                 >
@@ -705,13 +727,18 @@ export function ReviewPage({ worktreePath, embedded }: ReviewPageProps = {}) {
                     ) : null
                   }
                   renderThreads={({ threads: lineThreads }) => (
-                    <ThreadDisplay
-                      threads={lineThreads}
-                      onReply={(threadId, text) => addReply(threadId, text)}
-                      onStatusChange={(threadId, newStatus) =>
-                        updateThreadStatus(threadId, newStatus)
-                      }
-                    />
+                    <div>
+                      {lineThreads.map((t) => (
+                        <DiffInlineThread
+                          key={t.id}
+                          thread={t}
+                          onReply={(threadId, text) => addReply(threadId, text)}
+                          onStatusChange={(threadId, newStatus) =>
+                            updateThreadStatus(threadId, newStatus)
+                          }
+                        />
+                      ))}
+                    </div>
                   )}
                   wrap={false}
                   fontSize={13}
@@ -740,12 +767,8 @@ export function ReviewPage({ worktreePath, embedded }: ReviewPageProps = {}) {
         </div>
 
         {/* Right panel — threads */}
-        <CodeThreadsPanel
+        <DiffThreadNav
           threads={threads}
-          selectedFilePath={selectedFilePath}
-          outdatedThreadIds={outdatedThreadIds}
-          addReply={addReply}
-          updateThreadStatus={updateThreadStatus}
           onThreadClick={(thread) => {
             setSelectedFilePath(thread.filePath);
             // After file switch + re-render, scroll to the thread's line
