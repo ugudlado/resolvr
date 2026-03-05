@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Task, TaskStatus } from "../../types/sessions";
+import { fileName } from "../../utils/diffUtils";
 import { DepChain } from "../shared/DepChain";
 
 export interface TaskRowProps {
@@ -57,12 +58,6 @@ function StatusIcon({ status }: { status: TaskStatus }) {
           <svg width={8} height={10} viewBox="0 0 8 10" fill="currentColor">
             <path d="M1 1v8l6-4z" />
           </svg>
-          <style>{`
-            @keyframes pulse-glow {
-              0%, 100% { box-shadow: 0 0 0 0 rgba(96,165,250,0); }
-              50% { box-shadow: 0 0 0 4px rgba(96,165,250,0.15); }
-            }
-          `}</style>
         </span>
       );
 
@@ -247,10 +242,7 @@ export function TaskRow({ task, allTasks }: TaskRowProps) {
         .split(",")
         .map((f) => f.trim())
         .filter(Boolean)
-        .map((f) => {
-          const parts = f.split("/");
-          return parts[parts.length - 1];
-        })
+        .map(fileName)
     : [];
 
   return (

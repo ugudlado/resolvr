@@ -126,6 +126,18 @@ export function fileName(path: string): string {
   return path.split("/").pop() || path;
 }
 
+/** Shorten a file path to just the last 2 segments for display. */
+export function shortPath(filePath: string): string {
+  const parts = filePath.split("/");
+  return parts.length <= 2 ? filePath : parts.slice(-2).join("/");
+}
+
+/** Format a diff line range label, e.g. "L12" or "L12-L15". */
+export function lineLabel(line: number, lineEnd?: number): string {
+  if (lineEnd && lineEnd !== line) return `L${line}-L${lineEnd}`;
+  return `L${line}`;
+}
+
 export function buildFolderRows(
   files: DiffFile[],
   collapsedFolders: Set<string>,

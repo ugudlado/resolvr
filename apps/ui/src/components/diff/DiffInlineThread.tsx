@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ReviewThread } from "../../types/sessions";
+import { relativeTime } from "../../utils/timeFormat";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -17,22 +18,6 @@ export interface DiffInlineThreadProps {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function relativeTime(isoString: string): string {
-  const now = Date.now();
-  const then = new Date(isoString).getTime();
-  const diffMs = now - then;
-
-  if (diffMs < 0) return "just now";
-  if (diffMs < 60_000) return "just now";
-  if (diffMs < 3_600_000) return `${Math.floor(diffMs / 60_000)}m ago`;
-  if (diffMs < 86_400_000) return `${Math.floor(diffMs / 3_600_000)}h ago`;
-  if (diffMs < 7 * 86_400_000) return `${Math.floor(diffMs / 86_400_000)}d ago`;
-  return new Date(isoString).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-}
 
 function initials(author: string): string {
   const parts = author.trim().split(/\s+/);
@@ -198,13 +183,14 @@ export function DiffInlineThread({
         data-thread-id={thread.id}
         className="overflow-hidden rounded-[6px] p-3 transition-opacity"
         style={{
-          borderLeft: `2px solid ${borderColor}`,
-          backgroundColor: bgColor,
-          boxShadow: "0 2px 12px rgba(0,0,0,0.35)",
-          border: `1px solid rgba(255,255,255,0.04)`,
+          borderWidth: 1,
+          borderStyle: "solid",
+          borderColor: `rgba(255,255,255,0.04)`,
           borderLeftWidth: 2,
           borderLeftStyle: "solid",
           borderLeftColor: borderColor,
+          backgroundColor: bgColor,
+          boxShadow: "0 2px 12px rgba(0,0,0,0.35)",
           opacity: isResolved ? 0.65 : 1,
           color: "var(--ink)",
           ...bgStyle,

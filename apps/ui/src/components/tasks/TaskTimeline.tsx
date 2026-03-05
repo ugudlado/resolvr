@@ -1,22 +1,11 @@
+import { useMemo } from "react";
 import type { TaskProgress } from "../../types/sessions";
+import { formatFeatureLabel } from "../../utils/formatFeatureLabel";
 import { ProgressRing } from "../shared/ProgressRing";
 import { PhaseSection } from "./PhaseSection";
 
 export interface TaskTimelineProps {
   taskProgress: TaskProgress;
-}
-
-/**
- * Derive a human-readable title from a featureId.
- * Strips the date prefix (first 11 chars: "YYYY-MM-DD-"),
- * replaces hyphens with spaces, and title-cases each word.
- */
-function deriveTitle(featureId: string): string {
-  const slug = featureId.replace(/^\d{4}-\d{2}-\d{2}-/, "");
-  return slug
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
 }
 
 export function TaskTimeline({ taskProgress }: TaskTimelineProps) {
@@ -32,7 +21,11 @@ export function TaskTimeline({ taskProgress }: TaskTimelineProps) {
 
   const isTDD = developmentMode === "TDD";
   const remaining = total - completed - inProgress;
-  const title = deriveTitle(featureId);
+  // Strip the "YYYY-MM-DD — " prefix from the full label to get just the title
+  const title = useMemo(() => {
+    const label = formatFeatureLabel(featureId);
+    return label.includes(" — ") ? label.split(" — ")[1] : label;
+  }, [featureId]);
 
   return (
     <div

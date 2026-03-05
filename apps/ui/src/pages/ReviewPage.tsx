@@ -49,12 +49,10 @@ export function ReviewPage({ worktreePath, embedded }: ReviewPageProps = {}) {
   const [selectedCommit, setSelectedCommit] = useState("");
   const [selectedCommitDiff, setSelectedCommitDiff] = useState("");
 
-  const [showPendingOnly] = useState(false);
   const [showFolderTree, setShowFolderTree] = useState(true);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(
     new Set(),
   );
-  const leftTab = "files" as const;
 
   /** Line where the compose widget is open, or null if closed. */
   const [composingAt, setComposingAt] = useState<{
@@ -187,7 +185,10 @@ export function ReviewPage({ worktreePath, embedded }: ReviewPageProps = {}) {
     ? (hunksByFile.get(selectedFile.path) ?? [])
     : [];
 
-  const pendingCount = threads.filter((t) => t.status !== "approved").length;
+  const pendingCount = useMemo(
+    () => threads.filter((t) => t.status === "open").length,
+    [threads],
+  );
 
   const unresolvedThreadCountByFile = useMemo(() => {
     const map = new Map<string, number>();
@@ -211,12 +212,7 @@ export function ReviewPage({ worktreePath, embedded }: ReviewPageProps = {}) {
     return map;
   }, [parsedFiles]);
 
-  const visibleFiles = useMemo(() => {
-    if (!showPendingOnly) return parsedFiles;
-    return parsedFiles.filter(
-      (f) => (unresolvedThreadCountByFile.get(f.path) || 0) > 0,
-    );
-  }, [parsedFiles, showPendingOnly, unresolvedThreadCountByFile]);
+  const visibleFiles = parsedFiles;
 
   const applyCommitSelection = async (commitHash: string) => {
     setSelectedCommit(commitHash);
@@ -626,7 +622,7 @@ export function ReviewPage({ worktreePath, embedded }: ReviewPageProps = {}) {
         {/* File sidebar */}
         <FileSidebar
           hideOverviewTab
-          leftTab={leftTab}
+          leftTab="files"
           pendingCount={pendingCount}
           visibleFiles={visibleFiles}
           selectedFilePath={selectedFilePath}

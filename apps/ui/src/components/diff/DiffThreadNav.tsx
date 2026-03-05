@@ -1,9 +1,12 @@
 import { useState, useMemo } from "react";
 import type { ReviewThread } from "../../services/localReviewApi";
+import type { ThreadFilter, ThreadSeverity } from "../../types/sessions";
+import { relativeTime } from "../../utils/timeFormat";
+import { shortPath, lineLabel } from "../../utils/diffUtils";
 
 /** Extended thread with optional severity (may come from adapted threads). */
 type ThreadWithSeverity = ReviewThread & {
-  severity?: "blocking" | "suggestion" | "nitpick";
+  severity?: ThreadSeverity;
 };
 
 // ---------------------------------------------------------------------------
@@ -14,32 +17,6 @@ export interface DiffThreadNavProps {
   threads: ReviewThread[];
   activeThreadId?: string;
   onThreadClick: (thread: ReviewThread) => void;
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function relativeTime(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
-
-/** Shorten a file path to just the last 2 segments for display. */
-function shortPath(filePath: string): string {
-  const parts = filePath.split("/");
-  return parts.length <= 2 ? filePath : parts.slice(-2).join("/");
-}
-
-/** Format line range label. */
-function lineLabel(line: number, lineEnd?: number): string {
-  if (lineEnd && lineEnd !== line) return `L${line}-L${lineEnd}`;
-  return `L${line}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -126,14 +103,12 @@ function ThreadNavCard({ thread, isActive, onClick }: ThreadNavCardProps) {
 // DiffThreadNav — slim 240px right panel for quick thread navigation
 // ---------------------------------------------------------------------------
 
-type TabFilter = "open" | "resolved";
-
 export function DiffThreadNav({
   threads,
   activeThreadId,
   onThreadClick,
 }: DiffThreadNavProps) {
-  const [activeTab, setActiveTab] = useState<TabFilter>("open");
+  const [activeTab, setActiveTab] = useState<ThreadFilter>("open");
 
   const openThreads = useMemo(
     () => threads.filter((t) => t.status === "open"),
