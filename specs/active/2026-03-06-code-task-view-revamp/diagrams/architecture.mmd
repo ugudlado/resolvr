@@ -1,0 +1,61 @@
+graph TD
+    subgraph FeatureNavBar["FeatureNavBar (Notion Dark)"]
+        NavRow1["Row 1: Breadcrumb + Branch Badge"]
+        NavRow2["Row 2: Spec | Code | Tasks + Verdict Buttons"]
+    end
+
+    subgraph CodeReviewView["Code Review View"]
+        subgraph FileSidebar["File Sidebar (240px, Notion Dark)"]
+            Search["Search Input"]
+            FileTree["File Tree with Groups"]
+            Badges["M/A/D + Thread Count Badges"]
+        end
+
+        subgraph DiffArea["Diff Area"]
+            DiffHeader["File Header (Notion Dark Chrome)"]
+            subgraph DiffCode["Diff Code (Terminal-Luxe Syntax)"]
+                GitDiffView["@git-diff-view/react"]
+                DiffInlineThread["DiffInlineThread (Notion Dark Cards)"]
+            end
+        end
+
+        subgraph DiffThreadNav["DiffThreadNav (240px, Notion Dark)"]
+            ThreadTabs["Open / Resolved Tabs"]
+            ThreadCards["Thread Cards with file:line"]
+        end
+    end
+
+    subgraph TaskView["Task View (Notion Dark)"]
+        subgraph ProgressHeader["Progress Header"]
+            ProgressRing["ProgressRing (SVG)"]
+            FeatureInfo["Title (Newsreader) + Mode Badge + Stats"]
+        end
+
+        subgraph PhaseTimeline["Phase Timeline"]
+            Phase1["PhaseSection (Collapsible)"]
+            Phase2["PhaseSection (Collapsible)"]
+            PhaseN["PhaseSection (Collapsible)"]
+        end
+
+        subgraph TaskRowDetail["TaskRow (Expandable)"]
+            StatusIcon["Status Icon (done/progress/pending)"]
+            TaskMeta["ID + Title + Tags"]
+            TaskDetails["Why / Files / Done-when"]
+            DepChain["DepChain (Dot Visualization)"]
+        end
+    end
+
+    FeatureNavBar --> CodeReviewView
+    FeatureNavBar --> TaskView
+    DiffInlineThread -.->|"reuses pattern"| InlineThread["spec/InlineThread.tsx"]
+    DiffThreadNav -.->|"adapts"| ThreadNav["spec/ThreadNav.tsx"]
+    Phase1 --> TaskRowDetail
+    Phase2 --> TaskRowDetail
+
+    classDef notionDark fill:#222228,stroke:#2e2e35,color:#e8e6e3
+    classDef terminalLuxe fill:#0d1117,stroke:#30363d,color:#e6edf3
+    classDef accent fill:#1e3a5f,stroke:#60a5fa,color:#60a5fa
+
+    class FileSidebar,DiffHeader,DiffThreadNav,ProgressHeader,PhaseTimeline,TaskRowDetail,FeatureNavBar notionDark
+    class DiffCode terminalLuxe
+    class DiffInlineThread,InlineThread,ThreadNav accent
