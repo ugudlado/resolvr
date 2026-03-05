@@ -18,7 +18,7 @@ export function ThreadStatusTabs({
   return (
     <div
       className={[
-        "flex border-b border-[var(--border-muted)] bg-[var(--bg-base)]",
+        "flex border-b border-[var(--border)] bg-[var(--canvas-raised)] font-sans",
         sticky && "sticky top-0 z-10",
       ]
         .filter(Boolean)
@@ -29,8 +29,8 @@ export function ThreadStatusTabs({
         onClick={() => onFilterChange("open")}
         className={`status-badge flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${
           activeFilter === "open"
-            ? "border-b-2 border-[var(--accent-blue)] text-[var(--text-primary)]"
-            : "border-b-2 border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+            ? "border-b-2 border-[var(--accent-blue)] text-[var(--ink)]"
+            : "border-b-2 border-transparent text-[var(--ink-faint)] hover:text-[var(--ink-muted)]"
         }`}
       >
         Open
@@ -38,8 +38,8 @@ export function ThreadStatusTabs({
           <span
             className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
               activeFilter === "open"
-                ? "bg-amber-500/15 text-amber-400"
-                : "bg-[var(--bg-elevated)] text-[var(--text-muted)]"
+                ? "bg-[var(--accent-amber-dim)] text-[var(--accent-amber)]"
+                : "bg-[var(--canvas-elevated)] text-[var(--ink-ghost)]"
             }`}
           >
             {openCount}
@@ -51,8 +51,8 @@ export function ThreadStatusTabs({
         onClick={() => onFilterChange("resolved")}
         className={`status-badge flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${
           activeFilter === "resolved"
-            ? "border-b-2 border-[var(--accent-blue)] text-[var(--text-primary)]"
-            : "border-b-2 border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+            ? "border-b-2 border-[var(--accent-blue)] text-[var(--ink)]"
+            : "border-b-2 border-transparent text-[var(--ink-faint)] hover:text-[var(--ink-muted)]"
         }`}
       >
         Resolved
@@ -60,8 +60,8 @@ export function ThreadStatusTabs({
           <span
             className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
               activeFilter === "resolved"
-                ? "bg-emerald-500/15 text-emerald-400"
-                : "bg-[var(--bg-elevated)] text-[var(--text-muted)]"
+                ? "bg-[var(--accent-emerald-dim)] text-[var(--accent-emerald)]"
+                : "bg-[var(--canvas-elevated)] text-[var(--ink-ghost)]"
             }`}
           >
             {resolvedCount}

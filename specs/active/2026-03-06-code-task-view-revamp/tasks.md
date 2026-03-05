@@ -4,22 +4,22 @@
 
 ### Phase 1: Shared Component Migration
 
-- [ ] T001: Migrate ThreadCard from terminal-luxe to Notion dark tokens [P]
+- [x] T001: Migrate ThreadCard from terminal-luxe to Notion dark tokens [P]
   - **Why**: R1 — All shared components must use Notion dark theme for visual consistency
   - **Files**: `apps/ui/src/components/shared/ThreadCard.tsx`
   - **Done when**: ThreadCard uses canvas/ink/accent CSS variables instead of bg-primary/text-primary, DM Sans font applied
 
-- [ ] T002: Migrate ThreadStatusTabs from terminal-luxe to Notion dark tokens [P]
+- [x] T002: Migrate ThreadStatusTabs from terminal-luxe to Notion dark tokens [P]
   - **Why**: R1 — Tab styling must match Notion dark theme used in ThreadNav
   - **Files**: `apps/ui/src/components/shared/ThreadStatusTabs.tsx`
   - **Done when**: Tabs use ink/canvas/accent-blue tokens, border-bottom indicator matches ThreadNav pattern
 
-- [ ] T003: Create ProgressRing shared component [P]
+- [x] T003: Create ProgressRing shared component [P]
   - **Why**: R9 — Task view needs circular SVG progress indicator
   - **Files**: `apps/ui/src/components/shared/ProgressRing.tsx`
   - **Done when**: SVG ring renders with configurable percentage, emerald accent color, percentage text centered, animates on mount
 
-- [ ] T004: Create DepChain shared component [P]
+- [x] T004: Create DepChain shared component [P]
   - **Why**: R13 — In-progress tasks show dependency chain as colored dots
   - **Files**: `apps/ui/src/components/shared/DepChain.tsx`
   - **Done when**: Renders a horizontal chain of colored dots (done=emerald, current=blue, pending=ghost) connected by lines

@@ -64,9 +64,9 @@ function threadLabel(thread: AnyReviewThread): string {
 
 function StatusDot({ status }: { status: AnyReviewThread["status"] }) {
   const colors: Record<AnyReviewThread["status"], string> = {
-    open: "bg-amber-400",
-    resolved: "bg-indigo-400",
-    approved: "bg-emerald-400",
+    open: "bg-[var(--accent-amber)]",
+    resolved: "bg-[var(--accent-blue)]",
+    approved: "bg-[var(--accent-emerald)]",
   };
   return (
     <span
@@ -79,9 +79,9 @@ function StatusDot({ status }: { status: AnyReviewThread["status"] }) {
 
 function StatusLabel({ status }: { status: AnyReviewThread["status"] }) {
   const styles: Record<AnyReviewThread["status"], string> = {
-    open: "text-amber-400",
-    resolved: "text-indigo-400",
-    approved: "text-emerald-400",
+    open: "text-[var(--accent-amber)]",
+    resolved: "text-[var(--accent-blue)]",
+    approved: "text-[var(--accent-emerald)]",
   };
   return (
     <span
@@ -98,19 +98,19 @@ const severityConfig: Record<
   { bg: string; text: string; dot: string }
 > = {
   blocking: {
-    bg: "bg-red-500/10",
-    text: "text-red-400",
-    dot: "bg-red-400",
+    bg: "bg-[var(--accent-amber-dim)]",
+    text: "text-[var(--accent-amber)]",
+    dot: "bg-[var(--accent-amber)]",
   },
   suggestion: {
-    bg: "bg-blue-500/10",
-    text: "text-blue-400",
-    dot: "bg-blue-400",
+    bg: "bg-[var(--accent-blue-dim)]",
+    text: "text-[var(--accent-blue)]",
+    dot: "bg-[var(--accent-blue)]",
   },
   nitpick: {
-    bg: "bg-[var(--bg-overlay)]",
-    text: "text-[var(--text-tertiary)]",
-    dot: "bg-[var(--text-tertiary)]",
+    bg: "bg-[var(--canvas-overlay)]",
+    text: "text-[var(--ink-faint)]",
+    dot: "bg-[var(--ink-faint)]",
   },
 };
 
@@ -142,7 +142,7 @@ function AuthorAvatar({
     );
   }
   return (
-    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[var(--bg-overlay)] text-[10px] font-bold text-[var(--text-secondary)]">
+    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[var(--canvas-overlay)] text-[10px] font-bold text-[var(--ink-muted)]">
       {author.slice(0, 2).toUpperCase()}
     </div>
   );
@@ -154,10 +154,10 @@ function MessageItem({ message }: { message: ReviewMessage }) {
       <AuthorAvatar authorType={message.authorType} author={message.author} />
       <div className="min-w-0 flex-1">
         <div className="mb-0.5 flex items-center gap-2">
-          <span className="text-[11px] font-semibold text-[var(--text-primary)]">
+          <span className="text-[11px] font-semibold text-[var(--ink)]">
             {message.author}
           </span>
-          <span className="font-mono text-[10px] text-[var(--text-muted)]">
+          <span className="font-mono text-[10px] text-[var(--ink-ghost)]">
             {new Date(message.createdAt).toLocaleString(undefined, {
               month: "short",
               day: "numeric",
@@ -171,7 +171,7 @@ function MessageItem({ message }: { message: ReviewMessage }) {
             </span>
           )}
         </div>
-        <div className="prose-review text-[12px] leading-relaxed text-[var(--text-primary)]">
+        <div className="prose-review text-[12px] leading-relaxed text-[var(--ink)]">
           <Markdown remarkPlugins={[remarkGfm]}>{message.text}</Markdown>
         </div>
       </div>
@@ -203,7 +203,7 @@ function ReplyComposer({ onSubmit }: { onSubmit: (text: string) => void }) {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSubmit();
         }}
         placeholder="Reply... (⌘↵ to send)"
-        className="flex-1 resize-none rounded-md bg-[var(--bg-base)] px-2.5 py-1.5 text-[11px] text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none ring-1 ring-[var(--border-muted)] transition-shadow focus:ring-[var(--accent-blue)]"
+        className="flex-1 resize-none rounded-md bg-[var(--canvas)] px-2.5 py-1.5 text-[11px] text-[var(--ink)] placeholder-[var(--ink-ghost)] outline-none ring-1 ring-[var(--border-subtle)] transition-shadow focus:ring-[var(--accent-blue)]"
       />
       <button
         type="button"
@@ -211,8 +211,8 @@ function ReplyComposer({ onSubmit }: { onSubmit: (text: string) => void }) {
         disabled={!draft.trim()}
         className={`self-end rounded-md px-2.5 py-1 text-[11px] font-medium transition-all ${
           draft.trim()
-            ? "bg-[var(--accent-blue)]/15 hover:bg-[var(--accent-blue)]/25 text-blue-400"
-            : "bg-[var(--bg-elevated)] text-[var(--text-muted)]"
+            ? "bg-[var(--accent-blue)]/15 hover:bg-[var(--accent-blue)]/25 text-[var(--accent-blue)]"
+            : "bg-[var(--canvas-elevated)] text-[var(--ink-ghost)]"
         }`}
       >
         Reply
@@ -240,7 +240,7 @@ function StatusActions({
         <button
           type="button"
           onClick={() => onStatusChange("open")}
-          className={`${actionBtn} bg-[var(--bg-elevated)] text-[var(--text-tertiary)] hover:bg-[var(--bg-overlay)] hover:text-[var(--text-secondary)]`}
+          className={`${actionBtn} bg-[var(--canvas-elevated)] text-[var(--ink-faint)] hover:bg-[var(--canvas-overlay)] hover:text-[var(--ink-muted)]`}
         >
           Reopen
         </button>
@@ -249,7 +249,7 @@ function StatusActions({
         <button
           type="button"
           onClick={() => onStatusChange("resolved")}
-          className={`${actionBtn} bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20`}
+          className={`${actionBtn} hover:bg-[var(--accent-blue)]/20 bg-[var(--accent-blue-dim)] text-[var(--accent-blue)]`}
         >
           Resolve
         </button>
@@ -258,7 +258,7 @@ function StatusActions({
         <button
           type="button"
           onClick={() => onStatusChange("approved")}
-          className={`${actionBtn} bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20`}
+          className={`${actionBtn} hover:bg-[var(--accent-emerald)]/20 bg-[var(--accent-emerald-dim)] text-[var(--accent-emerald)]`}
         >
           Approve
         </button>
@@ -302,24 +302,24 @@ export function ThreadCard({
     <div
       id={`thread-${thread.id}`}
       data-thread-id={thread.id}
-      className={`thread-enter overflow-hidden rounded-lg bg-[var(--bg-surface)] shadow-[0_1px_3px_rgba(0,0,0,0.3),0_0_0_1px_var(--border-muted)] transition-all duration-200 ${isExpanded ? "ring-1 ring-[var(--border-default)]" : "hover:shadow-[0_2px_8px_rgba(0,0,0,0.4),0_0_0_1px_var(--border-default)]"} `}
+      className={`thread-enter overflow-hidden rounded-lg bg-[var(--canvas-raised)] shadow-[0_2px_8px_rgba(0,0,0,0.3),0_0_0_1px_var(--border)] transition-all duration-200 ${isExpanded ? "ring-1 ring-[var(--border)]" : "hover:shadow-[0_4px_16px_rgba(0,0,0,0.4),0_0_0_1px_var(--border)]"} `}
     >
       {/* Header: click to expand/collapse */}
       <button
         type="button"
         onClick={() => setInternalExpanded((prev) => !prev)}
-        className="hover:bg-[var(--bg-elevated)]/50 flex w-full items-center gap-2 px-3 py-2 text-left transition-colors"
+        className="hover:bg-[var(--canvas-elevated)]/50 flex w-full items-center gap-2 px-3 py-2 text-left transition-colors"
       >
         <StatusDot status={thread.status} />
         <SeverityBadge
           severity={"severity" in thread ? thread.severity : undefined}
         />
-        <span className="min-w-0 truncate text-[11px] text-[var(--text-secondary)]">
+        <span className="min-w-0 truncate text-[11px] text-[var(--ink-muted)]">
           {threadLabel(thread)}
         </span>
         <span className="ml-auto flex items-center gap-1.5">
           <StatusLabel status={thread.status} />
-          <span className="font-mono text-[10px] text-[var(--text-muted)]">
+          <span className="font-mono text-[10px] text-[var(--ink-ghost)]">
             {thread.messages.length}
           </span>
           <svg
@@ -327,7 +327,7 @@ export function ThreadCard({
             height="10"
             viewBox="0 0 16 16"
             fill="currentColor"
-            className={`text-[var(--text-muted)] transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+            className={`text-[var(--ink-ghost)] transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
           >
             <path d="M4.427 7.427l3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427Z" />
           </svg>
@@ -336,9 +336,9 @@ export function ThreadCard({
 
       {/* Expanded content */}
       {isExpanded && (
-        <div className="border-t border-[var(--border-muted)]">
+        <div className="border-t border-[var(--border-subtle)]">
           {/* Status actions bar */}
-          <div className="bg-[var(--bg-base)]/50 flex items-center px-3 py-1.5">
+          <div className="bg-[var(--canvas)]/50 flex items-center px-3 py-1.5">
             <StatusActions
               currentStatus={thread.status}
               onStatusChange={handleStatusChange}
@@ -346,14 +346,14 @@ export function ThreadCard({
           </div>
 
           {/* Message list */}
-          <div className="divide-y divide-[var(--border-muted)]">
+          <div className="divide-y divide-[var(--border-subtle)]">
             {thread.messages.map((msg) => (
               <MessageItem key={msg.id} message={msg} />
             ))}
           </div>
 
           {/* Reply composer */}
-          <div className="border-t border-[var(--border-muted)]">
+          <div className="border-t border-[var(--border-subtle)]">
             <ReplyComposer onSubmit={handleReply} />
           </div>
         </div>
