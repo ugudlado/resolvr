@@ -9,7 +9,7 @@
 
 ```bash
 pnpm install           # Install dependencies for all workspaces
-pnpm -C apps/ui dev   # Start Vite dev server at http://localhost:37002
+pnpm -C apps/ui dev   # Start Vite dev server at http://localhost:37003
 ```
 
 **Note**: All `pnpm` commands run from the repository root. Use `-C apps/ui` prefix when running app-specific commands.
@@ -51,7 +51,7 @@ Run all commands from the repository root. App-specific commands use `pnpm -C ap
 
 ```bash
 # Development (run from repo root)
-pnpm -C apps/ui dev           # Start Vite dev server at http://localhost:37002
+pnpm -C apps/ui dev           # Start Vite dev server at http://localhost:37003
 pnpm -C apps/ui build         # Build UI for production
 
 # Testing (Vitest, config: apps/ui/vitest.config.unit.ts)
@@ -66,7 +66,7 @@ pnpm lint          # Lint all files (ESLint 9 flat config)
 pnpm format        # Format all source files (Prettier + Tailwind plugin)
 ```
 
-**Port Configuration**: Change default port 37002 by setting `VITE_PORT` env var:
+**Port Configuration**: Change default port 37003 by setting `VITE_PORT` env var:
 
 ```bash
 VITE_PORT=3000 pnpm -C apps/ui dev
@@ -100,7 +100,7 @@ VITE_PORT=3000 pnpm -C apps/ui dev
 
 ```bash
 # Optional environment variables:
-VITE_PORT=3000      # Change dev server port (default: 37002)
+VITE_PORT=3000      # Change dev server port (default: 37003)
 
 # No other env vars required for basic usage
 ```

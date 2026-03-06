@@ -79,7 +79,7 @@ pnpm install
 pnpm -C apps/ui dev
 ```
 
-Opens the UI at `http://localhost:37002` with the backend on `http://localhost:37002` (same port, Vite plugin middleware handles API routes).
+Opens the UI at `http://localhost:37003` with the backend on `http://localhost:37003` (same port, Vite plugin middleware handles API routes).
 
 ```bash
 pnpm -C apps/ui build         # Build for production

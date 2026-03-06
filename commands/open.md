@@ -21,13 +21,13 @@ Start the review UI so you can browse the dashboard or jump directly into a feat
 2. Check if the UI dev server is already running:
 
    ```bash
-   lsof -i :37002 | grep LISTEN
+   lsof -i :37003 | grep LISTEN
    ```
 
 3. If not running, start it:
 
    ```bash
-   cd $CLAUDE_PLUGIN_ROOT/.. && pnpm dev
+   cd ~/code/review && pnpm -C apps/ui dev
    ```
 
    Wait ~3 seconds for Vite to start.
@@ -36,18 +36,18 @@ Start the review UI so you can browse the dashboard or jump directly into a feat
 
    ```bash
    # Default — dashboard / standalone review
-   open http://localhost:37002
+   open http://localhost:37003
 
    # Standalone with source branch and/or worktree pre-selected
    # URL-encode the values if they contain special characters (e.g. / → %2F)
-   open "http://localhost:37002?source=<branch>"
-   open "http://localhost:37002?worktree=<encoded-path>"
-   open "http://localhost:37002?source=<branch>&worktree=<encoded-path>"
+   open "http://localhost:37003?source=<branch>"
+   open "http://localhost:37003?worktree=<encoded-path>"
+   open "http://localhost:37003?source=<branch>&worktree=<encoded-path>"
 
    # With --spec / --code / --tasks
-   open http://localhost:37002/features/$FEATURE_ID/spec
-   open http://localhost:37002/features/$FEATURE_ID/code
-   open http://localhost:37002/features/$FEATURE_ID/tasks
+   open http://localhost:37003/features/$FEATURE_ID/spec
+   open http://localhost:37003/features/$FEATURE_ID/code
+   open http://localhost:37003/features/$FEATURE_ID/tasks
    ```
 
    Note: The `open` command requires disabling the sandbox since it needs macOS Launch Services.

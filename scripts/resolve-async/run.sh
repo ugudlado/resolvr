@@ -138,7 +138,7 @@ CONTEXTS+="]"
 log "Contexts ready ($THREAD_COUNT threads)."
 
 # --- Detect API port from vite.config.ts ---
-API_PORT=$(grep -oE 'port: [0-9]+' "$REPO_ROOT/apps/ui/vite.config.ts" 2>/dev/null | head -1 | grep -oE '[0-9]+' || echo "37002")
+API_PORT=$(grep -oE 'port: [0-9]+' "$REPO_ROOT/apps/ui/vite.config.ts" 2>/dev/null | head -1 | grep -oE '[0-9]+' || echo "37003")
 API_BASE="http://localhost:$API_PORT/local-api"
 log "API: $API_BASE"
 
