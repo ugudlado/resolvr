@@ -6,20 +6,26 @@ import { OverviewTab } from "./OverviewTab";
 export function FileIcon({ status }: { status: DiffFile["status"] }) {
   if (status === "A")
     return (
-      <span className="font-mono text-[10px] font-bold text-emerald-400">
+      <span className="font-mono text-[10px] font-bold text-[var(--accent-emerald)]">
         A
       </span>
     );
   if (status === "D")
     return (
-      <span className="font-mono text-[10px] font-bold text-rose-400">D</span>
+      <span className="font-mono text-[10px] font-bold text-[var(--accent-rose)]">
+        D
+      </span>
     );
   if (status === "M")
     return (
-      <span className="font-mono text-[10px] font-bold text-amber-400">M</span>
+      <span className="font-mono text-[10px] font-bold text-[var(--accent-amber)]">
+        M
+      </span>
     );
   return (
-    <span className="font-mono text-[10px] font-bold text-slate-400">R</span>
+    <span className="font-mono text-[10px] font-bold text-[var(--ink-muted)]">
+      R
+    </span>
   );
 }
 
@@ -72,17 +78,17 @@ export function FileSidebar({
   const folderRows = buildFolderRows(visibleFiles, collapsedFolders);
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-[var(--border-default)] bg-[var(--bg-surface)]">
+    <aside className="flex w-64 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--canvas-raised)]">
       {/* Tab switcher (hidden when overview tab is disabled) */}
       {!hideOverviewTab && (
-        <div className="flex border-b border-[var(--border-default)]">
+        <div className="flex border-b border-[var(--border)]">
           <button
             type="button"
             onClick={() => onTabChange?.("files")}
             className={`flex-1 py-1.5 text-[11px] font-medium ${
               leftTab === "files"
-                ? "border-b-2 border-[var(--accent-blue)] text-slate-200"
-                : "text-slate-500 hover:text-slate-300"
+                ? "border-b-2 border-[var(--accent-blue)] text-[var(--ink)]"
+                : "text-[var(--ink-faint)] hover:text-[var(--ink)]"
             }`}
           >
             Files
@@ -92,8 +98,8 @@ export function FileSidebar({
             onClick={() => onTabChange?.("overview")}
             className={`flex-1 py-1.5 text-[11px] font-medium ${
               leftTab === "overview"
-                ? "border-b-2 border-[var(--accent-blue)] text-slate-200"
-                : "text-slate-500 hover:text-slate-300"
+                ? "border-b-2 border-[var(--accent-blue)] text-[var(--ink)]"
+                : "text-[var(--ink-faint)] hover:text-[var(--ink)]"
             }`}
           >
             Overview{pendingCount > 0 ? ` (${pendingCount})` : ""}
@@ -103,11 +109,11 @@ export function FileSidebar({
 
       {leftTab === "files" && (
         <>
-          <div className="flex items-center justify-between border-b border-[var(--border-default)] px-3 py-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <div className="flex items-center justify-between border-b border-[var(--border)] px-3 py-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
               Files
             </span>
-            <label className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300">
+            <label className="flex items-center gap-1 text-[10px] text-[var(--ink-faint)] hover:text-[var(--ink)]">
               <input
                 type="checkbox"
                 checked={showFolderTree}
@@ -120,7 +126,7 @@ export function FileSidebar({
 
           <div className="flex-1 overflow-auto py-1">
             {visibleFiles.length === 0 ? (
-              <p className="px-4 py-6 text-xs text-slate-600">
+              <p className="px-4 py-6 text-xs text-[var(--ink-ghost)]">
                 No changed files
               </p>
             ) : showFolderTree ? (
@@ -131,7 +137,7 @@ export function FileSidebar({
                       key={row.key}
                       type="button"
                       onClick={() => onFolderToggle(row.path)}
-                      className="stagger-fade-in flex w-full items-center gap-1.5 px-3 py-1 text-left text-xs text-slate-500 hover:bg-white/5 hover:text-slate-300"
+                      className="stagger-fade-in flex w-full items-center gap-1.5 px-3 py-1 text-left text-xs text-[var(--ink-faint)] hover:bg-[var(--canvas-elevated)] hover:text-[var(--ink-muted)]"
                       style={{
                         paddingLeft: `${12 + row.depth * 14}px`,
                         animationDelay: `${index * 50}ms`,
@@ -155,7 +161,7 @@ export function FileSidebar({
                     type="button"
                     onClick={() => onFileSelect(file.path)}
                     title={file.path}
-                    className={`stagger-fade-in sidebar-item flex w-full items-center justify-between gap-1 py-1 text-left text-xs transition-colors ${active ? "bg-[var(--accent-blue)]/20 text-slate-200" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"}`}
+                    className={`stagger-fade-in sidebar-item flex w-full items-center justify-between gap-1 py-1 text-left text-xs transition-colors ${active ? "bg-[var(--accent-blue-dim)] text-[var(--ink)]" : "text-[var(--ink-muted)] hover:bg-[var(--canvas-elevated)] hover:text-[var(--ink)]"}`}
                     style={{
                       paddingLeft: `${12 + row.depth * 14}px`,
                       paddingRight: "12px",
@@ -170,11 +176,11 @@ export function FileSidebar({
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
                       {unresolved > 0 && (
-                        <span className="rounded-full bg-amber-500/20 px-1.5 text-[10px] text-amber-300">
+                        <span className="rounded-full bg-[var(--accent-amber-dim)] px-1.5 text-[10px] text-[var(--accent-amber)]">
                           {unresolved}
                         </span>
                       )}
-                      <span className="text-[10px] text-slate-600">
+                      <span className="text-[10px] text-[var(--ink-ghost)]">
                         {changeCountByFile.get(file.path) || 0}
                       </span>
                     </div>
@@ -192,7 +198,7 @@ export function FileSidebar({
                     type="button"
                     onClick={() => onFileSelect(file.path)}
                     title={file.path}
-                    className={`stagger-fade-in sidebar-item flex w-full items-center justify-between gap-1 px-3 py-1 text-left text-xs transition-colors ${active ? "bg-[var(--accent-blue)]/20 text-slate-200" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"}`}
+                    className={`stagger-fade-in sidebar-item flex w-full items-center justify-between gap-1 px-3 py-1 text-left text-xs transition-colors ${active ? "bg-[var(--accent-blue-dim)] text-[var(--ink)]" : "text-[var(--ink-muted)] hover:bg-[var(--canvas-elevated)] hover:text-[var(--ink)]"}`}
                     style={{ animationDelay: `${index * 50}ms` }}
                   >
                     <div className="flex min-w-0 items-center gap-1.5">
@@ -203,11 +209,11 @@ export function FileSidebar({
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
                       {unresolved > 0 && (
-                        <span className="rounded-full bg-amber-500/20 px-1.5 text-[10px] text-amber-300">
+                        <span className="rounded-full bg-[var(--accent-amber-dim)] px-1.5 text-[10px] text-[var(--accent-amber)]">
                           {unresolved}
                         </span>
                       )}
-                      <span className="text-[10px] text-slate-600">
+                      <span className="text-[10px] text-[var(--ink-ghost)]">
                         {changeCountByFile.get(file.path) || 0}
                       </span>
                     </div>
