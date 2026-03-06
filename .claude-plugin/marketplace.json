@@ -1,0 +1,18 @@
+{
+  "name": "ugudlado",
+  "owner": {
+    "name": "Mahesh"
+  },
+  "metadata": {
+    "description": "Local code review tool for Claude Code",
+    "homepage": "https://github.com/ugudlado/local-review"
+  },
+  "plugins": [
+    {
+      "name": "local-review",
+      "version": "1.0.0",
+      "source": ".",
+      "description": "GitHub-style local code review with threaded comments. Claude can read review sessions, reply to threads, apply fixes, and resolve open questions."
+    }
+  ]
+}
