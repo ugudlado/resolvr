@@ -24,7 +24,7 @@ type DaemonState = {
   pendingResolve: (() => Promise<void>) | null;
   pendingReject: ((reason: Error) => void) | null;
   cwd: string | null;
-  lastError: string | null;
+  lastError: { message: string; timestamp: string; code?: string } | null;
 };
 
 const state: DaemonState = {
@@ -45,6 +45,12 @@ When asked to resolve review threads, you will:
 4. PATCH each result to the local API at http://localhost:37002`;
 
 const SDK_TIMEOUT_MS = 120_000;
+
+/** Build a clean env for spawning Claude CLI (strips nested-session guard). */
+function cleanEnv(): Record<string, string | undefined> {
+  const { CLAUDECODE, ...rest } = process.env;
+  return rest;
+}
 
 /** Collect text from assistant messages in the SDK stream. */
 function extractText(messages: SDKMessage[]): string {
@@ -112,6 +118,7 @@ export async function coldStart(cwd: string): Promise<void> {
         systemPrompt: SYSTEM_PROMPT,
         tools: { type: "preset", preset: "claude_code" },
         cwd,
+        env: cleanEnv(),
         settingSources: ["project"],
         allowedTools: ["Read", "Edit", "Grep", "Glob", "Bash"],
         permissionMode: "bypassPermissions",
@@ -127,14 +134,20 @@ export async function coldStart(cwd: string): Promise<void> {
         `[resolver-daemon] Cold-started. Session: ${state.sessionId}`,
       );
     } else {
-      state.lastError =
-        "Cold-start completed but no session_id was returned. " +
-        "Check that @anthropic-ai/claude-agent-sdk is properly configured.";
-      console.error(`[resolver-daemon] ${state.lastError}`);
+      state.lastError = {
+        message:
+          "Cold-start completed but no session_id was returned. " +
+          "Check that @anthropic-ai/claude-agent-sdk is properly configured.",
+        timestamp: new Date().toISOString(),
+      };
+      console.error(`[resolver-daemon] ${state.lastError.message}`);
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    state.lastError = `Cold-start failed: ${message}`;
+    state.lastError = {
+      message: `Cold-start failed: ${message}`,
+      timestamp: new Date().toISOString(),
+    };
     console.error("[resolver-daemon] Cold-start failed:", err);
   }
 }
@@ -265,7 +278,7 @@ async function executeResolve(
 
   if (!state.sessionId) {
     throw new Error(
-      `Resolver daemon not initialized — ${state.lastError ?? "cold-start may have failed"}`,
+      `Resolver daemon not initialized — ${state.lastError?.message ?? "cold-start may have failed"}`,
     );
   }
 
@@ -284,6 +297,7 @@ async function executeResolve(
       resume: state.sessionId,
       tools: { type: "preset", preset: "claude_code" },
       cwd,
+      env: cleanEnv(),
       settingSources: ["project"],
       allowedTools: ["Read", "Edit", "Grep", "Glob", "Bash"],
       permissionMode: "bypassPermissions",
@@ -349,7 +363,7 @@ export function getStatus(): {
   ready: boolean;
   resolving: boolean;
   sessionId: string | null;
-  lastError: string | null;
+  lastError: { message: string; timestamp: string; code?: string } | null;
 } {
   return {
     ready: state.sessionId !== null,

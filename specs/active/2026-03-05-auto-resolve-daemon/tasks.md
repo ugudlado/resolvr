@@ -38,6 +38,16 @@
   - **Files**: `apps/ui/src/components/shared/ReviewVerdict.tsx` (modify)
   - **Done when**: Shows "Resolving N threads..." with spinner when `isResolving` is true; shows "N resolved, N need clarification" flash message on completion
 
+### Phase 4: Chrome Verification
+
+- [x] T007: Verify auto-resolve flow end-to-end in Chrome
+  - **Why**: Must Have — manual verification of core use cases before merge
+  - **Test cases**:
+    1. Add 1 clarification comment + 1 code change comment
+    2. Verify agent replies and makes code changes
+    3. Reply on clarification thread to test follow-up conversation
+  - **Done when**: All 3 test cases pass in browser
+
 ## Status Legend
 
 - [ ] = Pending

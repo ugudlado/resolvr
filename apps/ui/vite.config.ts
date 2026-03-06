@@ -192,6 +192,9 @@ function triggerAutoResolve(
   featureId: string,
   openThreadCount: number,
 ): void {
+  console.log(
+    `[auto-resolve] Triggered for ${featureId} (${sessionType}, ${openThreadCount} open threads)`,
+  );
   server.ws.send({
     type: "custom",
     event: "review:resolve-started",
