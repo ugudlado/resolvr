@@ -103,7 +103,7 @@ export const localReviewApi = {
       params.set("worktree", worktreePath);
     }
     const suffix = params.toString() ? `?${params.toString()}` : "";
-    const response = await fetch(`/local-api/context${suffix}`);
+    const response = await fetch(`/api/context${suffix}`);
     return await parseJson<RepoContext>(response);
   },
 
@@ -123,7 +123,7 @@ export const localReviewApi = {
       query.set("source", params.sourceBranch);
     }
     const suffix = query.toString() ? `?${query.toString()}` : "";
-    const response = await fetch(`/local-api/diff${suffix}`);
+    const response = await fetch(`/api/diff${suffix}`);
     return await parseJson<DiffBundle>(response);
   },
 
@@ -143,7 +143,7 @@ export const localReviewApi = {
       query.set("source", params.sourceBranch);
     }
     const suffix = query.toString() ? `?${query.toString()}` : "";
-    const response = await fetch(`/local-api/commits${suffix}`);
+    const response = await fetch(`/api/commits${suffix}`);
     const data = await parseJson<{ commits: CommitInfo[] }>(response);
     return data.commits;
   },
@@ -157,7 +157,7 @@ export const localReviewApi = {
       query.set("worktree", params.worktreePath);
     }
     query.set("commit", params.commit);
-    const response = await fetch(`/local-api/commit-diff?${query.toString()}`);
+    const response = await fetch(`/api/commit-diff?${query.toString()}`);
     const data = await parseJson<{ diff: string }>(response);
     return data.diff;
   },
@@ -168,7 +168,7 @@ export const localReviewApi = {
   }): Promise<string> {
     const query = new URLSearchParams({ path: params.filePath });
     if (params.worktreePath) query.set("worktree", params.worktreePath);
-    const response = await fetch(`/local-api/file?${query.toString()}`);
+    const response = await fetch(`/api/file?${query.toString()}`);
     const data = await parseJson<{ content: string }>(response);
     return data.content;
   },

@@ -5,6 +5,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { wsOn } from "./wsClient";
 import {
   type ReviewThread,
   type ReviewMessage,
@@ -99,7 +100,6 @@ export function useReviewSession({
   }, [viewKey, summaryNotes]);
 
   // Suppress the next file-watcher update that echoes back our own save.
-  // Set to true right before we save; the HMR listener checks & clears it.
   const skipNextUpdate = useRef(false);
 
   // Auto-save effect (on threads/verdict change)
@@ -107,10 +107,9 @@ export function useReviewSession({
     if (!featureId || !sourceBranch || !targetBranch) return;
     if (threads.length === 0 && reviewVerdict === null) return; // never auto-save empty state
 
-    skipNextUpdate.current = true;
-
     const now = new Date().toISOString();
     const timer = setTimeout(async () => {
+      skipNextUpdate.current = true;
       try {
         await featureApi.saveCodeSession(featureId, {
           featureId,
@@ -141,16 +140,16 @@ export function useReviewSession({
     }
   }, [threads, reviewVerdict]);
 
-  // Listen for external session file changes pushed via Vite HMR WebSocket
+  // Listen for external session file changes pushed via server WebSocket
   useEffect(() => {
-    if (!import.meta.hot) return;
     if (!featureId) return;
     const expectedFileName = `${featureId}-code.json`;
 
-    const handler = (data: {
-      fileName: string;
-      session: Record<string, unknown>;
-    }) => {
+    return wsOn("review:session-updated", (raw) => {
+      const data = raw as {
+        fileName: string;
+        session: Record<string, unknown>;
+      };
       if (data.fileName !== expectedFileName) return;
 
       // Skip echoes from our own saves
@@ -166,12 +165,7 @@ export function useReviewSession({
           null,
       );
       setStatus("Session updated externally");
-    };
-
-    import.meta.hot.on("review:session-updated", handler);
-    return () => {
-      import.meta.hot?.off?.("review:session-updated", handler);
-    };
+    });
   }, [featureId]);
 
   const resetSession = async () => {

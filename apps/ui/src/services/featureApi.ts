@@ -48,7 +48,7 @@ export type ThreadPatch = {
 // Internal fetch helper
 // ---------------------------------------------------------------------------
 
-const BASE = "/local-api";
+const BASE = "/api";
 
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, options);
@@ -200,6 +200,24 @@ export const featureApi = {
     return apiFetch<{ content: string; name: string }>(
       `${BASE}/features/${encodeURIComponent(featureId)}/diagrams/${encodeURIComponent(name)}`,
     );
+  },
+
+  // Resolver
+  triggerResolve(
+    featureId: string,
+    sessionType: "code" | "spec",
+  ): Promise<{
+    ok: boolean;
+    resolved?: number;
+    clarifications?: number;
+    fixes?: string[];
+    error?: string;
+  }> {
+    return apiFetch(`${BASE}/resolver/resolve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ featureId, sessionType }),
+    });
   },
 
   // Branches & Diff regeneration

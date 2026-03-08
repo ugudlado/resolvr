@@ -79,7 +79,7 @@ Read the spec file directly. Locate the section via `thread.anchor.sectionPath` 
 After handling each thread, immediately update it:
 
 ```bash
-curl -s -X PATCH http://localhost:37003/local-api/features/<featureId>/<code|spec>-session/threads/<threadId> \
+curl -s -X PATCH http://localhost:37003/api/features/<featureId>/<code|spec>-session/threads/<threadId> \
   -H 'Content-Type: application/json' \
   -d '{
     "status": "<resolved|open>",

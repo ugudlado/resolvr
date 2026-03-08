@@ -3,14 +3,13 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { logger } from "./utils/logger";
-import "./styles/terminal-luxe.css";
-import "./styles/notion-theme.css";
+import { API_BASE } from "./config/app";
 import "./index.css";
 
 // Log app startup in development
 logger.info("App starting", {
   env: import.meta.env.MODE,
-  localApi: "/local-api",
+  localApi: API_BASE,
 });
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

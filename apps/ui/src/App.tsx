@@ -1,6 +1,7 @@
 import {
   createBrowserRouter,
   Navigate,
+  Outlet,
   RouterProvider,
   useParams,
   useSearchParams,
@@ -13,9 +14,18 @@ import { ReviewPage } from "./pages/ReviewPage";
 import NotFound from "./pages/NotFound";
 import FeatureLayout from "./components/FeatureLayout";
 import { getStatusConfig } from "./utils/featureStatus";
-import { useFeatures } from "./hooks/useFeaturesContext";
+import { FeaturesProvider, useFeatures } from "./hooks/useFeaturesContext";
 import { FLAGS } from "./config/app";
 import { FEATURE_TAB } from "./types/constants";
+
+/** Root layout that provides FeaturesProvider to all routes. */
+function RootLayout() {
+  return (
+    <FeaturesProvider>
+      <Outlet />
+    </FeaturesProvider>
+  );
+}
 
 /** Redirects /features/:featureId to the tab matching the feature's current status. */
 function FeatureDefaultRedirect() {
@@ -70,42 +80,73 @@ function FeatureCodeTab() {
   );
 }
 
-/** Standalone ReviewPage that reads ?source= and ?worktree= from the URL. */
+/** Standalone ReviewPage that reads ?source= and ?worktree= from the URL.
+ *  Auto-detects the matching feature from the features list so sessions load. */
 function StandaloneReviewPage() {
   const [params] = useSearchParams();
   const source = params.get("source") ?? undefined;
   const worktree = params.get("worktree") ?? undefined;
-  return <ReviewPage sourceBranch={source} worktreePath={worktree} />;
+  const { features } = useFeatures();
+
+  // Try to find a feature whose branch matches the source param or worktree path
+  const matchedFeature = useMemo(() => {
+    if (!features.length) return null;
+    if (source) {
+      const byBranch = features.find((f) => f.branch === source);
+      if (byBranch) return byBranch;
+    }
+    if (worktree) {
+      const byWorktree = features.find((f) => f.worktreePath === worktree);
+      if (byWorktree) return byWorktree;
+    }
+    // Fallback: if only one non-main feature exists, use it
+    const nonMain = features.filter((f) => f.branch !== "main");
+    if (nonMain.length === 1) return nonMain[0];
+    return null;
+  }, [features, source, worktree]);
+
+  return (
+    <ReviewPage
+      featureId={matchedFeature?.id}
+      sourceBranch={source ?? matchedFeature?.branch}
+      worktreePath={worktree ?? matchedFeature?.worktreePath}
+    />
+  );
 }
 
 const router = createBrowserRouter([
   {
-    path: "/",
-    element: FLAGS.DEV_WORKFLOW ? <Dashboard /> : <StandaloneReviewPage />,
-  },
-  {
-    path: "/features/:featureId",
-    element: <FeatureLayout />,
+    element: <RootLayout />,
     children: [
       {
-        index: true,
-        element: <FeatureDefaultRedirect />,
+        path: "/",
+        element: FLAGS.DEV_WORKFLOW ? <Dashboard /> : <StandaloneReviewPage />,
       },
-      ...(FLAGS.DEV_WORKFLOW
-        ? [
-            { path: FEATURE_TAB.Spec, element: <SpecReviewPage /> },
-            { path: FEATURE_TAB.Tasks, element: <TasksPage /> },
-          ]
-        : []),
       {
-        path: FEATURE_TAB.Code,
-        element: <FeatureCodeTab />,
+        path: "/features/:featureId",
+        element: <FeatureLayout />,
+        children: [
+          {
+            index: true,
+            element: <FeatureDefaultRedirect />,
+          },
+          ...(FLAGS.DEV_WORKFLOW
+            ? [
+                { path: FEATURE_TAB.Spec, element: <SpecReviewPage /> },
+                { path: FEATURE_TAB.Tasks, element: <TasksPage /> },
+              ]
+            : []),
+          {
+            path: FEATURE_TAB.Code,
+            element: <FeatureCodeTab />,
+          },
+        ],
+      },
+      {
+        path: "*",
+        element: <NotFound />,
       },
     ],
-  },
-  {
-    path: "*",
-    element: <NotFound />,
   },
 ]);
 

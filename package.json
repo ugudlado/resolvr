@@ -4,13 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @local-review/ui dev",
+    "dev": "pnpm --filter @local-review/server dev & pnpm --filter @local-review/ui dev",
+    "dev:server": "pnpm --filter @local-review/server dev",
+    "dev:ui": "pnpm --filter @local-review/ui dev",
     "build": "pnpm --filter @local-review/ui build",
-    "start": "pnpm --filter @local-review/ui preview",
+    "start": "pnpm --filter @local-review/server start",
     "test:unit": "pnpm --filter @local-review/ui test:unit",
     "test:watch": "pnpm --filter @local-review/ui test:watch",
     "test:coverage": "pnpm --filter @local-review/ui test:coverage",
-    "type-check": "pnpm --filter @local-review/ui type-check",
+    "type-check": "pnpm --filter @local-review/ui type-check && pnpm --filter @local-review/server type-check",
     "lint": "pnpm --filter @local-review/ui lint",
     "format": "prettier --write apps/ui/src/**/*.{ts,tsx} apps/ui/*.{ts,js}",
     "prepare": "husky"

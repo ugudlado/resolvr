@@ -39,10 +39,12 @@ function SearchSelect({
   value,
   options,
   onChange,
+  placeholder = "Filter…",
 }: {
   value: string;
   options: string[];
   onChange: (v: string) => void;
+  placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -100,35 +102,53 @@ function SearchSelect({
     <div ref={containerRef} className="relative">
       <button
         type="button"
-        className="bg-transparent text-left text-xs font-medium text-[var(--ink)] outline-none"
+        className="flex items-center gap-1.5 bg-transparent text-left text-xs font-medium text-[var(--ink)] outline-none"
         onClick={() => {
           setOpen((o) => !o);
           setCursor(options.indexOf(value));
           setTimeout(() => inputRef.current?.focus(), 0);
         }}
       >
-        {value || "select…"}
+        <span className="max-w-[180px] truncate">{value || "select…"}</span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 12 12"
+          fill="currentColor"
+          className="h-2.5 w-2.5 text-[var(--ink-faint)]"
+        >
+          <path d="M6 8.825a.47.47 0 0 1-.354-.146l-3.5-3.5a.5.5 0 0 1 .708-.708L6 7.618l3.146-3.147a.5.5 0 0 1 .708.708l-3.5 3.5A.47.47 0 0 1 6 8.825Z" />
+        </svg>
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-md border border-[var(--border)] bg-[var(--canvas-raised)] shadow-lg">
-          <div className="border-b border-[var(--border)] px-2 py-1.5">
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setCursor(0);
-              }}
-              onKeyDown={onKeyDown}
-              placeholder="Search branches…"
-              className="w-full bg-transparent text-xs text-[var(--ink)] placeholder-[var(--ink-faint)] outline-none"
-            />
+        <div className="absolute left-0 top-full z-50 mt-1.5 w-72 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--canvas-elevated)] shadow-xl shadow-black/30">
+          <div className="border-b border-[var(--border)] px-3 py-2">
+            <div className="flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--canvas)] px-2 py-1.5">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                className="h-3.5 w-3.5 shrink-0 text-[var(--ink-faint)]"
+              >
+                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1ZM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0Z" />
+              </svg>
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setCursor(0);
+                }}
+                onKeyDown={onKeyDown}
+                placeholder={placeholder}
+                className="w-full bg-transparent text-xs text-[var(--ink)] placeholder-[var(--ink-faint)] outline-none"
+              />
+            </div>
           </div>
-          <ul ref={listRef} className="max-h-52 overflow-y-auto py-1">
+          <ul ref={listRef} className="max-h-60 overflow-y-auto py-1">
             {filtered.length === 0 && (
-              <li className="px-3 py-1.5 text-xs text-[var(--ink-faint)]">
-                No matches
+              <li className="px-3 py-2 text-xs text-[var(--ink-faint)]">
+                No matching branches
               </li>
             )}
             {filtered.map((opt, i) => (
@@ -136,13 +156,29 @@ function SearchSelect({
                 key={opt}
                 onMouseDown={() => select(opt)}
                 onMouseEnter={() => setCursor(i)}
-                className={`cursor-pointer truncate px-3 py-1.5 text-xs ${
-                  opt === value
-                    ? "font-medium text-[var(--ink)]"
+                className={`flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs transition-colors ${
+                  i === cursor
+                    ? "bg-[var(--accent-blue-dim)] text-[var(--ink)]"
                     : "text-[var(--ink-muted)]"
-                } ${i === cursor ? "bg-[var(--canvas-subtle)]" : ""}`}
+                }`}
               >
-                {opt}
+                <span
+                  className={`flex h-4 w-4 shrink-0 items-center justify-center ${opt === value ? "text-[var(--accent-blue)]" : "text-transparent"}`}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 16 16"
+                    fill="currentColor"
+                    className="h-3.5 w-3.5"
+                  >
+                    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z" />
+                  </svg>
+                </span>
+                <span
+                  className={`truncate font-mono ${opt === value ? "font-medium text-[var(--ink)]" : ""}`}
+                >
+                  {opt}
+                </span>
               </li>
             ))}
           </ul>
@@ -218,7 +254,6 @@ export function ReviewPage({
   const {
     threads,
     setThreads,
-    status,
     setStatus,
     addReply,
     updateThreadStatus,
@@ -342,6 +377,18 @@ export function ReviewPage({
       map.set(file.path, count);
     }
     return map;
+  }, [parsedFiles]);
+
+  const diffStats = useMemo(() => {
+    let additions = 0;
+    let deletions = 0;
+    for (const file of parsedFiles)
+      for (const hunk of file.hunks)
+        for (const line of hunk.lines) {
+          if (line.kind === "add") additions++;
+          else if (line.kind === "del") deletions++;
+        }
+    return { additions, deletions };
   }, [parsedFiles]);
 
   const visibleFiles = parsedFiles;
@@ -563,6 +610,10 @@ export function ReviewPage({
 
   const handleRequestChanges = () => {
     setReviewVerdict("changes_requested");
+    // Trigger resolve directly — the daemon is already warm from cold-start
+    if (featureId) {
+      void featureApi.triggerResolve(featureId, "code");
+    }
   };
 
   // Inject verdict into FeatureNavBar when embedded
@@ -629,6 +680,7 @@ export function ReviewPage({
                 value={sourceBranch}
                 options={repoContext?.branches || []}
                 onChange={setSourceBranch}
+                placeholder="Filter branches…"
               />
             </div>
             <span className="text-[var(--ink-ghost)]">&rarr;</span>
@@ -641,24 +693,33 @@ export function ReviewPage({
             value={targetBranch}
             options={repoContext?.branches || []}
             onChange={setTargetBranch}
+            placeholder="Filter branches…"
           />
         </div>
 
-        <div className="flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--canvas)] px-2 py-1">
-          <span className="text-xs text-[var(--ink-faint)]">commit</span>
-          <select
-            value={selectedCommit}
-            onChange={(e) => void applyCommitSelection(e.target.value)}
-            className="max-w-[220px] bg-transparent text-xs text-[var(--ink)] outline-none"
-          >
-            <option value="">All changes</option>
-            {commits.map((c) => (
-              <option key={c.hash} value={c.hash}>
-                {c.shortHash} {c.subject}
-              </option>
-            ))}
-          </select>
-          <span className="text-[var(--ink-ghost)]">&middot;</span>
+        <div className="flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--canvas)] px-2 py-1">
+          <span className="text-[10px] text-[var(--ink-faint)]">commit</span>
+          <SearchSelect
+            value={
+              selectedCommit
+                ? `${commits.find((c) => c.hash === selectedCommit)?.shortHash ?? ""} ${commits.find((c) => c.hash === selectedCommit)?.subject ?? ""}`
+                : "All changes"
+            }
+            options={[
+              "All changes",
+              ...commits.map((c) => `${c.shortHash} ${c.subject}`),
+            ]}
+            onChange={(display) => {
+              if (display === "All changes") {
+                void applyCommitSelection("");
+              } else {
+                const shortHash = display.split(" ")[0];
+                const commit = commits.find((c) => c.shortHash === shortHash);
+                if (commit) void applyCommitSelection(commit.hash);
+              }
+            }}
+            placeholder="Filter commits…"
+          />
           <button
             type="button"
             onClick={() => {
@@ -666,7 +727,7 @@ export function ReviewPage({
               const idx = commits.findIndex((c) => c.hash === selectedCommit);
               void applyCommitSelection(idx <= 0 ? "" : commits[idx - 1].hash);
             }}
-            className="text-xs text-[var(--ink-muted)] hover:text-[var(--ink)]"
+            className="text-sm text-[var(--ink-muted)] hover:text-[var(--ink)]"
             title="Previous commit [ key"
             aria-label="Previous commit [ key"
           >
@@ -684,7 +745,7 @@ export function ReviewPage({
               if (idx < commits.length - 1)
                 void applyCommitSelection(commits[idx + 1].hash);
             }}
-            className="text-xs text-[var(--ink-muted)] hover:text-[var(--ink)]"
+            className="text-sm text-[var(--ink-muted)] hover:text-[var(--ink)]"
             title="Next commit ] key"
             aria-label="Next commit ] key"
           >
@@ -692,8 +753,50 @@ export function ReviewPage({
           </button>
         </div>
 
+        {/* Diff stats */}
+        <div className="flex items-center gap-2 text-[11px] text-[var(--ink-faint)]">
+          <span>{visibleFiles.length} files</span>
+          <span className="text-[var(--accent-emerald)]">
+            +{diffStats.additions}
+          </span>
+          <span className="text-[var(--accent-rose)]">
+            &minus;{diffStats.deletions}
+          </span>
+        </div>
+
+        {/* Copy branch name */}
+        <button
+          type="button"
+          className="flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[11px] text-[var(--ink-faint)] transition-colors hover:bg-[var(--canvas)] hover:text-[var(--ink-muted)]"
+          title="Copy branch name"
+          onClick={() => {
+            navigator.clipboard.writeText(sourceBranch);
+          }}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 16 16"
+            fill="currentColor"
+            className="h-3 w-3 shrink-0"
+          >
+            <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z" />
+            <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z" />
+          </svg>
+          {sourceBranch}
+        </button>
+
         {!embedded && (
           <div className="ml-auto flex items-center gap-2">
+            {reviewVerdict === "approved" && (
+              <span className="rounded-full bg-[var(--accent-emerald-dim)] px-2 py-0.5 text-[10px] font-medium text-[var(--accent-emerald)]">
+                Approved
+              </span>
+            )}
+            {reviewVerdict === "changes_requested" && (
+              <span className="rounded-full bg-[var(--accent-rose-dim)] px-2 py-0.5 text-[10px] font-medium text-[var(--accent-rose)]">
+                Changes Requested
+              </span>
+            )}
             <ReviewVerdict
               verdict={reviewVerdict}
               onVerdictChange={(v) => {
@@ -705,30 +808,6 @@ export function ReviewPage({
           </div>
         )}
       </header>
-
-      {/* Status bar */}
-      <div
-        aria-live="polite"
-        className="flex shrink-0 items-center gap-2 border-b border-[var(--border)] bg-[var(--canvas-raised)] px-4 py-1 text-[11px] text-[var(--ink-faint)]"
-      >
-        <span>{status}</span>
-        <span className="mx-2 text-[var(--ink-ghost)]">|</span>
-        <span>{visibleFiles.length} files</span>
-        <span className="mx-2 text-[var(--ink-ghost)]">|</span>
-        <span>{threads.length} threads</span>
-        <span className="mx-2 text-[var(--ink-ghost)]">|</span>
-        <span>[ ] to navigate commits</span>
-        {reviewVerdict === "approved" && (
-          <span className="rounded-full bg-[var(--accent-emerald-dim)] px-2 py-0.5 text-[10px] font-medium text-[var(--accent-emerald)]">
-            Approved
-          </span>
-        )}
-        {reviewVerdict === "changes_requested" && (
-          <span className="rounded-full bg-[var(--accent-rose-dim)] px-2 py-0.5 text-[10px] font-medium text-[var(--accent-rose)]">
-            Changes Requested
-          </span>
-        )}
-      </div>
 
       {/* Main layout */}
       <div className="flex min-h-0 flex-1">

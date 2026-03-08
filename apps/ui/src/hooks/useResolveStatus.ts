@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { wsOn } from "./wsClient";
 
 export type ResolveOutcome = "resolved" | "clarification" | "error";
 
@@ -51,8 +52,6 @@ export function useResolveStatus(): ResolveStatus {
   const fadeTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
-    if (!import.meta.hot) return;
-
     const clearFadeTimer = () => {
       if (fadeTimerRef.current !== undefined) {
         clearTimeout(fadeTimerRef.current);
@@ -68,11 +67,12 @@ export function useResolveStatus(): ResolveStatus {
       );
     };
 
-    const onStarted = (data: {
-      featureId: string;
-      threadCount: number;
-      threads?: ThreadInfo[];
-    }) => {
+    const unsubStarted = wsOn("review:resolve-started", (raw) => {
+      const data = raw as {
+        featureId: string;
+        threadCount: number;
+        threads?: ThreadInfo[];
+      };
       clearFadeTimer();
       setStatus({
         state: "resolving",
@@ -82,15 +82,16 @@ export function useResolveStatus(): ResolveStatus {
         resolved: 0,
         log: [],
       });
-    };
+    });
 
-    const onThreadDone = (data: {
-      featureId: string;
-      threadId: string;
-      filePath: string;
-      line: number;
-      outcome: ResolveOutcome;
-    }) => {
+    const unsubThreadDone = wsOn("review:resolve-thread-done", (raw) => {
+      const data = raw as {
+        featureId: string;
+        threadId: string;
+        filePath: string;
+        line: number;
+        outcome: ResolveOutcome;
+      };
       setStatus((prev) => {
         if (prev.state !== "resolving") return prev;
         if (prev.featureId !== data.featureId) return prev;
@@ -107,13 +108,14 @@ export function useResolveStatus(): ResolveStatus {
           log: [...prev.log, entry],
         };
       });
-    };
+    });
 
-    const onCompleted = (data: {
-      featureId: string;
-      resolved: number;
-      clarifications: number;
-    }) => {
+    const unsubCompleted = wsOn("review:resolve-completed", (raw) => {
+      const data = raw as {
+        featureId: string;
+        resolved: number;
+        clarifications: number;
+      };
       setStatus((prev) => {
         const log = prev.state === "resolving" ? prev.log : [];
         return {
@@ -125,28 +127,24 @@ export function useResolveStatus(): ResolveStatus {
         };
       });
       startFadeTimer();
-    };
+    });
 
-    const onFailed = (data: { featureId: string; error: string }) => {
+    const unsubFailed = wsOn("review:resolve-failed", (raw) => {
+      const data = raw as { featureId: string; error: string };
       setStatus({
         state: "failed",
         featureId: data.featureId,
         error: data.error,
       });
       startFadeTimer();
-    };
-
-    import.meta.hot.on("review:resolve-started", onStarted);
-    import.meta.hot.on("review:resolve-thread-done", onThreadDone);
-    import.meta.hot.on("review:resolve-completed", onCompleted);
-    import.meta.hot.on("review:resolve-failed", onFailed);
+    });
 
     return () => {
       clearFadeTimer();
-      import.meta.hot?.off?.("review:resolve-started", onStarted);
-      import.meta.hot?.off?.("review:resolve-thread-done", onThreadDone);
-      import.meta.hot?.off?.("review:resolve-completed", onCompleted);
-      import.meta.hot?.off?.("review:resolve-failed", onFailed);
+      unsubStarted();
+      unsubThreadDone();
+      unsubCompleted();
+      unsubFailed();
     };
   }, []);
 

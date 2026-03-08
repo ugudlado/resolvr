@@ -1,5 +1,8 @@
 export const APP_NAME = "Local Review";
 
+/** Base path for all API requests. */
+export const API_BASE = "/api";
+
 /**
  * Feature flags — compile-time booleans that gate unfinished features.
  *

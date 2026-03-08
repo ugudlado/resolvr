@@ -110,7 +110,7 @@ log "Feature: $FEATURE_ID (type: $SESSION_TYPE)"
 
 # --- Detect API port from vite.config.ts ---
 API_PORT=$(grep -oE 'port: [0-9]+' "$REPO_ROOT/apps/ui/vite.config.ts" 2>/dev/null | head -1 | grep -oE '[0-9]+' || echo "37003")
-API_BASE="http://localhost:$API_PORT/local-api"
+API_BASE="http://localhost:$API_PORT/api"
 log "API: $API_BASE"
 
 # --- Find open threads ---

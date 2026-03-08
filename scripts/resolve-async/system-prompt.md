@@ -9,7 +9,7 @@ You receive a JSON object with:
 - `sessionFile` — path to the session JSON file
 - `sessionType` — `"code"` or `"spec"`
 - `featureId` — the feature identifier
-- `apiBase` — base URL for the local review API (e.g. `http://localhost:37003/local-api`)
+- `apiBase` — base URL for the local review API (e.g. `http://localhost:37003/api`)
 - `threads` — array of thread contexts, each containing:
   - `threadId` — unique thread ID
   - `filePath` — the file being reviewed

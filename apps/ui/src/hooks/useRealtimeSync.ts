@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { wsOn } from "./wsClient";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -21,31 +22,22 @@ type Subscription = {
 const subscriptions = new Set<Subscription>();
 let initialized = false;
 
-/**
- * Wire up the HMR listener exactly once.  Every incoming
- * `review:session-updated` event is routed to every subscription whose
- * `suffix` matches the tail of `fileName`.
- */
 function ensureInitialized(): void {
   if (initialized) return;
   initialized = true;
 
-  if (!import.meta.hot) return;
-
-  import.meta.hot.on(
-    "review:session-updated",
-    (data: { fileName: string; session: unknown }) => {
-      for (const sub of subscriptions) {
-        if (data.fileName.endsWith(sub.suffix)) {
-          try {
-            sub.callback(data);
-          } catch {
-            // Never let a subscriber error tear down the listener.
-          }
+  wsOn("review:session-updated", (raw) => {
+    const data = raw as { fileName: string; session: unknown };
+    for (const sub of subscriptions) {
+      if (data.fileName.endsWith(sub.suffix)) {
+        try {
+          sub.callback(data);
+        } catch {
+          // Never let a subscriber error tear down the listener.
         }
       }
-    },
-  );
+    }
+  });
 }
 
 /**

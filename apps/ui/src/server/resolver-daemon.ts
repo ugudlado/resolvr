@@ -190,7 +190,7 @@ For each open thread:
 2. Analyze the context and reviewer messages
 3. Either apply the fix, reply with explanation, or ask a clarifying question
 4. PATCH the result:
-   curl -s -X PATCH http://localhost:37003/local-api/features/${featureId}/code-session/threads/<threadId> \\
+   curl -s -X PATCH http://localhost:37003/api/features/${featureId}/code-session/threads/<threadId> \\
      -H 'Content-Type: application/json' \\
      -d '{"status":"resolved","messages":[{"authorType":"agent","author":"claude","text":"<reply>","createdAt":"<ISO>"}]}'
    Use status "open" when asking a clarifying question instead of resolving.
@@ -208,7 +208,7 @@ For each open thread:
 2. Read the spec file to locate the anchored section and block
 3. Either revise the spec, reply with explanation, or ask a clarifying question
 4. PATCH the result:
-   curl -s -X PATCH http://localhost:37003/local-api/features/${featureId}/spec-session/threads/<threadId> \\
+   curl -s -X PATCH http://localhost:37003/api/features/${featureId}/spec-session/threads/<threadId> \\
      -H 'Content-Type: application/json' \\
      -d '{"status":"resolved","messages":[{"authorType":"agent","author":"claude","text":"<reply>","createdAt":"<ISO>"}]}'
    Use status "open" when asking a clarifying question instead of resolving.
