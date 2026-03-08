@@ -9,10 +9,11 @@
 
 ```bash
 pnpm install           # Install dependencies for all workspaces
-pnpm -C apps/ui dev   # Start Vite dev server at http://localhost:37003
+pnpm dev               # Start standalone server at http://localhost:37003
+pnpm -C apps/ui dev    # Start Vite dev server (for UI development with HMR)
 ```
 
-**Note**: All `pnpm` commands run from the repository root. Use `-C apps/ui` prefix when running app-specific commands.
+**Note**: All `pnpm` commands run from the repository root. Use `-C apps/ui` or `-C apps/server` prefix when running app-specific commands.
 
 ## Project Structure
 
@@ -23,6 +24,9 @@ agents/             — Subagent definitions (review-resolver)
 hooks/              — Session hooks (auto-start dev server)
 scripts/            — Shell scripts (context extraction)
 specs/              — Feature specifications (active and archived)
+apps/server/        — Standalone Hono server (REST API + WebSocket + static UI)
+  dist/             — Bundled output via esbuild (committed for zero-build install)
+  cjs-shim.js       — CJS compatibility shim for ESM bundle
 apps/ui/            — React review app (Vite + Tailwind + TypeScript)
   src/components/   — React components
     dashboard/      — Feature dashboard cards and pipeline views
@@ -50,7 +54,12 @@ docs/plans/         — Design documents (local only, gitignored)
 Run all commands from the repository root. App-specific commands use `pnpm -C apps/ui`:
 
 ```bash
-# Development (run from repo root)
+# Server (run from repo root)
+pnpm dev                      # Start standalone server (tsx watch mode)
+pnpm start                    # Start server from bundled dist/
+pnpm -C apps/server build     # Rebuild server bundle (esbuild → dist/index.js)
+
+# UI Development (run from repo root)
 pnpm -C apps/ui dev           # Start Vite dev server at http://localhost:37003
 pnpm -C apps/ui build         # Build UI for production
 
@@ -74,20 +83,28 @@ VITE_PORT=3000 pnpm -C apps/ui dev
 
 ## Architecture
 
+### Server (apps/server)
+
+- **Framework**: Hono on Node.js HTTP server
+- **API**: REST endpoints for sessions, features, specs, tasks, context
+- **Real-time**: WebSocket push for session and git state changes (chokidar file watcher)
+- **Build**: esbuild bundles all deps (hono, ws, chokidar) into single `dist/index.js` for zero-install plugin support
+- **Externals**: `vite` (dev-only) and `@anthropic-ai/claude-agent-sdk` (resolver daemon) are not bundled
+- **Static**: Serves `apps/ui/dist/` for production; in dev mode, proxies to Vite
+
 ### UI (apps/ui)
 
 - **Framework**: React 18 with Vite 5
 - **Routing**: React Router with feature-based layout (FeatureLayout + FeatureNavBar)
 - **State**: Zustand with Immer middleware
 - **Styling**: Tailwind CSS
-- **API**: Vite plugin middleware in `vite.config.ts` provides REST endpoints (review sessions, features, specs, tasks)
-- **Real-time**: WebSocket push for session file changes (file watcher)
+- **API**: In dev mode, Vite plugin middleware in `vite.config.ts` provides REST endpoints; in production, served by apps/server
 
 ### Plugin
 
 - **Commands**: Markdown-based slash commands for Claude Code
 - **Agent**: `review-resolver` subagent processes individual review threads
-- **Hooks**: `SessionStart` hook auto-starts the Vite dev server
+- **Hooks**: `SessionStart` hook auto-starts the server via `node apps/server/dist/index.js`
 
 ## Testing
 
@@ -116,8 +133,9 @@ VITE_PORT=3000      # Change dev server port (default: 37003)
 
 1. **Workspace commands**: Use `pnpm -C apps/ui` for app-specific commands; use bare `pnpm` for repo-root commands
 2. **Package manager**: Use `pnpm` (not npm); dependencies locked via pnpm-lock.yaml
-3. **API routes**: Defined in `apps/ui/vite.config.ts` as Vite plugin middleware (simulates backend during dev)
+3. **API routes**: Production: `apps/server/src/routes/`; Dev: also mirrored in `apps/ui/vite.config.ts` as Vite plugin middleware
 4. **Session files**: Live in `.review/sessions/` (gitignored); created when user saves review sessions
-5. **Built dist**: Committed to git (`apps/ui/dist/`) for zero-build plugin installation
-6. **Plugin layout**: Source files live at repo root (`.claude-plugin/`, `commands/`, `agents/`, `hooks/`, `scripts/`) — do not create copies in subdirectories
-7. **Pre-commit hooks**: Husky runs lint-staged on staged files (ESLint + Prettier) before commit
+5. **Built dist**: Both `apps/ui/dist/` and `apps/server/dist/` are committed to git for zero-build plugin installation
+6. **Server bundle**: Run `pnpm -C apps/server build` after changing server code; bundles all deps via esbuild
+7. **Plugin layout**: Source files live at repo root (`.claude-plugin/`, `commands/`, `agents/`, `hooks/`, `scripts/`) — do not create copies in subdirectories
+8. **Pre-commit hooks**: Husky runs lint-staged on staged files (ESLint + Prettier) before commit
