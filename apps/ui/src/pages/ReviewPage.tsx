@@ -29,17 +29,24 @@ import { useFeatureHeader } from "../hooks/useFeatureHeader";
 import { DiffThreadNav } from "../components/diff/DiffThreadNav";
 import {
   AuthorType,
+  REVIEW_VERDICT,
   type ReviewThread as SessionReviewThread,
 } from "../types/sessions";
 import { APP_NAME } from "../config/app";
 import { featureApi } from "../services/featureApi";
+
+/** Returns a display label for a commit, e.g. "abc1234 Fix the thing". */
+function getCommitLabel(commits: CommitInfo[], hash: string): string {
+  const commit = commits.find((c) => c.hash === hash);
+  return `${commit?.shortHash ?? ""} ${commit?.subject ?? ""}`.trim() || "";
+}
 
 /** Searchable branch dropdown. */
 function SearchSelect({
   value,
   options,
   onChange,
-  placeholder = "Filter…",
+  placeholder = "Search branches...",
 }: {
   value: string;
   options: string[];
@@ -98,11 +105,14 @@ function SearchSelect({
     }
   };
 
+  const triggerClass =
+    "flex items-center gap-1.5 bg-transparent text-left text-xs font-medium text-[var(--ink)] outline-none";
+
   return (
     <div ref={containerRef} className="relative">
       <button
         type="button"
-        className="flex items-center gap-1.5 bg-transparent text-left text-xs font-medium text-[var(--ink)] outline-none"
+        className={triggerClass}
         onClick={() => {
           setOpen((o) => !o);
           setCursor(options.indexOf(value));
@@ -209,6 +219,14 @@ export function ReviewPage({
   const [selectedWorktree, setSelectedWorktree] = useState(worktreePath ?? "");
   const [sourceBranch, setSourceBranch] = useState(sourceBranchProp ?? "");
   const [targetBranch, setTargetBranch] = useState("main");
+
+  // Sync when props arrive late (e.g. after async feature lookup)
+  useEffect(() => {
+    if (sourceBranchProp) setSourceBranch(sourceBranchProp);
+  }, [sourceBranchProp]);
+  useEffect(() => {
+    if (worktreePath) setSelectedWorktree(worktreePath);
+  }, [worktreePath]);
 
   const [diffBundle, setDiffBundle] = useState<DiffBundle | null>(null);
   const [selectedFilePath, setSelectedFilePath] = useState("");
@@ -605,14 +623,18 @@ export function ReviewPage({
   });
 
   const handleApprove = () => {
-    setReviewVerdict("approved");
+    setReviewVerdict(REVIEW_VERDICT.Approved);
   };
 
   const handleRequestChanges = () => {
-    setReviewVerdict("changes_requested");
+    setReviewVerdict(REVIEW_VERDICT.ChangesRequested);
     // Trigger resolve directly — the daemon is already warm from cold-start
     if (featureId) {
-      void featureApi.triggerResolve(featureId, "code");
+      featureApi.triggerResolve(featureId, "code").catch((err) => {
+        setStatus(
+          err instanceof Error ? err.message : "Failed to trigger resolve",
+        );
+      });
     }
   };
 
@@ -626,7 +648,7 @@ export function ReviewPage({
         <ReviewVerdict
           verdict={reviewVerdict}
           onVerdictChange={(v) => {
-            if (v === "approved") handleApprove();
+            if (v === REVIEW_VERDICT.Approved) handleApprove();
             else handleRequestChanges();
           }}
           openThreadCount={pendingCount}
@@ -702,7 +724,7 @@ export function ReviewPage({
           <SearchSelect
             value={
               selectedCommit
-                ? `${commits.find((c) => c.hash === selectedCommit)?.shortHash ?? ""} ${commits.find((c) => c.hash === selectedCommit)?.subject ?? ""}`
+                ? getCommitLabel(commits, selectedCommit)
                 : "All changes"
             }
             options={[
@@ -713,8 +735,9 @@ export function ReviewPage({
               if (display === "All changes") {
                 void applyCommitSelection("");
               } else {
-                const shortHash = display.split(" ")[0];
-                const commit = commits.find((c) => c.shortHash === shortHash);
+                const commit = commits.find(
+                  (c) => `${c.shortHash} ${c.subject}` === display,
+                );
                 if (commit) void applyCommitSelection(commit.hash);
               }
             }}
@@ -787,12 +810,12 @@ export function ReviewPage({
 
         {!embedded && (
           <div className="ml-auto flex items-center gap-2">
-            {reviewVerdict === "approved" && (
+            {reviewVerdict === REVIEW_VERDICT.Approved && (
               <span className="rounded-full bg-[var(--accent-emerald-dim)] px-2 py-0.5 text-[10px] font-medium text-[var(--accent-emerald)]">
                 Approved
               </span>
             )}
-            {reviewVerdict === "changes_requested" && (
+            {reviewVerdict === REVIEW_VERDICT.ChangesRequested && (
               <span className="rounded-full bg-[var(--accent-rose-dim)] px-2 py-0.5 text-[10px] font-medium text-[var(--accent-rose)]">
                 Changes Requested
               </span>
@@ -800,7 +823,7 @@ export function ReviewPage({
             <ReviewVerdict
               verdict={reviewVerdict}
               onVerdictChange={(v) => {
-                if (v === "approved") handleApprove();
+                if (v === REVIEW_VERDICT.Approved) handleApprove();
                 else handleRequestChanges();
               }}
               openThreadCount={pendingCount}
