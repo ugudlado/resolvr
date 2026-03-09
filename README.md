@@ -22,6 +22,8 @@ claude plugin install local-review@ugudlado
 /local-review:open
 ```
 
+![Code review UI showing file tree, inline diff with threaded comments, and thread resolution](docs/images/review-ui.png)
+
 ## Features
 
 ### Review diffs in a browser UI

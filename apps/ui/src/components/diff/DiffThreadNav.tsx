@@ -4,6 +4,7 @@ import type { ThreadSeverity } from "../../types/sessions";
 import { relativeTime } from "../../utils/timeFormat";
 import { shortPath, lineLabel } from "../../utils/diffUtils";
 import { useResolveStatus } from "../../hooks/useResolveStatus";
+import { KeyboardHint } from "../shared/KeyboardHint";
 
 /** Extended thread with optional severity (may come from adapted threads). */
 type ThreadWithSeverity = ReviewThread & {
@@ -182,12 +183,19 @@ export function DiffThreadNav({
     [threads],
   );
 
+  const threadHeader = (
+    <div className="flex items-center gap-1.5 px-3 pb-1 pt-3">
+      <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--ink-muted)]">
+        Threads
+      </p>
+      <KeyboardHint label="j k" />
+    </div>
+  );
+
   if (threads.length === 0) {
     return (
       <div className="flex w-60 shrink-0 flex-col overflow-hidden border-l border-[var(--border)] bg-[var(--canvas-raised)]">
-        <p className="px-3 pb-2 pt-3 text-[11px] font-medium uppercase tracking-wider text-[var(--ink-muted)]">
-          Threads
-        </p>
+        {threadHeader}
         <p className="px-3 py-8 text-center text-[12px] text-[var(--ink-ghost)]">
           No threads yet
         </p>
@@ -197,10 +205,7 @@ export function DiffThreadNav({
 
   return (
     <div className="flex w-60 shrink-0 flex-col overflow-hidden border-l border-[var(--border)] bg-[var(--canvas-raised)]">
-      {/* Header title */}
-      <p className="px-3 pb-1 pt-3 text-[11px] font-medium uppercase tracking-wider text-[var(--ink-muted)]">
-        Threads
-      </p>
+      {threadHeader}
 
       {/* Single scrollable list with Open / Resolved sections */}
       <div className="flex-1 overflow-y-auto">

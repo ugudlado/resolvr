@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type React from "react";
 import {
   type CommitInfo,
   localReviewApi,
@@ -23,6 +24,7 @@ import {
   type LineRangeSelection,
 } from "../components/diff/LineRangeSelector";
 import { useReviewSession } from "../hooks/useReviewSession";
+import { useKeyboardReview } from "../hooks/useKeyboardReview";
 import { ReviewVerdict } from "../components/shared/ReviewVerdict";
 import { useDiffNavigation } from "../hooks/useDiffNavigation";
 import { useFeatureHeader } from "../hooks/useFeatureHeader";
@@ -33,7 +35,17 @@ import {
   type ReviewThread as SessionReviewThread,
 } from "../types/sessions";
 import { APP_NAME } from "../config/app";
+import { scrollDiffToLine } from "../utils/keyboardUtils";
+import { ShortcutHelp } from "../components/shared/ShortcutHelp";
+import { CommandPalette } from "../components/shared/CommandPalette";
 import { featureApi } from "../services/featureApi";
+
+/** Style applied to the keyboard-focused thread (j/k navigation). */
+const focusedThreadStyle: React.CSSProperties = {
+  borderRadius: "6px",
+  outline: "2px solid var(--accent-amber)",
+  outlineOffset: "2px",
+};
 
 /** Returns a display label for a commit, e.g. "abc1234 Fix the thing". */
 function getCommitLabel(commits: CommitInfo[], hash: string): string {
@@ -235,9 +247,6 @@ export function ReviewPage({
   const [selectedCommitDiff, setSelectedCommitDiff] = useState("");
 
   const [showFolderTree, setShowFolderTree] = useState(true);
-  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(
-    new Set(),
-  );
 
   /** Line where the compose widget is open, or null if closed. */
   const [composingAt, setComposingAt] = useState<{
@@ -250,8 +259,11 @@ export function ReviewPage({
   } | null>(null);
 
   const [diffMode, setDiffMode] = useState<"split" | "unified">("unified");
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const reviewPanelRef = useRef<HTMLDivElement | null>(null);
+  const sidebarRef = useRef<HTMLElement | null>(null);
+  const diffPanelRef = useRef<HTMLDivElement | null>(null);
   // Track the last viewKey for which we auto-selected a file, so we don't override
   // the user's manual file selection on every render.
   const autoSelectedViewKeyRef = useRef("");
@@ -622,6 +634,52 @@ export function ReviewPage({
     onCommitChange: (h) => void applyCommitSelection(h),
   });
 
+  /** Threads scoped to the current file, ordered by line number — for keyboard j/k navigation. */
+  const fileThreads = useMemo(
+    () =>
+      threads
+        .filter((t) => t.filePath === selectedFilePath)
+        .sort((a, b) => (a.line ?? 0) - (b.line ?? 0)),
+    [threads, selectedFilePath],
+  );
+
+  const filePaths = useMemo(
+    () => visibleFiles.map((f) => f.path),
+    [visibleFiles],
+  );
+
+  const { selectedFileIndex, focusedThread, showHelp, setShowHelp } =
+    useKeyboardReview({
+      files: filePaths,
+      threads: fileThreads,
+      selectedFile: selectedFilePath || null,
+      sidebarRef,
+      diffPanelRef,
+      treeViewActive: showFolderTree,
+      onFileSelect: setSelectedFilePath,
+      onThreadFocus: (thread) => {
+        const panel = reviewPanelRef.current;
+        if (!panel) return;
+        const targetLine = thread.lineEnd || thread.line;
+        scrollDiffToLine(panel, targetLine, thread.side || "new");
+      },
+      onThreadResolve: (threadId) => updateThreadStatus(threadId, "resolved"),
+      onThreadReopen: (threadId) => updateThreadStatus(threadId, "open"),
+      onOpenPalette: () => setPaletteOpen(true),
+    });
+
+  /** Command palette items — review files. */
+  const paletteItems = useMemo(
+    () =>
+      visibleFiles.map((f) => ({
+        id: f.path,
+        label: f.path,
+        group: "Files" as const,
+        onAction: () => setSelectedFilePath(f.path),
+      })),
+    [visibleFiles],
+  );
+
   const handleApprove = () => {
     setReviewVerdict(REVIEW_VERDICT.Approved);
   };
@@ -841,24 +899,28 @@ export function ReviewPage({
           pendingCount={pendingCount}
           visibleFiles={visibleFiles}
           selectedFilePath={selectedFilePath}
-          onFileSelect={setSelectedFilePath}
+          onFileSelect={(path) => {
+            setSelectedFilePath(path);
+            // Only auto-focus diff panel if sidebar doesn't have focus
+            // (prevents stealing focus during tree keyboard navigation)
+            if (!sidebarRef.current?.contains(document.activeElement)) {
+              requestAnimationFrame(() => diffPanelRef.current?.focus());
+            }
+          }}
           showFolderTree={showFolderTree}
           onFolderTreeChange={setShowFolderTree}
-          collapsedFolders={collapsedFolders}
-          onFolderToggle={(path) => {
-            setCollapsedFolders((prev) => {
-              const next = new Set(prev);
-              if (next.has(path)) next.delete(path);
-              else next.add(path);
-              return next;
-            });
-          }}
           unresolvedThreadCountByFile={unresolvedThreadCountByFile}
           changeCountByFile={changeCountByFile}
+          keyboardSelectedIndex={selectedFileIndex}
+          sidebarRef={sidebarRef}
         />
 
         {/* Diff panel */}
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div
+          ref={diffPanelRef}
+          tabIndex={0}
+          className="flex min-w-0 flex-1 flex-col outline-none"
+        >
           {!selectedFile ? (
             <div className="flex flex-1 items-center justify-center text-sm text-[var(--ink-ghost)]">
               Select a file to review
@@ -940,14 +1002,24 @@ export function ReviewPage({
                   renderThreads={({ threads: lineThreads }) => (
                     <div>
                       {lineThreads.map((t) => (
-                        <DiffInlineThread
+                        <div
                           key={t.id}
-                          thread={t}
-                          onReply={(threadId, text) => addReply(threadId, text)}
-                          onStatusChange={(threadId, newStatus) =>
-                            updateThreadStatus(threadId, newStatus)
+                          style={
+                            focusedThread?.id === t.id
+                              ? focusedThreadStyle
+                              : undefined
                           }
-                        />
+                        >
+                          <DiffInlineThread
+                            thread={t}
+                            onReply={(threadId, text) =>
+                              addReply(threadId, text)
+                            }
+                            onStatusChange={(threadId, newStatus) =>
+                              updateThreadStatus(threadId, newStatus)
+                            }
+                          />
+                        </div>
                       ))}
                     </div>
                   )}
@@ -985,38 +1057,41 @@ export function ReviewPage({
             // After file switch + re-render, scroll to the thread's line
             const targetLine = thread.lineEnd || thread.line;
             const side = thread.side || "new";
-            const attr =
-              side === "new" ? "data-line-new-num" : "data-line-old-num";
-            const scrollToLine = () => {
+            const doScroll = () => {
               const panel = reviewPanelRef.current;
               if (!panel) return;
-              const rows = panel.querySelectorAll(
-                `tr.diff-line[data-state="diff"]`,
-              );
-              for (const row of rows) {
-                const span = row.querySelector(`[${attr}]`);
-                if (!span) continue;
-                const num = parseInt(span.getAttribute(attr) ?? "", 10);
-                if (num === targetLine) {
-                  row.scrollIntoView({
-                    behavior: "smooth",
-                    block: "center",
-                  });
-                  // Brief highlight flash
-                  row.classList.add("line-range-highlight");
-                  setTimeout(
-                    () => row.classList.remove("line-range-highlight"),
-                    2000,
-                  );
-                  return;
-                }
-              }
+              scrollDiffToLine(panel, targetLine, side, { highlight: true });
             };
             // Wait for diff to render after file switch
-            requestAnimationFrame(() => requestAnimationFrame(scrollToLine));
+            requestAnimationFrame(() => requestAnimationFrame(doScroll));
           }}
         />
       </div>
+
+      {/* Command palette — Ctrl+K */}
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        items={paletteItems}
+      />
+
+      {/* Keyboard shortcuts help modal — ? */}
+      <ShortcutHelp
+        open={showHelp}
+        onClose={() => setShowHelp(false)}
+        shortcuts={[
+          { key: "↑ / ↓", description: "Navigate files (sidebar focused)" },
+          { key: "Enter", description: "Open selected file" },
+          { key: "h / l", description: "Focus sidebar / diff panel" },
+          { key: "⌘K / Ctrl+K", description: "Command palette" },
+          { key: "j / k", description: "Next / previous thread" },
+          { key: "r", description: "Resolve focused thread" },
+          { key: "o", description: "Reopen focused thread" },
+          { key: "[ / ]", description: "Previous / next commit" },
+          { key: "?", description: "Show this help" },
+          { key: "Esc", description: "Close dialog" },
+        ]}
+      />
     </div>
   );
 }

@@ -75,10 +75,11 @@ pnpm lint          # Lint all files (ESLint 9 flat config)
 pnpm format        # Format all source files (Prettier + Tailwind plugin)
 ```
 
-**Port Configuration**: Change default port 37003 by setting `VITE_PORT` env var:
+**Port Configuration**: Change default port 37003 by setting `PORT` env var (works for both server and UI dev):
 
 ```bash
-VITE_PORT=3000 pnpm -C apps/ui dev
+PORT=3000 pnpm dev              # standalone server on port 3000
+PORT=3000 pnpm -C apps/ui dev   # Vite dev server on port 3000
 ```
 
 ## Architecture
@@ -117,7 +118,7 @@ VITE_PORT=3000 pnpm -C apps/ui dev
 
 ```bash
 # Optional environment variables:
-VITE_PORT=3000      # Change dev server port (default: 37003)
+PORT=3000           # Change server/UI dev port (default: 37003)
 
 # No other env vars required for basic usage
 ```
