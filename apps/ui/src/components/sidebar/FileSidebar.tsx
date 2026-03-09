@@ -1,7 +1,16 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import type React from "react";
 import type { DiffFile } from "../../utils/diffParser";
 import type { ReviewThread } from "../../services/localReviewApi";
-import { buildFolderRows, fileName } from "../../utils/diffUtils";
+import { fileName } from "../../utils/diffUtils";
 import { OverviewTab } from "./OverviewTab";
+import { KeyboardHint } from "../shared/KeyboardHint";
+import {
+  hotkeysCoreFeature,
+  selectionFeature,
+  syncDataLoaderFeature,
+} from "@headless-tree/core";
+import { useTree } from "@headless-tree/react";
 
 export function FileIcon({ status }: { status: DiffFile["status"] }) {
   if (status === "A")
@@ -29,6 +38,10 @@ export function FileIcon({ status }: { status: DiffFile["status"] }) {
   );
 }
 
+type TreeItem =
+  | { kind: "folder"; name: string; children: string[] }
+  | { kind: "file"; name: string; file: DiffFile };
+
 interface FileSidebarProps {
   leftTab?: "files" | "overview";
   onTabChange?: (tab: "files" | "overview") => void;
@@ -38,8 +51,6 @@ interface FileSidebarProps {
   onFileSelect: (path: string) => void;
   showFolderTree: boolean;
   onFolderTreeChange: (v: boolean) => void;
-  collapsedFolders: Set<string>;
-  onFolderToggle: (path: string) => void;
   unresolvedThreadCountByFile: Map<string, number>;
   changeCountByFile: Map<string, number>;
   threads?: ReviewThread[];
@@ -52,6 +63,10 @@ interface FileSidebarProps {
   onReset?: () => void;
   /** When true, hide the Overview tab and only show Files. */
   hideOverviewTab?: boolean;
+  /** Keyboard-driven file index highlight (index into visibleFiles). */
+  keyboardSelectedIndex?: number;
+  /** Ref to attach to the sidebar <aside> element for focus detection. */
+  sidebarRef?: React.RefObject<HTMLElement | null>;
 }
 
 export function FileSidebar({
@@ -63,8 +78,6 @@ export function FileSidebar({
   onFileSelect,
   showFolderTree,
   onFolderTreeChange,
-  collapsedFolders,
-  onFolderToggle,
   unresolvedThreadCountByFile,
   changeCountByFile,
   threads,
@@ -74,11 +87,132 @@ export function FileSidebar({
   onThreadClick,
   onReset,
   hideOverviewTab = false,
+  keyboardSelectedIndex,
+  sidebarRef,
 }: FileSidebarProps) {
-  const folderRows = buildFolderRows(visibleFiles, collapsedFolders);
+  // Build tree data structure from flat file list for headless-tree
+  const treeData = useMemo(() => {
+    const items: Record<string, TreeItem> = {};
+    items["root"] = { kind: "folder", name: "root", children: [] };
+
+    for (const file of visibleFiles) {
+      const segments = file.path.split("/");
+      let parentId = "root";
+
+      for (let i = 0; i < segments.length - 1; i++) {
+        const folderId = segments.slice(0, i + 1).join("/");
+        if (!items[folderId]) {
+          items[folderId] = {
+            kind: "folder",
+            name: segments[i],
+            children: [],
+          };
+          const parent = items[parentId] as Extract<
+            TreeItem,
+            { kind: "folder" }
+          >;
+          if (!parent.children.includes(folderId)) {
+            parent.children.push(folderId);
+          }
+        }
+        parentId = folderId;
+      }
+
+      items[file.path] = {
+        kind: "file",
+        name: fileName(file.path),
+        file,
+      };
+      const parent = items[parentId] as Extract<TreeItem, { kind: "folder" }>;
+      if (!parent.children.includes(file.path)) {
+        parent.children.push(file.path);
+      }
+    }
+
+    return items;
+  }, [visibleFiles]);
+
+  // O(1) lookup from file path → index in visibleFiles (avoids O(n) indexOf per tree item)
+  const fileIndexMap = useMemo(
+    () => new Map(visibleFiles.map((f, i) => [f.path, i])),
+    [visibleFiles],
+  );
+
+  // Headless tree state
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [focusedItem, setFocusedItem] = useState<string | null>(null);
+
+  // Auto-expand all folders when files change
+  useEffect(() => {
+    const folderIds = Object.entries(treeData)
+      .filter(([id, item]) => item.kind === "folder" && id !== "root")
+      .map(([id]) => id);
+    setExpandedItems(folderIds);
+  }, [treeData]);
+
+  // Sync selected items with selectedFilePath
+  const selectedItems = useMemo(
+    () => (selectedFilePath ? [selectedFilePath] : []),
+    [selectedFilePath],
+  );
+
+  const tree = useTree<TreeItem>({
+    rootItemId: "root",
+    getItemName: (item) => item.getItemData().name,
+    isItemFolder: (item) => item.getItemData().kind === "folder",
+    dataLoader: {
+      getItem: (itemId) => treeData[itemId],
+      getChildren: (itemId) => {
+        const item = treeData[itemId];
+        return item?.kind === "folder" ? item.children : [];
+      },
+    },
+    indent: 14,
+    features: [syncDataLoaderFeature, selectionFeature, hotkeysCoreFeature],
+    state: { selectedItems, expandedItems, focusedItem },
+    setSelectedItems: (updaterOrValue) => {
+      const items =
+        typeof updaterOrValue === "function"
+          ? updaterOrValue(selectedItems)
+          : updaterOrValue;
+      // Only select file items, not folders
+      const fileItem = items.find(
+        (id: string) => treeData[id]?.kind === "file",
+      );
+      if (fileItem) {
+        onFileSelect(fileItem);
+      }
+    },
+    setExpandedItems,
+    setFocusedItem: (updaterOrValue) => {
+      const itemId =
+        typeof updaterOrValue === "function"
+          ? updaterOrValue(focusedItem)
+          : updaterOrValue;
+      setFocusedItem(itemId);
+      // Select-follows-focus: arrow key navigation selects file items
+      if (itemId && treeData[itemId]?.kind === "file") {
+        onFileSelect(itemId);
+      }
+    },
+  });
+
+  // Scroll the keyboard-selected file into view when index changes (flat view)
+  const fileListRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (keyboardSelectedIndex === undefined || !fileListRef.current) return;
+    const target = fileListRef.current.querySelector(
+      `[data-file-index="${keyboardSelectedIndex}"]`,
+    ) as HTMLElement | null;
+    target?.scrollIntoView({ block: "nearest" });
+  }, [keyboardSelectedIndex]);
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--canvas-raised)]">
+    <aside
+      ref={sidebarRef as React.RefObject<HTMLElement>}
+      tabIndex={0}
+      className="flex w-64 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--canvas-raised)] outline-none"
+    >
       {/* Tab switcher (hidden when overview tab is disabled) */}
       {!hideOverviewTab && (
         <div className="flex border-b border-[var(--border)]">
@@ -110,9 +244,12 @@ export function FileSidebar({
       {leftTab === "files" && (
         <>
           <div className="flex items-center justify-between border-b border-[var(--border)] px-3 py-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
-              Files
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
+                Files
+              </span>
+              <KeyboardHint label="↑↓" />
+            </div>
             <label className="flex items-center gap-1 text-[10px] text-[var(--ink-faint)] hover:text-[var(--ink)]">
               <input
                 type="checkbox"
@@ -124,82 +261,107 @@ export function FileSidebar({
             </label>
           </div>
 
-          <div className="flex-1 overflow-auto py-1">
+          <div ref={fileListRef} className="flex-1 overflow-auto py-1">
             {visibleFiles.length === 0 ? (
               <p className="px-4 py-6 text-xs text-[var(--ink-ghost)]">
                 No changed files
               </p>
             ) : showFolderTree ? (
-              folderRows.map((row, index) => {
-                if (row.kind === "folder") {
+              <div
+                {...tree.getContainerProps()}
+                tabIndex={0}
+                className="outline-none"
+              >
+                {tree.getItems().map((item, index) => {
+                  const data = item.getItemData();
+                  const level = item.getItemMeta().level;
+
+                  if (data.kind === "folder") {
+                    return (
+                      <button
+                        {...item.getProps()}
+                        key={item.getId()}
+                        type="button"
+                        className="stagger-fade-in flex w-full items-center gap-1.5 px-3 py-1 text-left text-xs text-[var(--ink-faint)] hover:bg-[var(--canvas-elevated)] hover:text-[var(--ink-muted)]"
+                        style={{
+                          paddingLeft: `${12 + level * 14}px`,
+                          animationDelay: `${index * 50}ms`,
+                        }}
+                      >
+                        <span className="text-[10px]">
+                          {item.isExpanded() ? "▼" : "▶"}
+                        </span>
+                        <span>{data.name}</span>
+                      </button>
+                    );
+                  }
+
+                  const file = data.file;
+                  const selected = item.isSelected();
+                  const focused = item.isFocused();
+                  const unresolved =
+                    unresolvedThreadCountByFile.get(file.path) || 0;
                   return (
                     <button
-                      key={row.key}
+                      {...item.getProps()}
+                      key={item.getId()}
                       type="button"
-                      onClick={() => onFolderToggle(row.path)}
-                      className="stagger-fade-in flex w-full items-center gap-1.5 px-3 py-1 text-left text-xs text-[var(--ink-faint)] hover:bg-[var(--canvas-elevated)] hover:text-[var(--ink-muted)]"
+                      data-file-index={fileIndexMap.get(file.path)}
+                      title={file.path}
+                      className={`stagger-fade-in sidebar-item flex w-full items-center justify-between gap-1 py-1 text-left text-xs transition-colors ${selected ? "bg-[var(--accent-blue-dim)] text-[var(--ink)]" : "text-[var(--ink-muted)] hover:bg-[var(--canvas-elevated)] hover:text-[var(--ink)]"}`}
                       style={{
-                        paddingLeft: `${12 + row.depth * 14}px`,
+                        paddingLeft: `${12 + level * 14}px`,
+                        paddingRight: "12px",
                         animationDelay: `${index * 50}ms`,
+                        ...(focused && !selected
+                          ? {
+                              outline: "1px solid var(--accent-blue)",
+                              outlineOffset: "-1px",
+                            }
+                          : {}),
                       }}
                     >
-                      <span className="text-[10px]">
-                        {row.collapsed ? "▶" : "▼"}
-                      </span>
-                      <span>{row.name}</span>
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <FileIcon status={file.status} />
+                        <span className="truncate font-mono">{data.name}</span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        {unresolved > 0 && (
+                          <span className="rounded-full bg-[var(--accent-amber-dim)] px-1.5 text-[10px] text-[var(--accent-amber)]">
+                            {unresolved}
+                          </span>
+                        )}
+                        <span className="text-[10px] text-[var(--ink-ghost)]">
+                          {changeCountByFile.get(file.path) || 0}
+                        </span>
+                      </div>
                     </button>
                   );
-                }
-
-                const file = row.file;
-                const active = file.path === selectedFilePath;
-                const unresolved =
-                  unresolvedThreadCountByFile.get(file.path) || 0;
-                return (
-                  <button
-                    key={row.key}
-                    type="button"
-                    onClick={() => onFileSelect(file.path)}
-                    title={file.path}
-                    className={`stagger-fade-in sidebar-item flex w-full items-center justify-between gap-1 py-1 text-left text-xs transition-colors ${active ? "bg-[var(--accent-blue-dim)] text-[var(--ink)]" : "text-[var(--ink-muted)] hover:bg-[var(--canvas-elevated)] hover:text-[var(--ink)]"}`}
-                    style={{
-                      paddingLeft: `${12 + row.depth * 14}px`,
-                      paddingRight: "12px",
-                      animationDelay: `${index * 50}ms`,
-                    }}
-                  >
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <FileIcon status={file.status} />
-                      <span className="truncate font-mono">
-                        {fileName(file.path)}
-                      </span>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      {unresolved > 0 && (
-                        <span className="rounded-full bg-[var(--accent-amber-dim)] px-1.5 text-[10px] text-[var(--accent-amber)]">
-                          {unresolved}
-                        </span>
-                      )}
-                      <span className="text-[10px] text-[var(--ink-ghost)]">
-                        {changeCountByFile.get(file.path) || 0}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })
+                })}
+              </div>
             ) : (
               visibleFiles.map((file, index) => {
                 const active = file.path === selectedFilePath;
+                const keyboardActive = keyboardSelectedIndex === index;
                 const unresolved =
                   unresolvedThreadCountByFile.get(file.path) || 0;
                 return (
                   <button
                     key={file.path}
                     type="button"
+                    data-file-index={index}
                     onClick={() => onFileSelect(file.path)}
                     title={file.path}
                     className={`stagger-fade-in sidebar-item flex w-full items-center justify-between gap-1 px-3 py-1 text-left text-xs transition-colors ${active ? "bg-[var(--accent-blue-dim)] text-[var(--ink)]" : "text-[var(--ink-muted)] hover:bg-[var(--canvas-elevated)] hover:text-[var(--ink)]"}`}
-                    style={{ animationDelay: `${index * 50}ms` }}
+                    style={{
+                      animationDelay: `${index * 50}ms`,
+                      ...(keyboardActive && !active
+                        ? {
+                            outline: "1px solid var(--accent-blue)",
+                            outlineOffset: "-1px",
+                          }
+                        : {}),
+                    }}
                   >
                     <div className="flex min-w-0 items-center gap-1.5">
                       <FileIcon status={file.status} />

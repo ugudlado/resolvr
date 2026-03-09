@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import type { CommitInfo } from "../services/localReviewApi";
+import { isInputFocused } from "../utils/keyboardUtils";
 
 export function useDiffNavigation(params: {
   commits: CommitInfo[];
@@ -12,15 +13,7 @@ export function useDiffNavigation(params: {
     const optionHashes = ["all", ...commits.map((c) => c.hash)];
     const current = selectedCommit || "all";
     const handler = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const tag = target?.tagName?.toLowerCase();
-      if (
-        tag === "input" ||
-        tag === "textarea" ||
-        tag === "select" ||
-        target?.isContentEditable
-      )
-        return;
+      if (isInputFocused()) return;
       if (event.key !== "[" && event.key !== "]") return;
       event.preventDefault();
       const index = optionHashes.indexOf(current);
