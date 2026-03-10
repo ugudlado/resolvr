@@ -3901,9 +3901,27 @@ __export(resolver_daemon_exports, {
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import fs2 from "node:fs/promises";
 import path2 from "node:path";
+function migrateSeverity(severity) {
+  if (!severity) return "improvement";
+  const LEGACY_MAP = {
+    blocking: "critical",
+    suggestion: "improvement",
+    nitpick: "style"
+  };
+  if (LEGACY_MAP[severity]) return LEGACY_MAP[severity];
+  if (SEVERITY_PRIORITY[severity] !== void 0) return severity;
+  return "improvement";
+}
 function pickModel(threads) {
-  const hasBlocking = threads.some((t) => t.severity === "blocking");
-  return hasBlocking ? "claude-sonnet-4-6" : "claude-haiku-4-5-20251001";
+  const hasCritical = threads.some(
+    (t) => migrateSeverity(t.severity) === "critical"
+  );
+  return hasCritical ? "claude-sonnet-4-6" : "claude-haiku-4-5-20251001";
+}
+function triageThreads(threads) {
+  return threads.filter((t) => t.status === "open").filter((t) => migrateSeverity(t.severity) !== "question").sort(
+    (a, b) => (SEVERITY_PRIORITY[migrateSeverity(a.severity)] ?? 1) - (SEVERITY_PRIORITY[migrateSeverity(b.severity)] ?? 1)
+  );
 }
 function cleanEnv() {
   const { CLAUDECODE, ...rest } = process.env;
@@ -3991,12 +4009,25 @@ Acknowledge you are ready to resolve review threads. Reply with just: ready`,
 }
 async function buildResolvePrompt(sessionFile, sessionType, featureId, cwd) {
   let openThreadCount = 0;
+  let severitySummary = "";
   try {
     const raw2 = await fs2.readFile(sessionFile, "utf-8");
     const session = JSON.parse(raw2);
-    openThreadCount = (session.threads ?? []).filter(
-      (t) => t.status === "open"
-    ).length;
+    const resolvable = triageThreads(session.threads ?? []);
+    openThreadCount = resolvable.length;
+    const counts = {};
+    for (const t of resolvable) {
+      const sev = migrateSeverity(t.severity);
+      counts[sev] = (counts[sev] ?? 0) + 1;
+    }
+    const parts = [];
+    for (const [sev, count] of Object.entries(counts)) {
+      parts.push(`${String(count)} ${sev}`);
+    }
+    if (parts.length > 0) {
+      severitySummary = `
+Severity breakdown: ${parts.join(", ")}`;
+    }
   } catch (err) {
     console.error(
       `[resolver-daemon] Failed to read session file for thread count: ${sessionFile}`,
@@ -4004,21 +4035,31 @@ async function buildResolvePrompt(sessionFile, sessionType, featureId, cwd) {
     );
   }
   const relSessionFile = path2.relative(cwd, sessionFile);
+  const triageInstructions = `
+IMPORTANT: Threads are prioritized by severity. Process them in this order:
+1. "critical" threads first (security, correctness, breaking changes)
+2. "improvement" threads next (refactoring, better patterns)
+3. "style" threads last (formatting, naming, comments)
+Skip any "question" threads \u2014 they need human clarification, not automated resolution.${severitySummary}`;
   if (sessionType === "code") {
     return `Resolve all ${String(openThreadCount)} open threads in the code review session.
 Session file: ${relSessionFile}
 Feature ID: ${featureId}
 Session type: code
+${triageInstructions}
 
-For each open thread:
+For each open thread (in priority order):
 1. Run: bash scripts/review-context.sh ${relSessionFile} <threadId>
 2. Analyze the context and reviewer messages
 3. Either apply the fix, reply with explanation, or ask a clarifying question
 4. PATCH the result:
    curl -s -X PATCH http://localhost:37003/api/features/${featureId}/code-session/threads/<threadId> \\
      -H 'Content-Type: application/json' \\
-     -d '{"status":"resolved","messages":[{"authorType":"agent","author":"claude","text":"<reply>","createdAt":"<ISO>"}]}'
+     -d '{"status":"resolved","messages":[{"authorType":"agent","author":"claude","text":"<reply>","createdAt":"<ISO>"}],"labels":{"severity":"<severity>"}}'
    Use status "open" when asking a clarifying question instead of resolving.
+   Include labels with at least {"severity": "<value>"} for analytics tracking.
+   Severity should come from the prioritized thread order above.
+   You may add additional labels for other analytics dimensions like effort, type, etc.
 
 Return JSON: {"resolved": <number>, "clarifications": <number>, "fixes": ["<file>", ...]}`;
   }
@@ -4026,16 +4067,20 @@ Return JSON: {"resolved": <number>, "clarifications": <number>, "fixes": ["<file
 Session file: ${relSessionFile}
 Feature ID: ${featureId}
 Session type: spec
+${triageInstructions}
 
-For each open thread:
+For each open thread (in priority order):
 1. Read the session file to get the thread anchor (sectionPath, blockIndex)
 2. Read the spec file to locate the anchored section and block
 3. Either revise the spec, reply with explanation, or ask a clarifying question
 4. PATCH the result:
    curl -s -X PATCH http://localhost:37003/api/features/${featureId}/spec-session/threads/<threadId> \\
      -H 'Content-Type: application/json' \\
-     -d '{"status":"resolved","messages":[{"authorType":"agent","author":"claude","text":"<reply>","createdAt":"<ISO>"}]}'
+     -d '{"status":"resolved","messages":[{"authorType":"agent","author":"claude","text":"<reply>","createdAt":"<ISO>"}],"labels":{"severity":"<severity>"}}'
    Use status "open" when asking a clarifying question instead of resolving.
+   Include labels with at least {"severity": "<value>"} for analytics tracking.
+   Severity should come from the prioritized thread order above.
+   You may add additional labels for other analytics dimensions like effort, type, etc.
 
 Return JSON: {"resolved": <number>, "clarifications": <number>, "fixes": ["<file>", ...]}`;
 }
@@ -4089,16 +4134,28 @@ async function executeResolve(sessionFile, sessionType, featureId, cwd) {
       `Resolver daemon not initialized \u2014 ${state.lastError?.message ?? "cold-start may have failed"}`
     );
   }
-  let openThreads = [];
+  let resolvableThreads = [];
   try {
     const raw2 = await fs2.readFile(sessionFile, "utf-8");
     const session = JSON.parse(raw2);
-    openThreads = (session.threads ?? []).filter((t) => t.status === "open");
-  } catch {
+    resolvableThreads = triageThreads(session.threads ?? []);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[resolver-daemon] Failed to read/parse session file: ${sessionFile}`,
+      err
+    );
+    throw new Error(`Failed to read session file for triage: ${message}`);
   }
-  const model = pickModel(openThreads);
+  if (resolvableThreads.length === 0) {
+    console.log(
+      "[resolver-daemon] No resolvable threads (all questions or none open) \u2014 skipping"
+    );
+    return { resolved: 0, clarifications: 0, fixes: [] };
+  }
+  const model = pickModel(resolvableThreads);
   console.log(
-    `[resolver-daemon] Resolving ${openThreads.length} threads with ${model}`
+    `[resolver-daemon] Resolving ${resolvableThreads.length} threads with ${model} (priority order: critical > improvement > style)`
   );
   const prompt = await buildResolvePrompt(
     sessionFile,
@@ -4165,11 +4222,17 @@ function getStatus() {
     lastError: state.lastError
   };
 }
-var state, SYSTEM_PROMPT, SDK_TIMEOUT_MS;
+var SEVERITY_PRIORITY, state, SYSTEM_PROMPT, SDK_TIMEOUT_MS;
 var init_resolver_daemon = __esm({
   "src/resolver-daemon.ts"() {
     "use strict";
     init_cjs_shim();
+    SEVERITY_PRIORITY = {
+      critical: 0,
+      improvement: 1,
+      style: 2,
+      question: 3
+    };
     state = {
       sessionId: null,
       isResolving: false,
@@ -7267,11 +7330,13 @@ function resolveWorktree(requestedPath, repoRoot2) {
   const state2 = getGitState();
   const worktrees = state2?.worktrees ?? [];
   if (!requestedPath) {
-    const first = worktrees[0];
+    const match2 = worktrees.find((wt) => wt.path === repoRoot2);
+    const fallback = worktrees[0];
+    const chosen = match2 ?? fallback;
     return {
-      path: first?.path ?? repoRoot2,
-      branch: first?.branch ?? "main",
-      isMain: true
+      path: chosen?.path ?? repoRoot2,
+      branch: chosen?.branch ?? "main",
+      isMain: (chosen?.path ?? repoRoot2) === (worktrees[0]?.path ?? repoRoot2)
     };
   }
   const found = worktrees.find((wt) => wt.path === requestedPath);
@@ -7762,6 +7827,11 @@ function findWorktreePath(featureId) {
 }
 
 // src/routes/sessions.ts
+var THREAD_STATUS = {
+  Open: "open",
+  Resolved: "resolved",
+  Approved: "approved"
+};
 var SESSION_CONFIGS = {
   code: {
     pathSegment: "code-session",
@@ -7844,17 +7914,26 @@ function registerSessionCRUD(app2, config, sessionsDir2, ensureSessionsDir, sess
     if (patch.status !== void 0) {
       updatedThread.status = patch.status;
     }
+    if (patch.severity !== void 0) {
+      updatedThread.severity = patch.severity;
+    }
     if (patch.messages !== void 0) {
       updatedThread.messages = [
         ...updatedThread.messages ?? [],
         ...patch.messages
       ];
     }
+    if (patch.labels !== void 0) {
+      updatedThread.labels = {
+        ...updatedThread.labels ?? {},
+        ...patch.labels
+      };
+    }
     onPatchThread?.(updatedThread, session);
     threads[threadIndex] = updatedThread;
     session.threads = threads;
     await fs4.writeFile(filePath, JSON.stringify(session, null, 2), "utf-8");
-    if (broadcast3 && updatedThread.status === "resolved") {
+    if (broadcast3 && updatedThread.status === THREAD_STATUS.Resolved) {
       broadcast3({
         event: "review:resolve-thread-done",
         data: {
