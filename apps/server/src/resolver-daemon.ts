@@ -18,10 +18,60 @@ export type ResolveResult = {
   fixes: string[];
 };
 
+/**
+ * Severity priority for thread triage ordering.
+ * Lower number = higher priority = resolved first.
+ */
+const SEVERITY_PRIORITY: Record<string, number> = {
+  critical: 0,
+  improvement: 1,
+  style: 2,
+  question: 3,
+};
+
+/**
+ * Maps legacy severity values to current ones.
+ * - "blocking" → "critical"
+ * - "suggestion" → "improvement"
+ * - "nitpick" → "style"
+ * - Unknown values → "improvement" (default)
+ * - Current values pass through unchanged.
+ */
+function migrateSeverity(severity: string | undefined): string {
+  if (!severity) return "improvement";
+  const LEGACY_MAP: Record<string, string> = {
+    blocking: "critical",
+    suggestion: "improvement",
+    nitpick: "style",
+  };
+  if (LEGACY_MAP[severity]) return LEGACY_MAP[severity];
+  if (SEVERITY_PRIORITY[severity] !== undefined) return severity;
+  return "improvement";
+}
+
 /** Pick the fastest model that can handle the thread severities. */
 function pickModel(threads: Array<{ severity?: string }>): string {
-  const hasBlocking = threads.some((t) => t.severity === "blocking");
-  return hasBlocking ? "claude-sonnet-4-6" : "claude-haiku-4-5-20251001";
+  const hasCritical = threads.some(
+    (t) => migrateSeverity(t.severity) === "critical",
+  );
+  return hasCritical ? "claude-sonnet-4-6" : "claude-haiku-4-5-20251001";
+}
+
+/**
+ * Sort threads by severity priority (critical first) and filter out
+ * "question" threads which should not be auto-resolved.
+ */
+function triageThreads<T extends { severity?: string; status: string }>(
+  threads: T[],
+): T[] {
+  return threads
+    .filter((t) => t.status === "open")
+    .filter((t) => migrateSeverity(t.severity) !== "question")
+    .sort(
+      (a, b) =>
+        (SEVERITY_PRIORITY[migrateSeverity(a.severity)] ?? 1) -
+        (SEVERITY_PRIORITY[migrateSeverity(b.severity)] ?? 1),
+    );
 }
 
 type DaemonState = {
@@ -168,14 +218,27 @@ async function buildResolvePrompt(
   cwd: string,
 ): Promise<string> {
   let openThreadCount = 0;
+  let severitySummary = "";
   try {
     const raw = await fs.readFile(sessionFile, "utf-8");
     const session = JSON.parse(raw) as {
-      threads?: Array<{ status: string }>;
+      threads?: Array<{ status: string; severity?: string }>;
     };
-    openThreadCount = (session.threads ?? []).filter(
-      (t) => t.status === "open",
-    ).length;
+    const resolvable = triageThreads(session.threads ?? []);
+    openThreadCount = resolvable.length;
+    // Build severity summary for the prompt (only resolvable threads)
+    const counts: Record<string, number> = {};
+    for (const t of resolvable) {
+      const sev = migrateSeverity(t.severity);
+      counts[sev] = (counts[sev] ?? 0) + 1;
+    }
+    const parts: string[] = [];
+    for (const [sev, count] of Object.entries(counts)) {
+      parts.push(`${String(count)} ${sev}`);
+    }
+    if (parts.length > 0) {
+      severitySummary = `\nSeverity breakdown: ${parts.join(", ")}`;
+    }
   } catch (err) {
     console.error(
       `[resolver-daemon] Failed to read session file for thread count: ${sessionFile}`,
@@ -185,21 +248,32 @@ async function buildResolvePrompt(
 
   const relSessionFile = path.relative(cwd, sessionFile);
 
+  const triageInstructions = `
+IMPORTANT: Threads are prioritized by severity. Process them in this order:
+1. "critical" threads first (security, correctness, breaking changes)
+2. "improvement" threads next (refactoring, better patterns)
+3. "style" threads last (formatting, naming, comments)
+Skip any "question" threads — they need human clarification, not automated resolution.${severitySummary}`;
+
   if (sessionType === "code") {
     return `Resolve all ${String(openThreadCount)} open threads in the code review session.
 Session file: ${relSessionFile}
 Feature ID: ${featureId}
 Session type: code
+${triageInstructions}
 
-For each open thread:
+For each open thread (in priority order):
 1. Run: bash scripts/review-context.sh ${relSessionFile} <threadId>
 2. Analyze the context and reviewer messages
 3. Either apply the fix, reply with explanation, or ask a clarifying question
 4. PATCH the result:
    curl -s -X PATCH http://localhost:37003/api/features/${featureId}/code-session/threads/<threadId> \\
      -H 'Content-Type: application/json' \\
-     -d '{"status":"resolved","messages":[{"authorType":"agent","author":"claude","text":"<reply>","createdAt":"<ISO>"}]}'
+     -d '{"status":"resolved","messages":[{"authorType":"agent","author":"claude","text":"<reply>","createdAt":"<ISO>"}],"labels":{"severity":"<severity>"}}'
    Use status "open" when asking a clarifying question instead of resolving.
+   Include labels with at least {"severity": "<value>"} for analytics tracking.
+   Severity should come from the prioritized thread order above.
+   You may add additional labels for other analytics dimensions like effort, type, etc.
 
 Return JSON: {"resolved": <number>, "clarifications": <number>, "fixes": ["<file>", ...]}`;
   }
@@ -208,16 +282,20 @@ Return JSON: {"resolved": <number>, "clarifications": <number>, "fixes": ["<file
 Session file: ${relSessionFile}
 Feature ID: ${featureId}
 Session type: spec
+${triageInstructions}
 
-For each open thread:
+For each open thread (in priority order):
 1. Read the session file to get the thread anchor (sectionPath, blockIndex)
 2. Read the spec file to locate the anchored section and block
 3. Either revise the spec, reply with explanation, or ask a clarifying question
 4. PATCH the result:
    curl -s -X PATCH http://localhost:37003/api/features/${featureId}/spec-session/threads/<threadId> \\
      -H 'Content-Type: application/json' \\
-     -d '{"status":"resolved","messages":[{"authorType":"agent","author":"claude","text":"<reply>","createdAt":"<ISO>"}]}'
+     -d '{"status":"resolved","messages":[{"authorType":"agent","author":"claude","text":"<reply>","createdAt":"<ISO>"}],"labels":{"severity":"<severity>"}}'
    Use status "open" when asking a clarifying question instead of resolving.
+   Include labels with at least {"severity": "<value>"} for analytics tracking.
+   Severity should come from the prioritized thread order above.
+   You may add additional labels for other analytics dimensions like effort, type, etc.
 
 Return JSON: {"resolved": <number>, "clarifications": <number>, "fixes": ["<file>", ...]}`;
 }
@@ -288,21 +366,34 @@ async function executeResolve(
     );
   }
 
-  // Read thread severities to pick the right model
-  let openThreads: Array<{ severity?: string }> = [];
+  // Read thread severities to pick the right model and triage
+  let resolvableThreads: Array<{ severity?: string; status: string }> = [];
   try {
     const raw = await fs.readFile(sessionFile, "utf-8");
     const session = JSON.parse(raw) as {
       threads?: Array<{ status: string; severity?: string }>;
     };
-    openThreads = (session.threads ?? []).filter((t) => t.status === "open");
-  } catch {
-    // Fall through — default to Sonnet
+    resolvableThreads = triageThreads(session.threads ?? []);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[resolver-daemon] Failed to read/parse session file: ${sessionFile}`,
+      err,
+    );
+    throw new Error(`Failed to read session file for triage: ${message}`);
   }
 
-  const model = pickModel(openThreads);
+  // If all open threads are questions (or no resolvable threads), skip resolution
+  if (resolvableThreads.length === 0) {
+    console.log(
+      "[resolver-daemon] No resolvable threads (all questions or none open) — skipping",
+    );
+    return { resolved: 0, clarifications: 0, fixes: [] };
+  }
+
+  const model = pickModel(resolvableThreads);
   console.log(
-    `[resolver-daemon] Resolving ${openThreads.length} threads with ${model}`,
+    `[resolver-daemon] Resolving ${resolvableThreads.length} threads with ${model} (priority order: critical > improvement > style)`,
   );
 
   const prompt = await buildResolvePrompt(

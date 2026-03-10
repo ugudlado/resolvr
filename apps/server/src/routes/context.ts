@@ -58,11 +58,14 @@ function resolveWorktree(
   const worktrees = state?.worktrees ?? [];
 
   if (!requestedPath) {
-    const first = worktrees[0];
+    // Match the worktree whose path is the server's repoRoot (handles running from a feature worktree)
+    const match = worktrees.find((wt) => wt.path === repoRoot);
+    const fallback = worktrees[0];
+    const chosen = match ?? fallback;
     return {
-      path: first?.path ?? repoRoot,
-      branch: first?.branch ?? "main",
-      isMain: true,
+      path: chosen?.path ?? repoRoot,
+      branch: chosen?.branch ?? "main",
+      isMain: (chosen?.path ?? repoRoot) === (worktrees[0]?.path ?? repoRoot),
     };
   }
 

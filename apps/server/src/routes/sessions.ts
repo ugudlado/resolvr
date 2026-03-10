@@ -4,17 +4,47 @@ import path from "node:path";
 import { safeId } from "../utils.js";
 import type { Broadcaster } from "../watcher.js";
 
+// ---------------------------------------------------------------------------
+// Thread status and severity enums
+// ---------------------------------------------------------------------------
+
+export const THREAD_STATUS = {
+  Open: "open",
+  Resolved: "resolved",
+  Approved: "approved",
+} as const;
+
+export type ThreadStatus = (typeof THREAD_STATUS)[keyof typeof THREAD_STATUS];
+
+export const THREAD_SEVERITY = {
+  Critical: "critical",
+  Improvement: "improvement",
+  Style: "style",
+  Question: "question",
+} as const;
+
+export type ThreadSeverity =
+  (typeof THREAD_SEVERITY)[keyof typeof THREAD_SEVERITY];
+
+// ---------------------------------------------------------------------------
+// Session data structures
+// ---------------------------------------------------------------------------
+
 interface ThreadRecord {
   id: string;
-  status?: string;
+  status?: ThreadStatus;
+  severity?: ThreadSeverity;
   messages?: unknown[];
   lastUpdatedAt?: string;
   [key: string]: unknown;
 }
 
 interface PatchPayload {
-  status?: string;
+  status?: ThreadStatus;
+  severity?: ThreadSeverity;
   messages?: unknown[];
+  /** Arbitrary labels for analytics and filtering (e.g. { "severity": "critical", "effort": "high" }). */
+  labels?: Record<string, string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -157,11 +187,20 @@ function registerSessionCRUD(
     if (patch.status !== undefined) {
       updatedThread.status = patch.status;
     }
+    if (patch.severity !== undefined) {
+      updatedThread.severity = patch.severity;
+    }
     if (patch.messages !== undefined) {
       updatedThread.messages = [
         ...(updatedThread.messages ?? []),
         ...patch.messages,
       ];
+    }
+    if (patch.labels !== undefined) {
+      updatedThread.labels = {
+        ...(updatedThread.labels ?? {}),
+        ...patch.labels,
+      };
     }
 
     onPatchThread?.(updatedThread, session);
@@ -172,7 +211,7 @@ function registerSessionCRUD(
     await fs.writeFile(filePath, JSON.stringify(session, null, 2), "utf-8");
 
     // Broadcast per-thread completion for real-time sidebar progress
-    if (broadcast && updatedThread.status === "resolved") {
+    if (broadcast && updatedThread.status === THREAD_STATUS.Resolved) {
       broadcast({
         event: "review:resolve-thread-done",
         data: {
