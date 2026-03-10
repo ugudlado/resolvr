@@ -161,7 +161,12 @@ export function FileSidebar({
     getItemName: (item) => item.getItemData().name,
     isItemFolder: (item) => item.getItemData().kind === "folder",
     dataLoader: {
-      getItem: (itemId) => treeData[itemId],
+      getItem: (itemId) =>
+        treeData[itemId] ?? {
+          kind: "folder" as const,
+          name: itemId,
+          children: [],
+        },
       getChildren: (itemId) => {
         const item = treeData[itemId];
         return item?.kind === "folder" ? item.children : [];

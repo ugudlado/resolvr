@@ -1,5 +1,41 @@
 import type { ReviewThread } from "../../services/localReviewApi";
 
+/** Format severity label for display */
+function formatSeverity(severity: string): string {
+  const map: Record<string, string> = {
+    critical: "Critical",
+    improvement: "Improvement",
+    style: "Style",
+    question: "Question",
+    blocking: "Blocking",
+    suggestion: "Suggestion",
+    nitpick: "Nitpick",
+  };
+  return map[severity] || severity;
+}
+
+/** Format model label for display */
+function formatModel(model: string): string {
+  if (model.includes("sonnet")) return "Sonnet";
+  if (model.includes("opus")) return "Opus";
+  if (model.includes("haiku")) return "Haiku";
+  return model;
+}
+
+/** Get color classes for severity level */
+function severityColor(severity: string): string {
+  const colors: Record<string, string> = {
+    critical: "bg-red-500/20 text-red-300",
+    blocking: "bg-red-500/20 text-red-300",
+    improvement: "bg-blue-500/20 text-blue-300",
+    style: "bg-amber-500/20 text-amber-300",
+    suggestion: "bg-amber-500/20 text-amber-300",
+    question: "bg-slate-600/40 text-slate-300",
+    nitpick: "bg-slate-600/40 text-slate-300",
+  };
+  return colors[severity] || "bg-slate-600/40 text-slate-300";
+}
+
 export function OverviewTab({
   threads,
   outdatedThreadIds,
@@ -141,6 +177,34 @@ export function OverviewTab({
                       {thread.messages.length} message
                       {thread.messages.length !== 1 ? "s" : ""}
                     </p>
+                    {thread.labels &&
+                      Object.entries(thread.labels).length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {thread.labels.severity && (
+                            <span
+                              className={`rounded px-2 py-1 text-[9px] font-medium ${severityColor(thread.labels.severity)}`}
+                            >
+                              {formatSeverity(thread.labels.severity)}
+                            </span>
+                          )}
+                          {thread.labels.model && (
+                            <span className="rounded bg-indigo-500/20 px-2 py-1 text-[9px] font-medium text-indigo-300">
+                              {formatModel(thread.labels.model)}
+                            </span>
+                          )}
+                          {Object.entries(thread.labels)
+                            .filter(([k]) => !["severity", "model"].includes(k))
+                            .map(([key, value]) => (
+                              <span
+                                key={`${thread.id}-${key}`}
+                                className="rounded bg-slate-600/40 px-2 py-1 text-[8px] text-slate-300"
+                                title={`${key}: ${value}`}
+                              >
+                                {key}
+                              </span>
+                            ))}
+                        </div>
+                      )}
                   </button>
                 );
               })}

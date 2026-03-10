@@ -1,8 +1,10 @@
 import { useMemo } from "react";
 import type { ReviewThread } from "../../services/localReviewApi";
 import { ThreadCard } from "../shared/ThreadCard";
+import { SectionLabel } from "../shared/SectionLabel";
 import { useThreadPartition } from "../../hooks/useThreadPartition";
 import { useResolveStatus } from "../../hooks/useResolveStatus";
+import { shortPath } from "../../utils/diffUtils";
 
 export interface CodeThreadsPanelProps {
   threads: ReviewThread[];
@@ -28,44 +30,6 @@ function groupByFile(threads: ReviewThread[]): Map<string, ReviewThread[]> {
     }
   }
   return map;
-}
-
-/** Shorten a file path to just the last 2 segments for display. */
-function shortPath(filePath: string): string {
-  const parts = filePath.split("/");
-  return parts.length <= 2 ? filePath : parts.slice(-2).join("/");
-}
-
-// ---------------------------------------------------------------------------
-// Section label
-// ---------------------------------------------------------------------------
-
-function SectionLabel({
-  label,
-  count,
-  variant,
-}: {
-  label: string;
-  count: number;
-  variant: "open" | "resolved";
-}) {
-  const badgeColors =
-    variant === "open"
-      ? "bg-[var(--accent-amber-dim)] text-[var(--accent-amber)]"
-      : "bg-[var(--accent-emerald-dim)] text-[var(--accent-emerald)]";
-
-  return (
-    <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[var(--border)] bg-[var(--canvas-raised)] px-3 py-2">
-      <span className="text-xs font-medium text-[var(--ink)]">{label}</span>
-      {count > 0 && (
-        <span
-          className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${badgeColors}`}
-        >
-          {count}
-        </span>
-      )}
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------
