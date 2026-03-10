@@ -20,6 +20,10 @@ artifacts:
     generates: design.md
     description: Technical design — components, data flow, error handling
     template: design.md
+    instruction: |
+      If the feature involves UI changes, create an interactive playground
+      using /playground for design review. This lets the user visually validate
+      layout, interactions, and styling before implementation begins.
     requires:
       - proposal
 
@@ -37,5 +41,31 @@ apply:
   instruction: |
     Work through tasks in phase order. Mark [→] when starting, [x] when done.
     Tasks marked [P] can run in parallel. Respect (depends: Txxx) annotations.
-    Pause at phase boundaries for review — require score >= 9/10 before continuing.
-    Commit after each logical group of tasks.
+
+    ## Per-Task Workflow
+    1. Search for existing libraries/tools before writing custom code (Context7, npm, web)
+    2. Implement the task using the best available solution
+    3. Commit: `feat: [FEATURE-ID] T-xxx description`
+
+    ## Per-Phase Workflow (after all tasks in phase complete)
+    1. Run /simplify on the phase diff (git diff of phase commits vs phase start)
+    2. Commit any simplification fixes separately
+    3. Run /phase-review for multi-model code review (score >= 9/10 to proceed)
+    4. Fix any issues found, commit fixes and re-review if needed
+
+    ## Final Review (after all phases complete)
+    1. Run /phase-review as final comprehensive review across all phases
+    2. If feature includes UI changes, run /frontend-design for design quality feedback
+    3. Fix any issues found, commit fixes
+    4. Present summary to human for approval before marking feature complete
+
+    ## Rules
+    Load rules from the project's `openspec/config.yaml` rules section.
+    Also check `.claude/rules/` directory for additional coding rules — apply all matching rules.
+    Rules evolve independently; always read them fresh at apply time.
+
+    ## Learnings
+    When fixing a bug or root cause during implementation:
+    - Record the learning in claude-mem (collection: "learnings", entity: project name)
+    - Format: problem context → root cause → solution → tech stack relevance
+    - Search learnings at the start of each phase to avoid repeating past mistakes

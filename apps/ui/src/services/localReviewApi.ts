@@ -16,8 +16,11 @@ export type ReviewThread = {
   side: "old" | "new";
   anchorContent?: string; // text of the anchor line at comment time
   status: "open" | "resolved" | "approved";
+  severity?: string;
   messages: ReviewMessage[];
   lastUpdatedAt: string;
+  /** Analytics labels for resolved threads (e.g., severity, model name) */
+  labels?: Record<string, string>;
 };
 
 export type InlineComment = {

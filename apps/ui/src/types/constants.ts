@@ -67,3 +67,17 @@ export const THREAD_STATUS = {
 } as const;
 
 export type ThreadStatus = (typeof THREAD_STATUS)[keyof typeof THREAD_STATUS];
+
+// ---------------------------------------------------------------------------
+// Review thread severity (triage levels for smart routing)
+// ---------------------------------------------------------------------------
+
+export const THREAD_SEVERITY = {
+  Critical: "critical",
+  Improvement: "improvement",
+  Style: "style",
+  Question: "question",
+} as const;
+
+export type ThreadSeverity =
+  (typeof THREAD_SEVERITY)[keyof typeof THREAD_SEVERITY];

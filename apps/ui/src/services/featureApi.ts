@@ -41,6 +41,7 @@ export type FeatureInfo = {
 
 export type ThreadPatch = {
   status?: "open" | "resolved" | "approved";
+  severity?: string;
   messages?: ReviewMessage[];
 };
 

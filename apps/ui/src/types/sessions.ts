@@ -14,6 +14,8 @@ import {
   type ReviewVerdict,
   THREAD_STATUS,
   type ThreadStatus,
+  THREAD_SEVERITY,
+  type ThreadSeverity,
 } from "./constants";
 
 export {
@@ -23,6 +25,8 @@ export {
   type ReviewVerdict,
   THREAD_STATUS,
   type ThreadStatus,
+  THREAD_SEVERITY,
+  type ThreadSeverity,
 };
 
 // ---------------------------------------------------------------------------
@@ -113,16 +117,21 @@ export interface ReviewMessage {
 // Review thread (shared between spec and code sessions)
 // ---------------------------------------------------------------------------
 
-export type ThreadSeverity = "blocking" | "suggestion" | "nitpick";
 export type ThreadFilter = "open" | "resolved";
 
 export interface ReviewThread {
   id: string;
   anchor: ThreadAnchor;
   status: ThreadStatus;
-  severity?: ThreadSeverity;
+  severity: ThreadSeverity;
   messages: ReviewMessage[];
   lastUpdatedAt: string; // ISO 8601
+  /** Model used to resolve this thread (for analytics). */
+  resolvedByModel?: string;
+  /** Thread severity at time of resolution (for analytics). */
+  resolvedWithSeverity?: ThreadSeverity;
+  /** Arbitrary labels for analytics and filtering (e.g. { "model": "sonnet", "effort": "high" }). */
+  labels?: Record<string, string>;
 }
 
 // ---------------------------------------------------------------------------
