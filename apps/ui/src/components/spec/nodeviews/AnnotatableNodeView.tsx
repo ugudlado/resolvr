@@ -87,7 +87,7 @@ export function AnnotatableNodeView({
         .join(" ")}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      data-block-index={blockIndex !== undefined ? blockIndex : undefined}
+      data-block-index={blockIndex}
     >
       {/* Compose "+" button — left side, appears on hover */}
       {showAffordances && (

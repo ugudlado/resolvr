@@ -260,9 +260,7 @@ export default function SpecReviewPage() {
       }
 
       // For non-headings (or if heading lookup failed), use data-block-index
-      if (!el) {
-        el = container.querySelector(`[data-block-index="${blockIndex}"]`);
-      }
+      el ??= container.querySelector(`[data-block-index="${blockIndex}"]`);
 
       if (el) {
         const offsetTop = (el as HTMLElement).offsetTop;
@@ -603,7 +601,7 @@ export default function SpecReviewPage() {
   // Error state
   // -------------------------------------------------------------------------
 
-  const error = specError || sessionError;
+  const error = specError ?? sessionError;
 
   if (error) {
     return (

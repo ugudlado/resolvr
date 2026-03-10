@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import type { ReviewThread, SpecBlockAnchor } from "../../types/sessions";
+import type { ReviewThread } from "../../types/sessions";
 import { THREAD_SEVERITY } from "../../types/constants";
 import type { AnchorMap } from "../../utils/specAnchoring";
 import { relativeTime } from "../../utils/timeFormat";
@@ -17,7 +17,7 @@ export interface ThreadNavProps {
 
 function getSectionLabel(thread: ReviewThread, anchorMap: AnchorMap): string {
   if (thread.anchor.type === "diff-line") return "";
-  const anchor = thread.anchor as SpecBlockAnchor;
+  const anchor = thread.anchor;
   const anchorInfo = anchorMap.get(anchor.blockIndex);
   if (!anchorInfo) return "";
   return anchorInfo.path.split(".")[0] ?? "";

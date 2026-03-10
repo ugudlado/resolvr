@@ -111,10 +111,12 @@ export default function FeatureCard({
     <div
       role="link"
       tabIndex={0}
-      onClick={() => navigate(`/features/${feature.id}`)}
+      onClick={() => {
+        void navigate(`/features/${feature.id}`);
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ")
-          navigate(`/features/${feature.id}`);
+          void navigate(`/features/${feature.id}`);
       }}
       className={`group flex cursor-pointer flex-col gap-3.5 rounded-lg border border-t-2 border-slate-700/50 border-t-transparent bg-[var(--bg-surface)] p-4 transition-all hover:-translate-y-px hover:border-slate-600 hover:shadow-lg ${accentClass}`}
     >

@@ -63,7 +63,7 @@ export function OverviewTab({
 
   const filteredByFile = new Map<string, ReviewThread[]>();
   for (const thread of filtered) {
-    const list = filteredByFile.get(thread.filePath) || [];
+    const list = filteredByFile.get(thread.filePath) ?? [];
     list.push(thread);
     filteredByFile.set(thread.filePath, list);
   }
@@ -132,16 +132,22 @@ export function OverviewTab({
               {fileThreads.map((thread) => {
                 const isOutdated = outdatedThreadIds.has(thread.id);
                 const firstMsg = thread.messages[0];
-                const statusIcon = isOutdated
-                  ? "◌"
-                  : thread.status === "open"
-                    ? "●"
-                    : "✓";
-                const statusColor = isOutdated
-                  ? "text-slate-500"
-                  : thread.status === "open"
-                    ? "text-amber-400"
-                    : "text-emerald-400";
+                let statusIcon: string;
+                if (isOutdated) {
+                  statusIcon = "◌";
+                } else if (thread.status === "open") {
+                  statusIcon = "●";
+                } else {
+                  statusIcon = "✓";
+                }
+                let statusColor: string;
+                if (isOutdated) {
+                  statusColor = "text-slate-500";
+                } else if (thread.status === "open") {
+                  statusColor = "text-amber-400";
+                } else {
+                  statusColor = "text-emerald-400";
+                }
                 return (
                   <button
                     key={thread.id}

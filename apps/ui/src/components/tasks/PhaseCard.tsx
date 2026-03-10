@@ -14,7 +14,7 @@ const statusConfig: Record<TaskStatus, { icon: string; className: string }> = {
 
 function TaskRow({ task }: { task: Task }) {
   const { icon, className } = statusConfig[task.status];
-  const hasDetails = task.why || task.files || task.doneWhen;
+  const hasDetails = task.why ?? task.files ?? task.doneWhen;
   const [expanded, setExpanded] = useState(false);
 
   return (

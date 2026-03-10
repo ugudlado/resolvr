@@ -118,9 +118,9 @@ export function parseUnifiedDiff(diff: string): DiffFile[] {
   for (const line of lines) {
     if (line.startsWith("diff --git ")) {
       const parsed = parseDiffGitLine(line);
-      pendingOldPath = parsed?.oldPath || "";
-      pendingNewPath = parsed?.newPath || "";
-      pendingNewPrefix = parsed?.newPrefix || "b";
+      pendingOldPath = parsed?.oldPath ?? "";
+      pendingNewPath = parsed?.newPath ?? "";
+      pendingNewPrefix = parsed?.newPrefix ?? "b";
       pendingStatus = "M";
       pendingRawGitLine = line;
       currentFile = null;

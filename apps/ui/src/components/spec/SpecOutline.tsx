@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { AnchorMap, AnchorInfo } from "../../utils/specAnchoring";
-import type { ReviewThread, SpecBlockAnchor } from "../../types/sessions";
+import type { ReviewThread } from "../../types/sessions";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -81,7 +81,7 @@ function buildThreadCountMap(
     if (thread.status === "resolved" || thread.status === "approved") continue;
     if (thread.anchor.type === "diff-line") continue;
 
-    const anchor = thread.anchor as SpecBlockAnchor;
+    const anchor = thread.anchor;
     const info = anchorMap.get(anchor.blockIndex ?? -1);
     if (!info) continue;
 

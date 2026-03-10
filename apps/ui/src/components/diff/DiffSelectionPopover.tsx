@@ -86,7 +86,7 @@ export function DiffSelectionPopover({
 
     // Use start row's line if available and on the same side, otherwise fall back to end
     const startLine =
-      startLineInfo && startLineInfo.side === endLineInfo.side
+      startLineInfo?.side === endLineInfo.side
         ? Math.min(startLineInfo.lineNumber, endLineInfo.lineNumber)
         : endLineInfo.lineNumber;
 

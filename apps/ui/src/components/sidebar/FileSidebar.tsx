@@ -208,7 +208,7 @@ export function FileSidebar({
     if (keyboardSelectedIndex === undefined || !fileListRef.current) return;
     const target = fileListRef.current.querySelector(
       `[data-file-index="${keyboardSelectedIndex}"]`,
-    ) as HTMLElement | null;
+    );
     target?.scrollIntoView({ block: "nearest" });
   }, [keyboardSelectedIndex]);
 
@@ -267,11 +267,12 @@ export function FileSidebar({
           </div>
 
           <div ref={fileListRef} className="flex-1 overflow-auto py-1">
-            {visibleFiles.length === 0 ? (
+            {visibleFiles.length === 0 && (
               <p className="px-4 py-6 text-xs text-[var(--ink-ghost)]">
                 No changed files
               </p>
-            ) : showFolderTree ? (
+            )}
+            {visibleFiles.length > 0 && showFolderTree && (
               <div
                 {...tree.getContainerProps()}
                 tabIndex={0}
@@ -305,7 +306,7 @@ export function FileSidebar({
                   const selected = item.isSelected();
                   const focused = item.isFocused();
                   const unresolved =
-                    unresolvedThreadCountByFile.get(file.path) || 0;
+                    unresolvedThreadCountByFile.get(file.path) ?? 0;
                   return (
                     <button
                       {...item.getProps()}
@@ -337,19 +338,21 @@ export function FileSidebar({
                           </span>
                         )}
                         <span className="text-[10px] text-[var(--ink-ghost)]">
-                          {changeCountByFile.get(file.path) || 0}
+                          {changeCountByFile.get(file.path) ?? 0}
                         </span>
                       </div>
                     </button>
                   );
                 })}
               </div>
-            ) : (
+            )}
+            {visibleFiles.length > 0 &&
+              !showFolderTree &&
               visibleFiles.map((file, index) => {
                 const active = file.path === selectedFilePath;
                 const keyboardActive = keyboardSelectedIndex === index;
                 const unresolved =
-                  unresolvedThreadCountByFile.get(file.path) || 0;
+                  unresolvedThreadCountByFile.get(file.path) ?? 0;
                 return (
                   <button
                     key={file.path}
@@ -381,13 +384,12 @@ export function FileSidebar({
                         </span>
                       )}
                       <span className="text-[10px] text-[var(--ink-ghost)]">
-                        {changeCountByFile.get(file.path) || 0}
+                        {changeCountByFile.get(file.path) ?? 0}
                       </span>
                     </div>
                   </button>
                 );
-              })
-            )}
+              })}
           </div>
         </>
       )}

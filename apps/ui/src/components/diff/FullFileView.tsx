@@ -66,32 +66,30 @@ export function FullFileView({
 
   return (
     <div ref={panelRef} className="flex min-h-0 flex-1 overflow-auto">
-      {fullFileLoading ? (
+      {(fullFileLoading || fullFileContent === null) && !fullFileError && (
         <div className="flex flex-1 items-center justify-center text-sm text-slate-600">
           Loading…
         </div>
-      ) : fullFileError ? (
+      )}
+      {fullFileError && (
         <div className="flex flex-1 items-center justify-center text-sm text-slate-600">
           Could not load file
         </div>
-      ) : fullFileContent === null ? (
-        <div className="flex flex-1 items-center justify-center text-sm text-slate-600">
-          Loading…
-        </div>
-      ) : (
+      )}
+      {!fullFileLoading && !fullFileError && fullFileContent !== null && (
         <table className="w-full border-collapse font-mono text-xs">
           <tbody>
             {fullFileContent.split("\n").map((lineContent, idx) => {
               const lineNum = idx + 1;
               const key = lineKey(selectedFile.path, lineNum, "new");
-              const allLineThreads = (threadsByKey.get(key) || []).filter(
+              const allLineThreads = (threadsByKey.get(key) ?? []).filter(
                 (t) => !outdatedThreadIds.has(t.id),
               );
               const lineThreads = showPendingOnly
                 ? allLineThreads.filter((t) => t.status !== "approved")
                 : allLineThreads;
               const selected = isLineInSelection(
-                dragSelection || composeSelection,
+                dragSelection ?? composeSelection,
                 selectedFile.path,
                 "new",
                 lineNum,

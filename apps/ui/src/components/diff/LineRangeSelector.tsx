@@ -67,9 +67,9 @@ export function LineRangeSelector({
   const parseAddWidget = useCallback(
     (el: HTMLElement): { line: number; side: "old" | "new" } | null => {
       // Walk up to find [data-add-widget]
-      let widgetDiv: HTMLElement | null = el.closest?.(
-        "[data-add-widget]",
-      ) as HTMLElement | null;
+      let widgetDiv: HTMLElement | null = null;
+      const foundWidget = el.closest("[data-add-widget]");
+      if (foundWidget instanceof HTMLElement) widgetDiv = foundWidget;
       if (!widgetDiv) {
         // Also try walking up manually for older browsers
         let cur: HTMLElement | null = el;
@@ -87,9 +87,8 @@ export function LineRangeSelector({
       if (sideAttr !== "old" && sideAttr !== "new") return null;
 
       // Find the parent diff row to get the line number
-      const row = widgetDiv.closest(
-        'tr.diff-line[data-state="diff"]',
-      ) as HTMLElement | null;
+      const foundRow = widgetDiv.closest('tr.diff-line[data-state="diff"]');
+      const row = foundRow instanceof HTMLElement ? foundRow : null;
       if (!row) return null;
 
       const attr =

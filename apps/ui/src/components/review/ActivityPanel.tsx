@@ -1,4 +1,17 @@
 // apps/ui/src/components/review/ActivityPanel.tsx
+
+function entryBadgeClass(type: "replied" | "fixed" | "clarification"): string {
+  if (type === "replied") return "bg-indigo-900/40 text-indigo-300";
+  if (type === "fixed") return "bg-emerald-900/40 text-emerald-300";
+  return "bg-amber-900/40 text-amber-300";
+}
+
+function entryLabel(type: "replied" | "fixed" | "clarification"): string {
+  if (type === "replied") return "replied";
+  if (type === "fixed") return "fixed";
+  return "clarification";
+}
+
 export type ActivityEntry = {
   threadId: string;
   filePath: string;
@@ -70,19 +83,9 @@ export function ActivityPanel({
           >
             <div className="flex items-center gap-1.5">
               <span
-                className={`rounded px-1 py-0.5 text-[10px] font-medium ${
-                  entry.type === "replied"
-                    ? "bg-indigo-900/40 text-indigo-300"
-                    : entry.type === "fixed"
-                      ? "bg-emerald-900/40 text-emerald-300"
-                      : "bg-amber-900/40 text-amber-300"
-                }`}
+                className={`rounded px-1 py-0.5 text-[10px] font-medium ${entryBadgeClass(entry.type)}`}
               >
-                {entry.type === "replied"
-                  ? "replied"
-                  : entry.type === "fixed"
-                    ? "fixed"
-                    : "clarification"}
+                {entryLabel(entry.type)}
               </span>
               <span className="truncate font-mono text-[10px] text-slate-500 group-hover:text-slate-400">
                 {entry.filePath}:{entry.line}

@@ -84,7 +84,7 @@ export function wsOn(event: string, handler: WsHandler): () => void {
   if (!handlers.has(event)) {
     handlers.set(event, new Set());
   }
-  handlers.get(event)!.add(handler);
+  handlers.get(event)?.add(handler);
 
   // Ensure connected
   connect();

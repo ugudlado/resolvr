@@ -31,10 +31,7 @@ function sortFeatures(
       );
     }
     if (sortKey === "status") {
-      return (
-        (STATUS_ORDER[a.status as FeatureStatus] ?? 99) -
-        (STATUS_ORDER[b.status as FeatureStatus] ?? 99)
-      );
+      return (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99);
     }
     return a.id.localeCompare(b.id);
   });
@@ -100,7 +97,7 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    fetchFeatures();
+    void fetchFeatures();
   }, [fetchFeatures]);
 
   const { active, completed, totalVisible } = useMemo(() => {
@@ -120,12 +117,14 @@ export default function Dashboard() {
     return { active, completed, totalVisible: filtered.length };
   }, [features, searchQuery, sortKey]);
 
-  const searchCount =
-    searchQuery && features.length > 0
-      ? `${totalVisible} of ${features.length}`
-      : features.length > 0
-        ? `${features.length}`
-        : "";
+  let searchCount: string;
+  if (searchQuery && features.length > 0) {
+    searchCount = `${totalVisible} of ${features.length}`;
+  } else if (features.length > 0) {
+    searchCount = `${features.length}`;
+  } else {
+    searchCount = "";
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg-base)]">
@@ -178,7 +177,9 @@ export default function Dashboard() {
             </select>
 
             <button
-              onClick={fetchFeatures}
+              onClick={() => {
+                void fetchFeatures();
+              }}
               disabled={loading}
               className="flex items-center gap-1.5 rounded px-3 py-1.5 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 disabled:opacity-50"
             >
@@ -193,7 +194,9 @@ export default function Dashboard() {
           <div className="mb-6 flex items-center justify-between rounded-lg border border-red-800/50 bg-red-900/20 px-4 py-3 text-sm text-red-300">
             <span>{error}</span>
             <button
-              onClick={fetchFeatures}
+              onClick={() => {
+                void fetchFeatures();
+              }}
               className="ml-4 rounded px-2 py-1 text-xs font-medium text-red-300 transition hover:bg-red-800/30"
             >
               Retry
@@ -214,7 +217,7 @@ export default function Dashboard() {
         {!loading && !error && (
           <>
             {/* Active features */}
-            {active.length > 0 ? (
+            {active.length > 0 && (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {active.map((feature) => (
                   <FeatureCard
@@ -224,9 +227,9 @@ export default function Dashboard() {
                   />
                 ))}
               </div>
-            ) : features.length === 0 ? (
-              <EmptyState />
-            ) : (
+            )}
+            {active.length === 0 && features.length === 0 && <EmptyState />}
+            {active.length === 0 && features.length > 0 && (
               <p className="py-12 text-center text-sm text-slate-500">
                 No active features
                 {searchQuery ? ` matching "${searchQuery}"` : ""}

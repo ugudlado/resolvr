@@ -220,7 +220,7 @@ export function SpecRenderer({
     const byBlock = new Map<number, ReviewThread[]>();
     for (const thread of threads) {
       if (thread.anchor.type === "diff-line") continue;
-      const anchor = thread.anchor as SpecBlockAnchor;
+      const anchor = thread.anchor;
       if (anchor.blockIndex === null || anchor.blockIndex === undefined)
         continue;
       counts.set(anchor.blockIndex, (counts.get(anchor.blockIndex) ?? 0) + 1);

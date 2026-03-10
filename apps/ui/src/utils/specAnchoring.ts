@@ -17,7 +17,7 @@
 import { remark } from "remark";
 import { visit } from "unist-util-visit";
 import { toString } from "mdast-util-to-string";
-import type { Root, Heading, Paragraph, ListItem, Code } from "mdast";
+import type { Root, Code } from "mdast";
 import type { SpecBlockAnchor } from "../types/sessions";
 
 // ---------------------------------------------------------------------------
@@ -167,7 +167,7 @@ function visitBlocks(
   visit(tree, (node) => {
     switch (node.type) {
       case "heading": {
-        const heading = node as Heading;
+        const heading = node;
         const text = toString(heading).trim();
 
         // Pop headings at same or deeper depth
@@ -184,7 +184,7 @@ function visitBlocks(
       }
 
       case "paragraph": {
-        const text = toString(node as Paragraph).trim();
+        const text = toString(node).trim();
         if (text.length > 0) {
           addAnchor("paragraph", text);
         }
@@ -192,7 +192,7 @@ function visitBlocks(
       }
 
       case "listItem": {
-        const text = toString(node as ListItem).trim();
+        const text = toString(node).trim();
         if (text.length > 0) {
           addAnchor("list-item", text);
         }
@@ -201,7 +201,7 @@ function visitBlocks(
       }
 
       case "code": {
-        const codeNode = node as Code;
+        const codeNode = node;
         const text = codeNode.value.trim();
         if (text.length > 0) {
           const type = isDiagramCodeBlock(codeNode) ? "diagram" : "paragraph";
@@ -233,7 +233,7 @@ export function resolveAnchor(
 ): AnchorResolution {
   // Tier 1: Exact hash match at the same blockIndex
   const sameBlock = anchorMap.get(storedAnchor.blockIndex);
-  if (sameBlock && sameBlock.hash === storedAnchor.hash) {
+  if (sameBlock?.hash === storedAnchor.hash) {
     return { status: "valid", blockIndex: storedAnchor.blockIndex };
   }
 
