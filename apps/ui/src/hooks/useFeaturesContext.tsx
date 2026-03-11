@@ -25,10 +25,17 @@ export function FeaturesProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(() => {
-    void featureApi.getFeatures().then(({ features: f }) => {
-      setFeatures(f);
-      setLoading(false);
-    });
+    void featureApi
+      .getFeatures()
+      .then(({ features: f }) => {
+        setFeatures(f);
+      })
+      .catch(() => {
+        // Leave existing features in place on error
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
   useEffect(() => {

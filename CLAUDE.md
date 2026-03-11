@@ -71,8 +71,10 @@ pnpm -C apps/ui test:ui       # Open Vitest UI dashboard
 
 # Code quality (run from repo root)
 pnpm type-check    # TypeScript type checking (both app and node configs)
-pnpm lint          # Lint all files (ESLint 9 flat config)
+pnpm lint          # Lint all files (both workspaces — ESLint 9 flat config)
 pnpm format        # Format all source files (Prettier + Tailwind plugin)
+pnpm knip          # Dead code detection across both workspaces (run before merge, not pre-commit)
+pnpm knip:fix      # Auto-remove safe unused exports
 ```
 
 **Port Configuration**: Change default port 37003 by setting `PORT` env var (works for both server and UI dev):
@@ -125,10 +127,12 @@ PORT=3000           # Change server/UI dev port (default: 37003)
 
 ## Code Quality
 
-- **ESLint**: Config at `apps/ui/eslint.config.js` (ESLint 9 flat config)
+- **ESLint**: `apps/ui/eslint.config.js` and `apps/server/eslint.config.js` (ESLint 9 flat config, `recommendedTypeChecked`)
 - **Prettier**: Config at `.prettierrc` with Tailwind CSS plugin
-- **Pre-commit**: Husky runs lint-staged (eslint + prettier on staged ts/tsx files)
-- ESLint binary lives in `apps/ui/node_modules` — lint-staged uses `pnpm -C apps/ui exec eslint`
+- **Pre-commit**: Husky runs lint-staged (ESLint + Prettier on staged files) then `pnpm type-check`
+- ESLint binary lives in workspace `node_modules` — lint-staged uses `pnpm -C apps/ui exec eslint` and `pnpm -C apps/server exec eslint`
+- **Key type-aware rules**: `no-floating-promises` (error) — always `await` or `void` async calls; `no-misused-promises` (error) — don't pass async functions as void callbacks directly
+- **Knip**: Run `pnpm knip` before merging to detect dead exports, unused files, and unused dependencies
 
 ## Important Reminders
 

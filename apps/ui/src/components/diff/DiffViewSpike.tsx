@@ -1,3 +1,4 @@
+/* eslint-disable no-console, @typescript-eslint/no-explicit-any */
 /**
  * SPIKE: @git-diff-view/react API Verification
  *
@@ -48,12 +49,8 @@
  */
 
 import { useState, useCallback, useRef } from "react";
-import {
-  DiffView,
-  DiffModeEnum,
-  SplitSide,
-  DiffFile,
-} from "@git-diff-view/react";
+import { DiffView, DiffModeEnum, SplitSide } from "@git-diff-view/react";
+import type { DiffFile } from "@git-diff-view/react";
 import "@git-diff-view/react/styles/diff-view.css";
 
 // Sample diff data - a simple TypeScript file change
@@ -157,9 +154,8 @@ export function DiffViewSpike() {
     }) => {
       // Only show widget for the line the user clicked
       if (
-        !activeWidget ||
-        activeWidget.lineNumber !== lineNumber ||
-        activeWidget.side !== side
+        activeWidget?.lineNumber !== lineNumber ||
+        activeWidget?.side !== side
       ) {
         return null;
       }

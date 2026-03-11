@@ -99,7 +99,7 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
   const handleSwitch = useCallback(
     (id: string) => {
       setDropdownOpen(false);
-      navigate(`/features/${id}/${activeTabPath}`);
+      void navigate(`/features/${id}/${activeTabPath}`);
     },
     [navigate, activeTabPath],
   );

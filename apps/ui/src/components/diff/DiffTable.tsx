@@ -91,12 +91,14 @@ export function DiffTable({
 
               for (let i = 0; i < hunk.lines.length; i++) {
                 const line = hunk.lines[i];
-                const targetSide: "old" | "new" | null =
-                  line.newLineNumber !== null
-                    ? "new"
-                    : line.oldLineNumber !== null
-                      ? "old"
-                      : null;
+                let targetSide: "old" | "new" | null;
+                if (line.newLineNumber !== null) {
+                  targetSide = "new";
+                } else if (line.oldLineNumber !== null) {
+                  targetSide = "old";
+                } else {
+                  targetSide = null;
+                }
                 const targetLine =
                   targetSide === "old"
                     ? line.oldLineNumber
@@ -121,7 +123,7 @@ export function DiffTable({
                     ? lineKey(selectedFile.path, targetLine, targetSide)
                     : "";
                 const inlineThreads = (
-                  key ? threadsByKey.get(key) || [] : []
+                  key ? (threadsByKey.get(key) ?? []) : []
                 ).filter((t) => !outdatedThreadIds.has(t.id));
                 const lineThreads = showPendingOnly
                   ? inlineThreads.filter((t) => t.status !== "approved")
@@ -130,7 +132,7 @@ export function DiffTable({
                 const selected =
                   targetSide && targetLine
                     ? isLineInSelection(
-                        dragSelection || composeSelection,
+                        dragSelection ?? composeSelection,
                         selectedFile.path,
                         targetSide,
                         targetLine,
@@ -168,6 +170,24 @@ export function DiffTable({
                 const selectionHighlight = selected
                   ? "ring-1 ring-inset ring-blue-500/50 bg-blue-900/20"
                   : "";
+
+                let markerColor: string;
+                if (line.kind === "add") {
+                  markerColor = "text-emerald-400";
+                } else if (line.kind === "del") {
+                  markerColor = "text-rose-400";
+                } else {
+                  markerColor = "text-slate-700";
+                }
+
+                let markerChar: string;
+                if (line.kind === "add") {
+                  markerChar = "+";
+                } else if (line.kind === "del") {
+                  markerChar = "-";
+                } else {
+                  markerChar = "";
+                }
 
                 rows.push(
                   <tr
@@ -219,13 +239,9 @@ export function DiffTable({
                     </td>
                     {/* Change marker */}
                     <td
-                      className={`w-5 select-none px-1 py-0.5 text-center ${line.kind === "add" ? "text-emerald-400" : line.kind === "del" ? "text-rose-400" : "text-slate-700"}`}
+                      className={`w-5 select-none px-1 py-0.5 text-center ${markerColor}`}
                     >
-                      {line.kind === "add"
-                        ? "+"
-                        : line.kind === "del"
-                          ? "-"
-                          : ""}
+                      {markerChar}
                     </td>
                     {/* Line content — spans the rest */}
                     <td className="py-0.5 pl-2 pr-4 text-slate-300">
@@ -294,7 +310,7 @@ export function DiffTable({
                   );
                 } else if (isExpanded) {
                   const fileLines = (
-                    expansionContent.get(selectedFile.path) || ""
+                    expansionContent.get(selectedFile.path) ?? ""
                   ).split("\n");
                   for (let ln = lastNewLine + 1; ln < nextStart; ln++) {
                     const content = fileLines[ln - 1] ?? "";

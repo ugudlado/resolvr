@@ -118,7 +118,7 @@ const severityConfig: Record<
   },
 };
 
-function SeverityBadge({ severity }: { severity?: ThreadSeverity | string }) {
+function SeverityBadge({ severity }: { severity?: string }) {
   if (!severity) return null;
   const cfg =
     severityConfig[severity as ThreadSeverity] ??
@@ -131,6 +131,13 @@ function SeverityBadge({ severity }: { severity?: ThreadSeverity | string }) {
       {severity}
     </span>
   );
+}
+
+function formatSeverity(severity: string): string {
+  if (severity === "improvement") return "Improvement";
+  if (severity === "critical") return "Critical";
+  if (severity === "style") return "Style";
+  return severity;
 }
 
 function formatModel(model: string): string {
@@ -146,13 +153,7 @@ function AnalyticsLabels({ labels }: { labels?: Record<string, string> }) {
     <div className="flex flex-wrap gap-1">
       {labels.severity && (
         <span className="rounded bg-blue-500/20 px-1.5 py-0.5 text-[9px] font-medium text-blue-300">
-          {labels.severity === "improvement"
-            ? "Improvement"
-            : labels.severity === "critical"
-              ? "Critical"
-              : labels.severity === "style"
-                ? "Style"
-                : labels.severity}
+          {formatSeverity(labels.severity)}
         </span>
       )}
       {labels.model && (
@@ -175,7 +176,7 @@ function SeveritySelector({
   current,
   onChange,
 }: {
-  current?: ThreadSeverity | string;
+  current?: string;
   onChange: (severity: ThreadSeverity) => void;
 }) {
   const activeSeverity =
@@ -382,17 +383,21 @@ export function ThreadCard({
     onStatusChange(thread.id, status);
   };
 
+  let cardStateClass: string;
+  if (isResolving) {
+    cardStateClass = "animate-pulse ring-1 ring-indigo-500/50";
+  } else if (isExpanded) {
+    cardStateClass = "ring-1 ring-[var(--border)]";
+  } else {
+    cardStateClass =
+      "hover:shadow-[0_4px_16px_rgba(0,0,0,0.4),0_0_0_1px_var(--border)]";
+  }
+
   return (
     <div
       id={`thread-${thread.id}`}
       data-thread-id={thread.id}
-      className={`thread-enter overflow-hidden rounded-lg bg-[var(--canvas-raised)] shadow-[0_2px_8px_rgba(0,0,0,0.3),0_0_0_1px_var(--border)] transition-all duration-200 ${
-        isResolving
-          ? "animate-pulse ring-1 ring-indigo-500/50"
-          : isExpanded
-            ? "ring-1 ring-[var(--border)]"
-            : "hover:shadow-[0_4px_16px_rgba(0,0,0,0.4),0_0_0_1px_var(--border)]"
-      } `}
+      className={`thread-enter overflow-hidden rounded-lg bg-[var(--canvas-raised)] shadow-[0_2px_8px_rgba(0,0,0,0.3),0_0_0_1px_var(--border)] transition-all duration-200 ${cardStateClass} `}
     >
       {/* Header: click to expand/collapse */}
       <button

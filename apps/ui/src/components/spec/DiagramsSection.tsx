@@ -96,7 +96,7 @@ export function DiagramsSection({
       ))}
 
       {/* Before / After pair */}
-      {(before || after) && (
+      {(before ?? after) && (
         <div className="grid grid-cols-1 gap-1 lg:grid-cols-2">
           {before && (
             <DrawioDiagram

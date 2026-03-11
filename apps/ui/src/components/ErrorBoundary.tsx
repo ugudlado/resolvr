@@ -3,10 +3,8 @@
  * Logs errors and displays a fallback UI
  */
 
-import {
-  ErrorBoundary as ReactErrorBoundary,
-  FallbackProps,
-} from "react-error-boundary";
+import type { FallbackProps } from "react-error-boundary";
+import { ErrorBoundary as ReactErrorBoundary } from "react-error-boundary";
 import { logger } from "../utils/logger";
 
 function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {

@@ -45,7 +45,7 @@ export function BlockRangeSelector({
   /** Parse a compose button element to get its block index. */
   const parseComposeButton = useCallback(
     (el: HTMLElement): number | null => {
-      const btn = el.closest?.("[data-compose-button]") as HTMLElement | null;
+      const btn = el.closest("[data-compose-button]");
       if (!btn || !containerRef.current?.contains(btn)) return null;
       const val = parseInt(btn.getAttribute("data-compose-button") ?? "", 10);
       return isNaN(val) ? null : val;
@@ -56,7 +56,7 @@ export function BlockRangeSelector({
   /** Find the block index from any element under the cursor during drag. */
   const findBlockIndex = useCallback(
     (el: HTMLElement): number | null => {
-      const block = el.closest?.("[data-block-index]") as HTMLElement | null;
+      const block = el.closest("[data-block-index]");
       if (!block || !containerRef.current?.contains(block)) return null;
       const val = parseInt(block.getAttribute("data-block-index") ?? "", 10);
       return isNaN(val) ? null : val;

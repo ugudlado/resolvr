@@ -16,7 +16,7 @@ export const WS_EVENTS = {
 export type WsEventName = (typeof WS_EVENTS)[keyof typeof WS_EVENTS];
 
 export type WsEvent = {
-  event: WsEventName | string;
+  event: WsEventName;
   data: unknown;
 };
 

@@ -112,7 +112,7 @@ export function isLineInSelection(
 }
 
 export function threadAnchorKey(thread: ReviewThread): string {
-  return lineKey(thread.filePath, thread.lineEnd || thread.line, thread.side);
+  return lineKey(thread.filePath, thread.lineEnd ?? thread.line, thread.side);
 }
 
 export function threadRangeLabel(thread: ReviewThread): string {
@@ -123,7 +123,7 @@ export function threadRangeLabel(thread: ReviewThread): string {
 }
 
 export function fileName(path: string): string {
-  return path.split("/").pop() || path;
+  return path.split("/").pop() ?? path;
 }
 
 /** Shorten a file path to just the last 2 segments for display. */
@@ -163,7 +163,9 @@ export function buildFolderRows(
           files: [],
         });
       }
-      cursor = cursor.folders.get(segment)!;
+      const nextFolder = cursor.folders.get(segment);
+      if (!nextFolder) break;
+      cursor = nextFolder;
     }
     cursor.files.push(file);
   }
@@ -171,7 +173,8 @@ export function buildFolderRows(
   const rows: FileRow[] = [];
   const walk = (node: FolderNode, depth: number) => {
     for (const folderName of Array.from(node.folders.keys()).sort()) {
-      const folder = node.folders.get(folderName)!;
+      const folder = node.folders.get(folderName);
+      if (!folder) continue;
       const collapsed = collapsedFolders.has(folder.path);
       rows.push({
         kind: "folder",

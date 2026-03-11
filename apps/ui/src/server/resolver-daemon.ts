@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * resolver-daemon.ts
  *
@@ -48,7 +49,7 @@ const SDK_TIMEOUT_MS = 120_000;
 
 /** Build a clean env for spawning Claude CLI (strips nested-session guard). */
 function cleanEnv(): Record<string, string | undefined> {
-  const { CLAUDECODE, ...rest } = process.env;
+  const { CLAUDECODE: _CLAUDECODE, ...rest } = process.env;
   return rest;
 }
 

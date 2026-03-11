@@ -193,20 +193,20 @@ server.on("request", (req, res) => {
 
   // API routes always go to Hono
   if (url.startsWith("/api")) {
-    honoListener(req, res);
+    void honoListener(req, res);
     return;
   }
 
   // In dev mode, non-API requests go to Vite (HMR, module transforms, SPA)
   if (viteMiddleware) {
     viteMiddleware(req, res, () => {
-      honoListener(req, res);
+      void honoListener(req, res);
     });
     return;
   }
 
   // Production: everything through Hono (static + SPA fallback)
-  honoListener(req, res);
+  void honoListener(req, res);
 });
 
 server.listen(port, () => {

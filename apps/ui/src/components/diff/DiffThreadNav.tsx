@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ReviewThread } from "../../services/localReviewApi";
-import { THREAD_SEVERITY, type ThreadSeverity } from "../../types/sessions";
+import { THREAD_SEVERITY } from "../../types/sessions";
 import { relativeTime } from "../../utils/timeFormat";
 import { shortPath, lineLabel } from "../../utils/diffUtils";
 import { useResolveStatus } from "../../hooks/useResolveStatus";
@@ -9,7 +9,7 @@ import { SectionLabel } from "../shared/SectionLabel";
 
 /** Extended thread with optional severity (may come from adapted threads or legacy API). */
 type ThreadWithSeverity = Omit<ReviewThread, "severity"> & {
-  severity?: ThreadSeverity | string;
+  severity?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -20,6 +20,24 @@ export interface DiffThreadNavProps {
   threads: ReviewThread[];
   activeThreadId?: string;
   onThreadClick: (thread: ReviewThread) => void;
+}
+
+// ---------------------------------------------------------------------------
+// Label formatters
+// ---------------------------------------------------------------------------
+
+function formatSeverityLabel(severity: string): string {
+  if (severity === "improvement") return "Improvement";
+  if (severity === "critical") return "Critical";
+  if (severity === "style") return "Style";
+  return severity;
+}
+
+function formatModelLabel(model: string): string {
+  if (model.includes("sonnet")) return "Sonnet";
+  if (model.includes("opus")) return "Opus";
+  if (model.includes("haiku")) return "Haiku";
+  return model;
 }
 
 // ---------------------------------------------------------------------------
@@ -93,17 +111,18 @@ function ThreadNavCard({
         <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-[var(--accent-blue)]">
           {shortPath(thread.filePath)}:{lineLabel(thread.line, thread.lineEnd)}
         </span>
-        {isResolving ? (
+        {isResolving && (
           <span className="bg-[var(--accent-blue)]/15 shrink-0 rounded px-1 py-0.5 text-[9px] text-[var(--accent-blue)]">
             resolving…
           </span>
-        ) : showBadge ? (
+        )}
+        {!isResolving && showBadge && (
           <span
             className={`shrink-0 rounded px-1 py-0.5 text-[9px] ${badgeClasses}`}
           >
             {thread.severity}
           </span>
-        ) : null}
+        )}
       </div>
 
       {/* Row 2: preview text */}
@@ -127,24 +146,12 @@ function ThreadNavCard({
           <div className="mt-1 flex flex-wrap gap-1">
             {thread.labels.severity && (
               <span className="rounded bg-blue-500/20 px-2 py-0.5 text-[8px] font-medium text-blue-300">
-                {thread.labels.severity === "improvement"
-                  ? "Improvement"
-                  : thread.labels.severity === "critical"
-                    ? "Critical"
-                    : thread.labels.severity === "style"
-                      ? "Style"
-                      : thread.labels.severity}
+                {formatSeverityLabel(thread.labels.severity)}
               </span>
             )}
             {thread.labels.model && (
               <span className="rounded bg-indigo-500/20 px-2 py-0.5 text-[8px] font-medium text-indigo-300">
-                {thread.labels.model.includes("sonnet")
-                  ? "Sonnet"
-                  : thread.labels.model.includes("opus")
-                    ? "Opus"
-                    : thread.labels.model.includes("haiku")
-                      ? "Haiku"
-                      : thread.labels.model}
+                {formatModelLabel(thread.labels.model)}
               </span>
             )}
           </div>

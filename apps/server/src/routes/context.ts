@@ -143,7 +143,11 @@ async function buildDiffBundle(
           ).catch((err: { stdout?: string; code?: number }) =>
             err.code === 1 && err.stdout
               ? { stdout: err.stdout }
-              : Promise.reject(err),
+              : Promise.reject(
+                  new Error(
+                    String((err as { code?: number }).code ?? "unknown"),
+                  ),
+                ),
           );
           return stdout;
         } catch {
@@ -253,7 +257,7 @@ export function createContextRoute(repoRoot: string): Hono {
   // GET /context
   app.get("/context", async (c) => {
     const requestedWorktree = c.req.query("worktree") ?? null;
-    const requestedSource = c.req.query("source") ?? null;
+    const _requestedSource = c.req.query("source") ?? null;
     const requestedTarget = c.req.query("target") ?? null;
 
     const state = getGitState();

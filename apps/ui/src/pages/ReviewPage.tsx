@@ -280,7 +280,7 @@ export function ReviewPage({
 
   const activeDiff = selectedCommit
     ? selectedCommitDiff
-    : diffBundle?.allDiff || "";
+    : (diffBundle?.allDiff ?? "");
   const parsedFiles = useMemo(() => {
     const files = parseUnifiedDiff(activeDiff);
     // Deduplicate: when allDiff = committedDiff + uncommittedDiff, same file can appear twice.
@@ -308,8 +308,8 @@ export function ReviewPage({
   });
 
   const selectedFile =
-    parsedFiles.find((f) => f.path === selectedFilePath) ||
-    parsedFiles[0] ||
+    parsedFiles.find((f) => f.path === selectedFilePath) ??
+    parsedFiles[0] ??
     null;
 
   const outdatedThreadIds = useMemo(() => {
@@ -326,7 +326,7 @@ export function ReviewPage({
     const map = new Map<string, SessionReviewThread[]>();
     for (const thread of threads) {
       if (thread.filePath !== selectedFile.path) continue;
-      const line = thread.lineEnd || thread.line;
+      const line = thread.lineEnd ?? thread.line;
       const key = `${thread.side}:${line}`;
       // Adapt old thread shape to new SessionReviewThread for DiffViewWrapper
       const adapted: SessionReviewThread = {
@@ -335,7 +335,7 @@ export function ReviewPage({
           type: "diff-line",
           hash: "",
           path: thread.filePath,
-          preview: thread.anchorContent || `Line ${thread.line}`,
+          preview: thread.anchorContent ?? `Line ${thread.line}`,
           line: thread.line,
           lineEnd: thread.lineEnd,
           side: thread.side,
@@ -346,7 +346,7 @@ export function ReviewPage({
         messages: thread.messages,
         lastUpdatedAt: thread.lastUpdatedAt,
       };
-      const list = map.get(key) || [];
+      const list = map.get(key) ?? [];
       list.push(adapted);
       map.set(key, list);
     }
@@ -365,7 +365,7 @@ export function ReviewPage({
       if (line.startsWith("diff --git")) {
         // Flush previous file section
         if (currentPath && fileSection.length > 0) {
-          const existing = map.get(currentPath) || [];
+          const existing = map.get(currentPath) ?? [];
           existing.push(fileSection.join("\n"));
           map.set(currentPath, existing);
           fileSection = [];
@@ -382,7 +382,7 @@ export function ReviewPage({
     }
     // Flush last file section
     if (currentPath && fileSection.length > 0) {
-      const existing = map.get(currentPath) || [];
+      const existing = map.get(currentPath) ?? [];
       existing.push(fileSection.join("\n"));
       map.set(currentPath, existing);
     }
@@ -404,7 +404,7 @@ export function ReviewPage({
     for (const thread of threads) {
       if (thread.status === "approved") continue;
       if (outdatedThreadIds.has(thread.id)) continue;
-      map.set(thread.filePath, (map.get(thread.filePath) || 0) + 1);
+      map.set(thread.filePath, (map.get(thread.filePath) ?? 0) + 1);
     }
     return map;
   }, [threads, outdatedThreadIds]);
@@ -678,7 +678,7 @@ export function ReviewPage({
     useKeyboardReview({
       files: filePaths,
       threads: fileThreads,
-      selectedFile: selectedFilePath || null,
+      selectedFile: selectedFilePath ?? null,
       sidebarRef,
       diffPanelRef,
       treeViewActive: showFolderTree,
@@ -686,8 +686,8 @@ export function ReviewPage({
       onThreadFocus: (thread) => {
         const panel = reviewPanelRef.current;
         if (!panel) return;
-        const targetLine = thread.lineEnd || thread.line;
-        scrollDiffToLine(panel, targetLine, thread.side || "new");
+        const targetLine = thread.lineEnd ?? thread.line;
+        scrollDiffToLine(panel, targetLine, thread.side ?? "new");
       },
       onThreadResolve: (threadId) => updateThreadStatus(threadId, "resolved"),
       onThreadReopen: (threadId) => updateThreadStatus(threadId, "open"),
@@ -789,7 +789,7 @@ export function ReviewPage({
               </span>
               <SearchSelect
                 value={sourceBranch}
-                options={repoContext?.branches || []}
+                options={repoContext?.branches ?? []}
                 onChange={setSourceBranch}
                 placeholder="Filter branches…"
               />
@@ -802,7 +802,7 @@ export function ReviewPage({
           <span className="text-[10px] text-[var(--ink-faint)]">base</span>
           <SearchSelect
             value={targetBranch}
-            options={repoContext?.branches || []}
+            options={repoContext?.branches ?? []}
             onChange={setTargetBranch}
             placeholder="Filter branches…"
           />
@@ -882,7 +882,7 @@ export function ReviewPage({
           className="flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[11px] text-[var(--ink-faint)] transition-colors hover:bg-[var(--canvas)] hover:text-[var(--ink-muted)]"
           title="Copy branch name"
           onClick={() => {
-            navigator.clipboard.writeText(sourceBranch);
+            void navigator.clipboard.writeText(sourceBranch);
           }}
         >
           <svg
@@ -967,7 +967,7 @@ export function ReviewPage({
                   {selectedFile.path}
                 </span>
                 <span className="ml-auto text-xs text-[var(--ink-ghost)]">
-                  {changeCountByFile.get(selectedFile.path) || 0} changes
+                  {changeCountByFile.get(selectedFile.path) ?? 0} changes
                 </span>
                 <button
                   className={`ml-2 rounded px-2 py-0.5 text-xs font-medium transition-colors ${
@@ -1061,8 +1061,8 @@ export function ReviewPage({
                   fontSize={13}
                 />
                 {/* Portal-based compose for text-selection or line-range comments */}
-                {(composingAt?.selectedText ||
-                  composingAt?.startLineNumber ||
+                {(composingAt?.selectedText ??
+                  composingAt?.startLineNumber ??
                   composingAt?.usePortal) &&
                   selectedFile && (
                     <SelectionComposePortal
@@ -1089,8 +1089,8 @@ export function ReviewPage({
           onThreadClick={(thread) => {
             setSelectedFilePath(thread.filePath);
             // After file switch + re-render, scroll to the thread's line
-            const targetLine = thread.lineEnd || thread.line;
-            const side = thread.side || "new";
+            const targetLine = thread.lineEnd ?? thread.line;
+            const side = thread.side ?? "new";
             const doScroll = () => {
               const panel = reviewPanelRef.current;
               if (!panel) return;

@@ -173,6 +173,7 @@ export function useFeatureSession<T extends SessionBase>(
     [persistSession],
   );
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   const addThread = useCallback(async (thread: ReviewThread): Promise<void> => {
     setSession((prev) => {
       if (!prev) return prev;
@@ -240,6 +241,7 @@ export function useFeatureSession<T extends SessionBase>(
   );
 
   const setVerdict = useCallback(
+    // eslint-disable-next-line @typescript-eslint/require-await
     async (verdict: "approved" | "changes_requested"): Promise<void> => {
       const fid = featureIdRef.current;
       if (!fid) return;

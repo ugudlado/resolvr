@@ -36,10 +36,11 @@ export function useSpecSession(
 ): UseSpecSessionReturn {
   return useFeatureSession<SpecReviewSession>(featureId, {
     realtimeSuffix: "-spec.json",
-    getSession: featureApi.getSpecSession,
-    saveSession: featureApi.saveSpecSession,
-    deleteSession: featureApi.deleteSpecSession,
-    patchThread: featureApi.patchSpecThread,
+    getSession: (id) => featureApi.getSpecSession(id),
+    saveSession: (id, session) => featureApi.saveSpecSession(id, session),
+    deleteSession: (id) => featureApi.deleteSpecSession(id),
+    patchThread: (id, threadId, patch) =>
+      featureApi.patchSpecThread(id, threadId, patch),
     createInitialSession: createInitialSpecSession,
   });
 }

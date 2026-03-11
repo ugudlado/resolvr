@@ -232,9 +232,9 @@ export function TaskRow({ task, allTasks }: TaskRowProps) {
   const isDone = task.status === "done";
   const isInProgress = task.status === "in_progress";
 
-  const hasDetails = task.why || task.files || task.doneWhen;
+  const hasDetails = task.why ?? task.files ?? task.doneWhen;
   const hasTags =
-    task.dependencies.length > 0 || task.files || task.parallelizable;
+    task.dependencies.length > 0 || (task.files ?? task.parallelizable);
 
   // Parse filenames from the files string
   const fileNames = task.files

@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * Development logger for UI
  * Provides structured console logging with colored output
@@ -84,13 +85,16 @@ export const logger = {
 
   /** Log API request/response */
   api: (method: string, url: string, status?: number, duration?: number) => {
-    const statusEmoji = status
-      ? status >= 500
-        ? "🔴"
-        : status >= 400
-          ? "🟡"
-          : "🟢"
-      : "⏳";
+    let statusEmoji: string;
+    if (!status) {
+      statusEmoji = "⏳";
+    } else if (status >= 500) {
+      statusEmoji = "🔴";
+    } else if (status >= 400) {
+      statusEmoji = "🟡";
+    } else {
+      statusEmoji = "🟢";
+    }
 
     const durationStr = duration ? ` (${duration}ms)` : "";
     const statusStr = status ? ` ${status}` : "";

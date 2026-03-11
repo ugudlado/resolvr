@@ -11,7 +11,10 @@ import {
   type ReviewMessage,
 } from "../services/localReviewApi";
 import { featureApi } from "../services/featureApi";
-import { AuthorType } from "../types/sessions";
+import {
+  AuthorType,
+  type ReviewThread as SessionReviewThread,
+} from "../types/sessions";
 import { FLAGS } from "../config/app";
 
 import { uid } from "../utils/diffUtils";
@@ -104,7 +107,7 @@ export function useReviewSession({
   // Summary notes localStorage read effect (on viewKey change)
   useEffect(() => {
     const saved = localStorage.getItem(`review.summary.${viewKey}`);
-    setSummaryNotes(saved || "");
+    setSummaryNotes(saved ?? "");
   }, [viewKey]);
 
   // Summary notes localStorage write effect (on viewKey + summaryNotes change)
@@ -121,23 +124,24 @@ export function useReviewSession({
     if (threads.length === 0 && reviewVerdict === null) return; // never auto-save empty state
 
     const now = new Date().toISOString();
-    const timer = setTimeout(async () => {
-      skipNextUpdate.current = true;
-      try {
-        await featureApi.saveCodeSession(featureId, {
-          featureId,
-          worktreePath: selectedWorktree,
-          sourceBranch,
-          targetBranch,
-          verdict: reviewVerdict,
-          reviewVerdict,
-          threads:
-            threads as unknown as import("../types/sessions").ReviewThread[],
-          metadata: { createdAt: now, updatedAt: now },
-        });
-      } catch {
-        // Silent — auto-save failures should not interrupt the user
-      }
+    const timer = setTimeout(() => {
+      void (async () => {
+        skipNextUpdate.current = true;
+        try {
+          await featureApi.saveCodeSession(featureId, {
+            featureId,
+            worktreePath: selectedWorktree,
+            sourceBranch,
+            targetBranch,
+            verdict: reviewVerdict,
+            reviewVerdict,
+            threads: threads as unknown as SessionReviewThread[],
+            metadata: { createdAt: now, updatedAt: now },
+          });
+        } catch {
+          // Silent — auto-save failures should not interrupt the user
+        }
+      })();
     }, 200);
 
     return () => clearTimeout(timer);

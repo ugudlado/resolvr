@@ -191,7 +191,7 @@ export function useKeyboardReview({
         case "r": {
           const t =
             threads.length > 0 ? (threads[threadIdxRef.current] ?? null) : null;
-          if (t && t.status === THREAD_STATUS.Open) cbs.onThreadResolve(t.id);
+          if (t?.status === THREAD_STATUS.Open) cbs.onThreadResolve(t.id);
           break;
         }
         case "o": {
