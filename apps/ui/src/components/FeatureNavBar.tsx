@@ -338,9 +338,9 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
                 {/* Spec tab: amber open-thread badge */}
                 {tab.path === "spec" &&
                   currentFeature &&
-                  currentFeature.openThreads > 0 && (
+                  currentFeature.specThreadCounts.open > 0 && (
                     <span className="bg-accent-amber/15 text-accent-amber rounded-full px-1.5 py-0.5 text-[10px] font-semibold">
-                      {currentFeature.openThreads}
+                      {currentFeature.specThreadCounts.open}
                     </span>
                   )}
 

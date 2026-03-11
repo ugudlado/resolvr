@@ -104,7 +104,7 @@ export default function FeatureCard({
   const statusConfig = getStatusConfig(feature.status);
   const { done, total } = feature.taskProgress;
   const progressPct = total > 0 ? Math.round((done / total) * 100) : 0;
-  const hasOpenThreads = feature.openThreads > 0;
+  const hasOpenThreads = feature.codeThreadCounts.open > 0;
   const accentClass = STATUS_ACCENT[feature.status] ?? "";
 
   return (
@@ -177,8 +177,8 @@ export default function FeatureCard({
         >
           <ThreadIcon />
           <span>
-            {feature.openThreads > 0
-              ? `${feature.openThreads} open`
+            {feature.codeThreadCounts.open > 0
+              ? `${feature.codeThreadCounts.open} open`
               : "0 threads"}
           </span>
         </div>

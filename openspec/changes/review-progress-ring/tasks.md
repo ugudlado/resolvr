@@ -2,27 +2,27 @@
 
 ## Phase 1: API & Type Foundation
 
-- [ ] T-1 Replace `countOpenThreads` with `countSessionThreads` in `apps/server/src/routes/features.ts` — operates on a single session, returns `{ open, resolved }`
+- [x] T-1 Replace `countOpenThreads` with `countSessionThreads` in `apps/server/src/routes/features.ts` — operates on a single session, returns `{ open, resolved }`
   - **Why**: F12 — API must return per-session counts for ring and badge rendering
   - **Files**: `apps/server/src/routes/features.ts`
   - **Done when**: `countSessionThreads(session)` returns `{ open: number; resolved: number }`, uses `THREAD_STATUS` constants (not string literals)
 
-- [ ] T-2 Update `FeatureInfo` interface: `openThreads: number` → `codeThreadCounts` + `specThreadCounts` (depends: T-1)
+- [x] T-2 Update `FeatureInfo` interface: `openThreads: number` → `codeThreadCounts` + `specThreadCounts` (depends: T-1)
   - **Why**: F13 — Per-session type change on server
   - **Files**: `apps/server/src/routes/features.ts`
   - **Done when**: `FeatureInfo` has `codeThreadCounts: { open, resolved }` and `specThreadCounts: { open, resolved }`, all feature response objects (worktree, branch, archived) call `countSessionThreads` separately for each session
 
-- [ ] T-3 Update client `FeatureInfo` type and all consumers (depends: T-2)
+- [x] T-3 Update client `FeatureInfo` type and all consumers (depends: T-2)
   - **Why**: F13 — Client type must match server
   - **Files**: `apps/ui/src/services/featureApi.ts`, `apps/ui/src/components/dashboard/FeatureCard.tsx`, `apps/ui/src/components/FeatureNavBar.tsx`, `apps/ui/src/hooks/useFeaturesContext.ts` (verify passthrough)
   - **Done when**: Client `FeatureInfo` uses `codeThreadCounts` + `specThreadCounts`, `FeatureCard` uses `codeThreadCounts.open` for display, `FeatureNavBar` Spec tab badge uses `specThreadCounts.open` (was `openThreads`), `pnpm type-check` passes
 
-- [ ] T-4 Rebuild server bundle (depends: T-2)
+- [x] T-4 Rebuild server bundle (depends: T-2)
   - **Why**: NF5 — Server dist must reflect source changes
   - **Files**: `apps/server/dist/`
   - **Done when**: `pnpm -C apps/server build` succeeds, `pnpm type-check` passes
 
-- [ ] T-5 Review checkpoint (phase gate)
+- [~] T-5 Review checkpoint (phase gate)
 
 ## Phase 2: ThreadProgressRing Component
 

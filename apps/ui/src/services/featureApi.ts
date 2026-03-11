@@ -33,7 +33,8 @@ export type FeatureInfo = {
   hasSpec: boolean;
   hasTasks: boolean;
   taskProgress: { done: number; total: number };
-  openThreads: number;
+  codeThreadCounts: { open: number; resolved: number };
+  specThreadCounts: { open: number; resolved: number };
   lastActivity: string | null;
   filesChanged: number;
   sourceType: SourceType;
