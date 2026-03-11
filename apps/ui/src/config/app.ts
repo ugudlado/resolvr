@@ -18,5 +18,5 @@ export const FLAGS = {
    *
    * When true: full pipeline enabled — spec review, tasks, approve verdict.
    */
-  DEV_WORKFLOW: false,
+  DEV_WORKFLOW: true,
 } as const;

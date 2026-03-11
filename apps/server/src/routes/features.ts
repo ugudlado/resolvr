@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { getGitState } from "../git.js";
+import { findOpenspecChangeDir } from "../utils.js";
 import { THREAD_STATUS } from "./sessions.js";
 
 // ---------------------------------------------------------------------------
@@ -10,13 +11,7 @@ import { THREAD_STATUS } from "./sessions.js";
 
 type Session = Record<string, unknown> | null;
 
-type FeatureStatus =
-  | "new"
-  | "design"
-  | "design_review"
-  | "code"
-  | "code_review"
-  | "complete";
+type FeatureStatus = "new" | "design" | "code" | "code_review" | "complete";
 
 export interface FeatureInfo {
   id: string;
@@ -38,30 +33,23 @@ export interface FeatureInfo {
 // ---------------------------------------------------------------------------
 
 function deriveFeatureStatus(
-  specSession: Session,
   codeSession: Session,
-  hasSpec: boolean,
+  hasOpenspecArtifacts: boolean,
 ): FeatureStatus {
   if (codeSession) {
     const codeVerdict = codeSession.reviewVerdict;
     if (codeVerdict === "changes_requested") return "code";
+    if (codeVerdict === "approved") return "complete";
     return "code_review";
   }
 
-  if (specSession) {
-    const specVerdict = specSession.verdict;
-    if (specVerdict === "approved") return "code";
-    if (specVerdict === "changes_requested") return "design";
-    return "design_review";
-  }
-
-  if (hasSpec) return "design";
+  if (hasOpenspecArtifacts) return "design";
 
   return "new";
 }
 
 function parseTaskProgress(content: string): { done: number; total: number } {
-  const checkboxes = content.match(/- \[[x→~ ]\] T\d+/gi) ?? [];
+  const checkboxes = content.match(/- \[[x→~ ]\] T-?\d+/gi) ?? [];
   const done = checkboxes.filter((c) => /- \[[x~]\]/i.test(c)).length;
   return { done, total: checkboxes.length };
 }
@@ -139,62 +127,71 @@ export function createFeaturesRoute(repoRoot: string): Hono {
       await Promise.all(
         gitState.worktrees.slice(1).map(async (wt) => {
           const featureId = path.basename(wt.path);
-          const specSessionPath = path.join(
-            sessionsDir,
-            `${featureId}-spec.json`,
-          );
           const codeSessionPath = path.join(
             sessionsDir,
             `${featureId}-code.json`,
           );
-          const specMdPath = path.join(
-            wt.path,
-            "specs",
-            "active",
-            featureId,
-            "spec.md",
-          );
-          const tasksMdPath = path.join(
-            wt.path,
-            "specs",
-            "active",
-            featureId,
-            "tasks.md",
-          );
+          const openspecDir = await findOpenspecChangeDir(wt.path, featureId);
 
-          const [
-            specSession,
-            codeSession,
-            hasSpec,
-            tasksContent,
-            lastActivity,
-          ] = await Promise.all([
-            readJsonSession(specSessionPath),
-            readJsonSession(codeSessionPath),
-            fs
-              .access(specMdPath)
-              .then(() => true)
-              .catch(() => false),
-            fs.readFile(tasksMdPath, "utf-8").catch(() => null),
-            getLastActivity([
-              specMdPath,
-              tasksMdPath,
-              specSessionPath,
-              codeSessionPath,
-            ]),
-          ]);
+          let hasOpenspecArtifacts = false;
+          let tasksContent: string | null = null;
+          let lastActivity: string | null = null;
+          let codeSession: Session = null;
+
+          if (openspecDir) {
+            const proposalMdPath = path.join(openspecDir, "proposal.md");
+            const specMdPath = path.join(openspecDir, "spec.md");
+            const designMdPath = path.join(openspecDir, "design.md");
+            const tasksMdPath = path.join(openspecDir, "tasks.md");
+
+            const results = await Promise.all([
+              readJsonSession(codeSessionPath),
+              fs
+                .access(proposalMdPath)
+                .then(() => true)
+                .catch(() => false),
+              fs
+                .access(specMdPath)
+                .then(() => true)
+                .catch(() => false),
+              fs
+                .access(designMdPath)
+                .then(() => true)
+                .catch(() => false),
+              fs.readFile(tasksMdPath, "utf-8").catch(() => null),
+              getLastActivity([
+                proposalMdPath,
+                specMdPath,
+                designMdPath,
+                tasksMdPath,
+                codeSessionPath,
+              ]),
+            ]);
+            codeSession = results[0];
+            hasOpenspecArtifacts =
+              (results[1] as boolean) ||
+              (results[2] as boolean) ||
+              (results[3] as boolean);
+            tasksContent = results[4] as string | null;
+            lastActivity = results[5] as string | null;
+          } else {
+            [codeSession, lastActivity] = await Promise.all([
+              readJsonSession(codeSessionPath),
+              getLastActivity([codeSessionPath]),
+            ]);
+          }
           const hasTasks = tasksContent !== null;
 
           features.push({
             id: featureId,
             worktreePath: wt.path,
             branch: wt.branch,
-            status: deriveFeatureStatus(specSession, codeSession, hasSpec),
-            hasSpec,
+            status: deriveFeatureStatus(codeSession, hasOpenspecArtifacts),
+            hasSpec: hasOpenspecArtifacts,
             hasTasks,
             taskProgress: parseTaskProgress(tasksContent ?? ""),
             codeThreadCounts: countSessionThreads(codeSession),
-            specThreadCounts: countSessionThreads(specSession),
+            specThreadCounts: { open: 0, resolved: 0 },
             lastActivity,
             filesChanged: countFilesChanged(codeSession),
             sourceType: "worktree",
@@ -205,44 +202,51 @@ export function createFeaturesRoute(repoRoot: string): Hono {
       // ------------------------------------------------------------------
       // 2. Archived specs — completed features not already in worktrees
       // ------------------------------------------------------------------
-      const archivedDir = path.join(repoRoot, "specs", "archived");
-      try {
-        const archivedEntries = await fs.readdir(archivedDir, {
-          withFileTypes: true,
-        });
-        for (const entry of archivedEntries) {
-          if (!entry.isDirectory()) continue;
-          const archivedId = entry.name;
-          if (features.some((f) => f.id === archivedId)) continue;
-          const [hasSpec, hasTasks] = await Promise.all([
-            fs
-              .access(path.join(archivedDir, archivedId, "spec.md"))
-              .then(() => true)
-              .catch(() => false),
-            fs
-              .access(path.join(archivedDir, archivedId, "tasks.md"))
-              .then(() => true)
-              .catch(() => false),
-          ]);
-          if (hasSpec || hasTasks) {
-            features.push({
-              id: archivedId,
-              worktreePath: repoRoot,
-              branch: "main",
-              status: "complete",
-              hasSpec,
-              hasTasks,
-              taskProgress: { done: 0, total: 0 },
-              codeThreadCounts: { open: 0, resolved: 0 },
-              specThreadCounts: { open: 0, resolved: 0 },
-              lastActivity: null,
-              filesChanged: 0,
-              sourceType: "worktree",
-            });
+      // Check both legacy specs/archived/ and new openspec/changes/archive/
+      const archivedDirs = [
+        path.join(repoRoot, "specs", "archived"),
+        path.join(repoRoot, "openspec", "changes", "archive"),
+      ];
+      for (const archivedDir of archivedDirs) {
+        try {
+          const archivedEntries = await fs.readdir(archivedDir, {
+            withFileTypes: true,
+          });
+          for (const entry of archivedEntries) {
+            if (!entry.isDirectory()) continue;
+            const archivedId = entry.name;
+            // Skip if already found (prefer legacy path if both exist)
+            if (features.some((f) => f.id === archivedId)) continue;
+            const [hasSpec, hasTasks] = await Promise.all([
+              fs
+                .access(path.join(archivedDir, archivedId, "spec.md"))
+                .then(() => true)
+                .catch(() => false),
+              fs
+                .access(path.join(archivedDir, archivedId, "tasks.md"))
+                .then(() => true)
+                .catch(() => false),
+            ]);
+            if (hasSpec || hasTasks) {
+              features.push({
+                id: archivedId,
+                worktreePath: repoRoot,
+                branch: "main",
+                status: "complete",
+                hasSpec,
+                hasTasks,
+                taskProgress: { done: 0, total: 0 },
+                codeThreadCounts: { open: 0, resolved: 0 },
+                specThreadCounts: { open: 0, resolved: 0 },
+                lastActivity: null,
+                filesChanged: 0,
+                sourceType: "worktree",
+              });
+            }
           }
+        } catch {
+          // Directory doesn't exist — check next location
         }
-      } catch {
-        // No archived directory — that's fine
       }
 
       // ------------------------------------------------------------------
@@ -272,7 +276,7 @@ export function createFeaturesRoute(repoRoot: string): Hono {
             id: slug,
             worktreePath: repoRoot,
             branch: branchName,
-            status: deriveFeatureStatus(null, codeSession, false),
+            status: deriveFeatureStatus(codeSession, false),
             hasSpec: false,
             hasTasks: false,
             taskProgress: { done: 0, total: 0 },

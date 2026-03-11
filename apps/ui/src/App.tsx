@@ -8,7 +8,6 @@ import {
 } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import Dashboard from "./pages/Dashboard";
-import SpecReviewPage from "./pages/SpecReviewPage";
 import TasksPage from "./pages/TasksPage";
 import { ReviewPage } from "./pages/ReviewPage";
 import NotFound from "./pages/NotFound";
@@ -35,8 +34,7 @@ function FeatureDefaultRedirect() {
   const defaultTab = useMemo(() => {
     if (!FLAGS.DEV_WORKFLOW) return FEATURE_TAB.Code;
     const feature = features.find((f) => f.id === featureId);
-    if (!feature) return FEATURE_TAB.Spec;
-    if (!feature.hasSpec) return FEATURE_TAB.Code;
+    if (!feature) return FEATURE_TAB.Code;
     return getStatusConfig(feature.status).defaultTab;
   }, [features, featureId]);
 
@@ -148,10 +146,7 @@ const router = createBrowserRouter([
             element: <FeatureDefaultRedirect />,
           },
           ...(FLAGS.DEV_WORKFLOW
-            ? [
-                { path: FEATURE_TAB.Spec, element: <SpecReviewPage /> },
-                { path: FEATURE_TAB.Tasks, element: <TasksPage /> },
-              ]
+            ? [{ path: FEATURE_TAB.Tasks, element: <TasksPage /> }]
             : []),
           {
             path: FEATURE_TAB.Code,

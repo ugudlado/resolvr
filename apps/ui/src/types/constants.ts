@@ -50,7 +50,6 @@ export type ReviewVerdict =
 
 export const FEATURE_TAB = {
   Code: "code",
-  Spec: "spec",
   Tasks: "tasks",
 } as const;
 

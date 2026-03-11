@@ -199,23 +199,14 @@ export default function FeatureCard({
       {/* Quick actions */}
       <div className="flex items-center gap-0.5 border-t border-slate-700/50 pt-2.5">
         {FLAGS.DEV_WORKFLOW && (
-          <>
-            <ActionLink
-              to={`/features/${feature.id}/spec`}
-              disabled={!feature.hasSpec}
-            >
-              Spec
-            </ActionLink>
-            <ActionLink
-              to={`/features/${feature.id}/tasks`}
-              disabled={!feature.hasTasks}
-            >
-              Tasks
-            </ActionLink>
-          </>
+          <ActionLink
+            to={`/features/${feature.id}/tasks`}
+            disabled={!feature.hasTasks}
+          >
+            Tasks
+          </ActionLink>
         )}
-        {(feature.status === FEATURE_STATUS.Code ||
-          feature.status === FEATURE_STATUS.CodeReview) && (
+        {feature.status !== FEATURE_STATUS.Complete && (
           <ActionLink to={`/features/${feature.id}/code`} disabled={false}>
             Code
           </ActionLink>

@@ -1,3 +1,4 @@
+import fs from "node:fs/promises";
 import path from "node:path";
 import { getGitState } from "./git.js";
 
@@ -16,4 +17,53 @@ export function findWorktreePath(featureId: string): string | null {
     (w) => path.basename(w.path) === featureId,
   );
   return wt ? wt.path : null;
+}
+
+/**
+ * Find the openspec change directory for a feature within a worktree.
+ * The change dir may use a slug (e.g. "openspec-dev-workflow") that differs
+ * from the full feature ID (e.g. "2026-03-12-openspec-dev-workflow").
+ * Strategy: try exact match first, then scan .openspec.yaml files for matching feature-id.
+ */
+export async function findOpenspecChangeDir(
+  wtPath: string,
+  featureId: string,
+): Promise<string | null> {
+  const changesDir = path.join(wtPath, "openspec", "changes");
+
+  // Fast path: exact match
+  const exactDir = path.join(changesDir, featureId);
+  try {
+    const stat = await fs.stat(exactDir);
+    if (stat.isDirectory()) return exactDir;
+  } catch {
+    // Not found — scan below
+  }
+
+  // Scan subdirectories in parallel for matching .openspec.yaml feature-id
+  try {
+    const entries = await fs.readdir(changesDir, { withFileTypes: true });
+    const results = await Promise.all(
+      entries
+        .filter((e) => e.isDirectory() && e.name !== "archive")
+        .map(async (entry) => {
+          const yamlPath = path.join(changesDir, entry.name, ".openspec.yaml");
+          try {
+            const content = await fs.readFile(yamlPath, "utf-8");
+            const match = content.match(/^feature-id:\s*(.+)$/m);
+            if (match && match[1].trim() === featureId) {
+              return path.join(changesDir, entry.name);
+            }
+          } catch {
+            // No .openspec.yaml in this dir — skip
+          }
+          return null;
+        }),
+    );
+    return results.find((r) => r !== null) ?? null;
+  } catch {
+    // No openspec/changes dir — no artifacts
+  }
+
+  return null;
 }

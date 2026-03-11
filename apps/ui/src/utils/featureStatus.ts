@@ -7,7 +7,7 @@ export interface StatusConfig {
   color: string;
   bgColor: string;
   /** Which tab to auto-navigate to from dashboard */
-  defaultTab: "spec" | "code";
+  defaultTab: "code";
 }
 
 const STATUS_MAP: Record<FeatureStatus, StatusConfig> = {
@@ -15,19 +15,19 @@ const STATUS_MAP: Record<FeatureStatus, StatusConfig> = {
     label: "New",
     color: "text-slate-400",
     bgColor: "bg-slate-700/50",
-    defaultTab: "spec",
+    defaultTab: "code",
   },
   design: {
     label: "Design",
     color: "text-purple-400",
     bgColor: "bg-purple-500/15",
-    defaultTab: "spec",
+    defaultTab: "code",
   },
   design_review: {
     label: "Design Review",
     color: "text-yellow-400",
     bgColor: "bg-yellow-500/15",
-    defaultTab: "spec",
+    defaultTab: "code",
   },
   code: {
     label: "Code",
