@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { getGitState } from "../git.js";
+import { findOpenspecChangeDir } from "../utils.js";
 import { THREAD_STATUS } from "./sessions.js";
 
 // ---------------------------------------------------------------------------
@@ -10,13 +11,7 @@ import { THREAD_STATUS } from "./sessions.js";
 
 type Session = Record<string, unknown> | null;
 
-type FeatureStatus =
-  | "new"
-  | "design"
-  | "design_review"
-  | "code"
-  | "code_review"
-  | "complete";
+type FeatureStatus = "new" | "design" | "code" | "code_review" | "complete";
 
 export interface FeatureInfo {
   id: string;
@@ -136,48 +131,55 @@ export function createFeaturesRoute(repoRoot: string): Hono {
             sessionsDir,
             `${featureId}-code.json`,
           );
-          const openspecDir = path.join(
-            wt.path,
-            "openspec",
-            "changes",
-            featureId,
-          );
-          const proposalMdPath = path.join(openspecDir, "proposal.md");
-          const specMdPath = path.join(openspecDir, "spec.md");
-          const designMdPath = path.join(openspecDir, "design.md");
-          const tasksMdPath = path.join(openspecDir, "tasks.md");
+          const openspecDir = await findOpenspecChangeDir(wt.path, featureId);
 
-          const [
-            codeSession,
-            hasProposal,
-            hasSpec,
-            hasDesign,
-            tasksContent,
-            lastActivity,
-          ] = await Promise.all([
-            readJsonSession(codeSessionPath),
-            fs
-              .access(proposalMdPath)
-              .then(() => true)
-              .catch(() => false),
-            fs
-              .access(specMdPath)
-              .then(() => true)
-              .catch(() => false),
-            fs
-              .access(designMdPath)
-              .then(() => true)
-              .catch(() => false),
-            fs.readFile(tasksMdPath, "utf-8").catch(() => null),
-            getLastActivity([
-              proposalMdPath,
-              specMdPath,
-              designMdPath,
-              tasksMdPath,
-              codeSessionPath,
-            ]),
-          ]);
-          const hasOpenspecArtifacts = hasProposal || hasSpec || hasDesign;
+          let hasOpenspecArtifacts = false;
+          let tasksContent: string | null = null;
+          let lastActivity: string | null = null;
+          let codeSession: Session = null;
+
+          if (openspecDir) {
+            const proposalMdPath = path.join(openspecDir, "proposal.md");
+            const specMdPath = path.join(openspecDir, "spec.md");
+            const designMdPath = path.join(openspecDir, "design.md");
+            const tasksMdPath = path.join(openspecDir, "tasks.md");
+
+            const results = await Promise.all([
+              readJsonSession(codeSessionPath),
+              fs
+                .access(proposalMdPath)
+                .then(() => true)
+                .catch(() => false),
+              fs
+                .access(specMdPath)
+                .then(() => true)
+                .catch(() => false),
+              fs
+                .access(designMdPath)
+                .then(() => true)
+                .catch(() => false),
+              fs.readFile(tasksMdPath, "utf-8").catch(() => null),
+              getLastActivity([
+                proposalMdPath,
+                specMdPath,
+                designMdPath,
+                tasksMdPath,
+                codeSessionPath,
+              ]),
+            ]);
+            codeSession = results[0];
+            hasOpenspecArtifacts =
+              (results[1] as boolean) ||
+              (results[2] as boolean) ||
+              (results[3] as boolean);
+            tasksContent = results[4] as string | null;
+            lastActivity = results[5] as string | null;
+          } else {
+            [codeSession, lastActivity] = await Promise.all([
+              readJsonSession(codeSessionPath),
+              getLastActivity([codeSessionPath]),
+            ]);
+          }
           const hasTasks = tasksContent !== null;
 
           features.push({

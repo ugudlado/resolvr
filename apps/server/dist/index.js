@@ -74,7 +74,7 @@ var require_constants = __commonJS({
 var require_node_gyp_build = __commonJS({
   "../../node_modules/.pnpm/node-gyp-build@4.8.4/node_modules/node-gyp-build/node-gyp-build.js"(exports, module) {
     init_cjs_shim();
-    var fs9 = __require("fs");
+    var fs10 = __require("fs");
     var path10 = __require("path");
     var os = __require("os");
     var runtimeRequire = typeof __webpack_require__ === "function" ? __non_webpack_require__ : __require;
@@ -135,7 +135,7 @@ var require_node_gyp_build = __commonJS({
     };
     function readdirSync(dir) {
       try {
-        return fs9.readdirSync(dir);
+        return fs10.readdirSync(dir);
       } catch (err) {
         return [];
       }
@@ -229,7 +229,7 @@ var require_node_gyp_build = __commonJS({
       return typeof window !== "undefined" && window.process && window.process.type === "renderer";
     }
     function isAlpine(platform2) {
-      return platform2 === "linux" && fs9.existsSync("/etc/alpine-release");
+      return platform2 === "linux" && fs10.existsSync("/etc/alpine-release");
     }
     load.parseTags = parseTags;
     load.matchTags = matchTags;
@@ -7218,7 +7218,7 @@ var cors = (options) => {
 };
 
 // src/index.ts
-import fs8 from "node:fs/promises";
+import fs9 from "node:fs/promises";
 import http from "node:http";
 import path9 from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7611,16 +7611,12 @@ function createContextRoute(repoRoot2) {
 
 // src/routes/features.ts
 init_cjs_shim();
-import fs4 from "node:fs/promises";
+import fs5 from "node:fs/promises";
 import path5 from "node:path";
-
-// src/routes/sessions.ts
-init_cjs_shim();
-import fs3 from "node:fs/promises";
-import path4 from "node:path";
 
 // src/utils.ts
 init_cjs_shim();
+import fs3 from "node:fs/promises";
 import path3 from "node:path";
 var FEATURE_ID_RE = /^[a-zA-Z0-9._-]+$/;
 function safeId(raw2) {
@@ -7634,8 +7630,40 @@ function findWorktreePath(featureId) {
   );
   return wt ? wt.path : null;
 }
+async function findOpenspecChangeDir(wtPath, featureId) {
+  const changesDir = path3.join(wtPath, "openspec", "changes");
+  const exactDir = path3.join(changesDir, featureId);
+  try {
+    const stat4 = await fs3.stat(exactDir);
+    if (stat4.isDirectory()) return exactDir;
+  } catch {
+  }
+  try {
+    const entries = await fs3.readdir(changesDir, { withFileTypes: true });
+    const results = await Promise.all(
+      entries.filter((e) => e.isDirectory() && e.name !== "archive").map(async (entry) => {
+        const yamlPath = path3.join(changesDir, entry.name, ".openspec.yaml");
+        try {
+          const content = await fs3.readFile(yamlPath, "utf-8");
+          const match2 = content.match(/^feature-id:\s*(.+)$/m);
+          if (match2 && match2[1].trim() === featureId) {
+            return path3.join(changesDir, entry.name);
+          }
+        } catch {
+        }
+        return null;
+      })
+    );
+    return results.find((r) => r !== null) ?? null;
+  } catch {
+  }
+  return null;
+}
 
 // src/routes/sessions.ts
+init_cjs_shim();
+import fs4 from "node:fs/promises";
+import path4 from "node:path";
 var THREAD_STATUS = {
   Open: "open",
   Resolved: "resolved",
@@ -7668,7 +7696,7 @@ function registerSessionCRUD(app2, config, sessionsDir2, ensureSessionsDir, sess
     await ensureSessionsDir();
     const filePath = path4.join(sessionsDir2, `${featureId}${fileSuffix}`);
     try {
-      const content = await fs3.readFile(filePath, "utf-8");
+      const content = await fs4.readFile(filePath, "utf-8");
       return c.json({ session: JSON.parse(content) });
     } catch {
       return c.json({ session: null });
@@ -7682,7 +7710,7 @@ function registerSessionCRUD(app2, config, sessionsDir2, ensureSessionsDir, sess
     await ensureSessionsDir();
     const filePath = path4.join(sessionsDir2, `${featureId}${fileSuffix}`);
     const session = await c.req.json();
-    await fs3.writeFile(filePath, JSON.stringify(session, null, 2), "utf-8");
+    await fs4.writeFile(filePath, JSON.stringify(session, null, 2), "utf-8");
     return c.json({ ok: true });
   });
   app2.delete(`/:id/${pathSegment}`, async (c) => {
@@ -7693,7 +7721,7 @@ function registerSessionCRUD(app2, config, sessionsDir2, ensureSessionsDir, sess
     await ensureSessionsDir();
     const filePath = path4.join(sessionsDir2, `${featureId}${fileSuffix}`);
     try {
-      await fs3.unlink(filePath);
+      await fs4.unlink(filePath);
     } catch {
     }
     return c.json({ ok: true });
@@ -7708,7 +7736,7 @@ function registerSessionCRUD(app2, config, sessionsDir2, ensureSessionsDir, sess
     const filePath = path4.join(sessionsDir2, `${featureId}${fileSuffix}`);
     let sessionContent;
     try {
-      sessionContent = await fs3.readFile(filePath, "utf-8");
+      sessionContent = await fs4.readFile(filePath, "utf-8");
     } catch {
       return c.json({ error: "Session not found" }, 404);
     }
@@ -7741,7 +7769,7 @@ function registerSessionCRUD(app2, config, sessionsDir2, ensureSessionsDir, sess
     onPatchThread?.(updatedThread, session);
     threads[threadIndex] = updatedThread;
     session.threads = threads;
-    await fs3.writeFile(filePath, JSON.stringify(session, null, 2), "utf-8");
+    await fs4.writeFile(filePath, JSON.stringify(session, null, 2), "utf-8");
     if (broadcast3 && updatedThread.status === THREAD_STATUS.Resolved) {
       broadcast3({
         event: "review:resolve-thread-done",
@@ -7763,7 +7791,7 @@ function createSessionsRoute(repoRoot2, broadcast3) {
   let dirEnsured = false;
   async function ensureSessionsDir() {
     if (dirEnsured) return;
-    await fs3.mkdir(sessionsDir2, { recursive: true });
+    await fs4.mkdir(sessionsDir2, { recursive: true });
     dirEnsured = true;
   }
   for (const [type, config] of Object.entries(SESSION_CONFIGS)) {
@@ -7812,7 +7840,7 @@ function countSessionThreads(session) {
 }
 async function getLastActivity(paths) {
   const stats = await Promise.all(
-    paths.map((p) => fs4.stat(p).catch(() => null))
+    paths.map((p) => fs5.stat(p).catch(() => null))
   );
   let latest = null;
   for (const stat4 of stats) {
@@ -7829,7 +7857,7 @@ function countFilesChanged(codeSession) {
 }
 async function readJsonSession(filePath) {
   try {
-    const content = await fs4.readFile(filePath, "utf-8");
+    const content = await fs5.readFile(filePath, "utf-8");
     return JSON.parse(content);
   } catch {
     return null;
@@ -7852,38 +7880,40 @@ function createFeaturesRoute(repoRoot2) {
             sessionsDir2,
             `${featureId}-code.json`
           );
-          const openspecDir = path5.join(
-            wt.path,
-            "openspec",
-            "changes",
-            featureId
-          );
-          const proposalMdPath = path5.join(openspecDir, "proposal.md");
-          const specMdPath = path5.join(openspecDir, "spec.md");
-          const designMdPath = path5.join(openspecDir, "design.md");
-          const tasksMdPath = path5.join(openspecDir, "tasks.md");
-          const [
-            codeSession,
-            hasProposal,
-            hasSpec,
-            hasDesign,
-            tasksContent,
-            lastActivity
-          ] = await Promise.all([
-            readJsonSession(codeSessionPath),
-            fs4.access(proposalMdPath).then(() => true).catch(() => false),
-            fs4.access(specMdPath).then(() => true).catch(() => false),
-            fs4.access(designMdPath).then(() => true).catch(() => false),
-            fs4.readFile(tasksMdPath, "utf-8").catch(() => null),
-            getLastActivity([
-              proposalMdPath,
-              specMdPath,
-              designMdPath,
-              tasksMdPath,
-              codeSessionPath
-            ])
-          ]);
-          const hasOpenspecArtifacts = hasProposal || hasSpec || hasDesign;
+          const openspecDir = await findOpenspecChangeDir(wt.path, featureId);
+          let hasOpenspecArtifacts = false;
+          let tasksContent = null;
+          let lastActivity = null;
+          let codeSession = null;
+          if (openspecDir) {
+            const proposalMdPath = path5.join(openspecDir, "proposal.md");
+            const specMdPath = path5.join(openspecDir, "spec.md");
+            const designMdPath = path5.join(openspecDir, "design.md");
+            const tasksMdPath = path5.join(openspecDir, "tasks.md");
+            const results = await Promise.all([
+              readJsonSession(codeSessionPath),
+              fs5.access(proposalMdPath).then(() => true).catch(() => false),
+              fs5.access(specMdPath).then(() => true).catch(() => false),
+              fs5.access(designMdPath).then(() => true).catch(() => false),
+              fs5.readFile(tasksMdPath, "utf-8").catch(() => null),
+              getLastActivity([
+                proposalMdPath,
+                specMdPath,
+                designMdPath,
+                tasksMdPath,
+                codeSessionPath
+              ])
+            ]);
+            codeSession = results[0];
+            hasOpenspecArtifacts = results[1] || results[2] || results[3];
+            tasksContent = results[4];
+            lastActivity = results[5];
+          } else {
+            [codeSession, lastActivity] = await Promise.all([
+              readJsonSession(codeSessionPath),
+              getLastActivity([codeSessionPath])
+            ]);
+          }
           const hasTasks = tasksContent !== null;
           features.push({
             id: featureId,
@@ -7903,7 +7933,7 @@ function createFeaturesRoute(repoRoot2) {
       );
       const archivedDir = path5.join(repoRoot2, "specs", "archived");
       try {
-        const archivedEntries = await fs4.readdir(archivedDir, {
+        const archivedEntries = await fs5.readdir(archivedDir, {
           withFileTypes: true
         });
         for (const entry of archivedEntries) {
@@ -7911,8 +7941,8 @@ function createFeaturesRoute(repoRoot2) {
           const archivedId = entry.name;
           if (features.some((f) => f.id === archivedId)) continue;
           const [hasSpec, hasTasks] = await Promise.all([
-            fs4.access(path5.join(archivedDir, archivedId, "spec.md")).then(() => true).catch(() => false),
-            fs4.access(path5.join(archivedDir, archivedId, "tasks.md")).then(() => true).catch(() => false)
+            fs5.access(path5.join(archivedDir, archivedId, "spec.md")).then(() => true).catch(() => false),
+            fs5.access(path5.join(archivedDir, archivedId, "tasks.md")).then(() => true).catch(() => false)
           ]);
           if (hasSpec || hasTasks) {
             features.push({
@@ -7973,7 +8003,7 @@ function createFeaturesRoute(repoRoot2) {
 
 // src/routes/spec.ts
 init_cjs_shim();
-import fs5 from "node:fs/promises";
+import fs6 from "node:fs/promises";
 import path6 from "node:path";
 function resolveSpecPath(featureId, repoRoot2) {
   const wtPath = findWorktreePath(featureId);
@@ -7994,7 +8024,7 @@ function createSpecRoute(repoRoot2) {
       return c.json({ error: "Feature not found" }, 404);
     }
     try {
-      const content = await fs5.readFile(specMdPath, "utf-8");
+      const content = await fs6.readFile(specMdPath, "utf-8");
       return c.json({
         content,
         path: `specs/active/${featureId}/spec.md`
@@ -8017,7 +8047,7 @@ function createSpecRoute(repoRoot2) {
       return c.json({ error: "content must be a string" }, 400);
     }
     try {
-      await fs5.writeFile(specMdPath, body.content, "utf-8");
+      await fs6.writeFile(specMdPath, body.content, "utf-8");
       return c.json({ ok: true });
     } catch {
       return c.json({ error: "Feature not found" }, 404);
@@ -8041,7 +8071,7 @@ function createSpecRoute(repoRoot2) {
     );
     let diagrams = [];
     try {
-      const entries = await fs5.readdir(diagramsDir);
+      const entries = await fs6.readdir(diagramsDir);
       diagrams = entries.filter((f) => f.endsWith(".drawio"));
     } catch {
     }
@@ -8072,7 +8102,7 @@ function createSpecRoute(repoRoot2) {
       diagramName
     );
     try {
-      const content = await fs5.readFile(diagramFilePath, "utf-8");
+      const content = await fs6.readFile(diagramFilePath, "utf-8");
       return c.json({ content, name: diagramName });
     } catch {
       return c.json({ error: "Diagram not found" }, 404);
@@ -8100,7 +8130,7 @@ function createSpecRoute(repoRoot2) {
       return c.json({ error: "Forbidden" }, 403);
     }
     try {
-      const content = await fs5.readFile(absPath, "utf-8");
+      const content = await fs6.readFile(absPath, "utf-8");
       return c.json({ content });
     } catch {
       return c.json({ error: "File not found" }, 404);
@@ -8111,18 +8141,20 @@ function createSpecRoute(repoRoot2) {
 
 // src/routes/tasks.ts
 init_cjs_shim();
-import fs6 from "node:fs/promises";
+import fs7 from "node:fs/promises";
 import path7 from "node:path";
 function parseTasksMarkdown(markdown) {
   const lines = markdown.split("\n");
-  const phases = [];
+  const rawPhases = [];
   let currentPhase = null;
+  let lastTask = null;
   for (const line of lines) {
     if (/^##\s+Status Legend/.test(line)) break;
     const phaseMatch = line.match(/^##\s+(.+)$/);
     if (phaseMatch) {
-      if (currentPhase) phases.push(currentPhase);
+      if (currentPhase) rawPhases.push(currentPhase);
       currentPhase = { name: phaseMatch[1].trim(), tasks: [] };
+      lastTask = null;
       continue;
     }
     if (currentPhase) {
@@ -8132,15 +8164,55 @@ function parseTasksMarkdown(markdown) {
       if (taskMatch) {
         const marker = taskMatch[1];
         const status = marker === "x" || marker === "~" ? "done" : marker === "\u2192" ? "in_progress" : "pending";
-        currentPhase.tasks.push({
+        let desc = taskMatch[3].trim();
+        const parallelizable = /\[P\]\s*$/.test(desc);
+        if (parallelizable) desc = desc.replace(/\s*\[P\]\s*$/, "").trim();
+        const dependencies = [];
+        const depMatch = desc.match(/\(depends:\s*([^)]+)\)/i);
+        if (depMatch) {
+          desc = desc.replace(/\s*\(depends:\s*[^)]+\)/, "").trim();
+          for (const d of depMatch[1].split(",")) {
+            const id = d.trim();
+            if (id) dependencies.push(id);
+          }
+        }
+        lastTask = {
           id: taskMatch[2],
           status,
-          description: taskMatch[3].trim()
-        });
+          description: desc,
+          dependencies,
+          parallelizable
+        };
+        currentPhase.tasks.push(lastTask);
+        continue;
+      }
+      if (lastTask) {
+        const whyMatch = line.match(/^\s+-\s+\*\*Why\*\*:\s*(.+)$/);
+        if (whyMatch) {
+          lastTask.why = whyMatch[1].trim();
+          continue;
+        }
+        const filesMatch = line.match(/^\s+-\s+\*\*Files\*\*:\s*(.+)$/);
+        if (filesMatch) {
+          lastTask.files = filesMatch[1].trim();
+          continue;
+        }
+        const doneMatch = line.match(/^\s+-\s+\*\*Done when\*\*:\s*(.+)$/);
+        if (doneMatch) {
+          lastTask.doneWhen = doneMatch[1].trim();
+          continue;
+        }
       }
     }
   }
-  if (currentPhase) phases.push(currentPhase);
+  if (currentPhase) rawPhases.push(currentPhase);
+  const phases = rawPhases.map((p) => {
+    const done = p.tasks.filter((t) => t.status === "done").length;
+    return {
+      ...p,
+      progress: p.tasks.length > 0 ? Math.round(done / p.tasks.length * 100) : 0
+    };
+  });
   const allTasks = phases.flatMap((p) => p.tasks);
   return {
     total: allTasks.length,
@@ -8158,14 +8230,50 @@ function createTasksRoute(repoRoot2) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
     const wtPath = findWorktreePath(featureId);
-    const tasksFilePath = wtPath ? path7.join(wtPath, "openspec", "changes", featureId, "tasks.md") : path7.join(repoRoot2, "specs", "archived", featureId, "tasks.md");
+    let tasksFilePath = null;
+    if (wtPath) {
+      const openspecDir = await findOpenspecChangeDir(wtPath, featureId);
+      if (openspecDir) {
+        tasksFilePath = path7.join(openspecDir, "tasks.md");
+      }
+    } else {
+      tasksFilePath = path7.join(
+        repoRoot2,
+        "specs",
+        "archived",
+        featureId,
+        "tasks.md"
+      );
+    }
+    if (!tasksFilePath) {
+      return c.json({ error: "tasks.md not found" }, 404);
+    }
     let tasksContent;
     try {
-      tasksContent = await fs6.readFile(tasksFilePath, "utf-8");
+      tasksContent = await fs7.readFile(tasksFilePath, "utf-8");
     } catch {
       return c.json({ error: "tasks.md not found" }, 404);
     }
-    const tasks = parseTasksMarkdown(tasksContent);
+    const parsed = parseTasksMarkdown(tasksContent);
+    const overallProgress = parsed.total > 0 ? Math.round(parsed.completed / parsed.total * 100) : 0;
+    let developmentMode = "Non-TDD";
+    try {
+      const yamlContent = await fs7.readFile(
+        path7.join(path7.dirname(tasksFilePath), ".openspec.yaml"),
+        "utf-8"
+      );
+      const modeMatch = yamlContent.match(/^mode:\s*(.+)$/m);
+      if (modeMatch && modeMatch[1].trim().toLowerCase() === "tdd") {
+        developmentMode = "TDD";
+      }
+    } catch {
+    }
+    const tasks = {
+      ...parsed,
+      featureId,
+      developmentMode,
+      overallProgress
+    };
     return c.json({ tasks });
   });
   app2.put("/:id/tasks", async (c) => {
@@ -8182,14 +8290,12 @@ function createTasksRoute(repoRoot2) {
     if (typeof body.content !== "string") {
       return c.json({ error: "content must be a string" }, 400);
     }
-    const tasksFilePath = path7.join(
-      wtPath,
-      "openspec",
-      "changes",
-      featureId,
-      "tasks.md"
-    );
-    await fs6.writeFile(tasksFilePath, body.content, "utf-8");
+    const openspecDir = await findOpenspecChangeDir(wtPath, featureId);
+    if (!openspecDir) {
+      return c.json({ error: "openspec change directory not found" }, 404);
+    }
+    const tasksFilePath = path7.join(openspecDir, "tasks.md");
+    await fs7.writeFile(tasksFilePath, body.content, "utf-8");
     return c.json({ ok: true });
   });
   return app2;
@@ -9893,7 +9999,7 @@ function watch(paths, options = {}) {
 var esm_default = { watch, FSWatcher };
 
 // src/watcher.ts
-import fs7 from "node:fs/promises";
+import fs8 from "node:fs/promises";
 import path8 from "node:path";
 var WS_EVENTS = {
   FEATURES_UPDATED: "review:features-updated",
@@ -9936,7 +10042,7 @@ function startSessionWatcher(sessionsDir2) {
     if (!filePath.endsWith(".json")) return;
     void (async () => {
       try {
-        const content = await fs7.readFile(filePath, "utf-8");
+        const content = await fs8.readFile(filePath, "utf-8");
         const session = JSON.parse(content);
         const fileName = path8.basename(filePath);
         broadcast({
@@ -9985,7 +10091,7 @@ app.post("/api/resolver/resolve", async (c) => {
   const sessionFile = path9.join(sessionsDir, `${featureId}${suffix}`);
   const openThreads = await (async () => {
     try {
-      const raw2 = await fs8.readFile(sessionFile, "utf-8");
+      const raw2 = await fs9.readFile(sessionFile, "utf-8");
       const s = JSON.parse(raw2);
       return (s.threads ?? []).filter((t) => t.status === "open");
     } catch {
@@ -10034,7 +10140,7 @@ if (!isDev) {
   app.get("*", async (c, next) => {
     const pathname = new URL(c.req.url).pathname;
     if (pathname.includes(".")) return next();
-    const html = await fs8.readFile(path9.join(uiDist, "index.html"), "utf-8");
+    const html = await fs9.readFile(path9.join(uiDist, "index.html"), "utf-8");
     return c.html(html);
   });
   app.use("/*", serveStatic({ root: uiDist, rewriteRequestPath: (p) => p }));

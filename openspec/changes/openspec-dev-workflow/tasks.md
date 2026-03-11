@@ -23,13 +23,25 @@
 - [x] T-16 Run `pnpm knip` and remove dead exports/imports from SpecReviewPage and related spec components to pass knip checks
 - [x] T-17 Review checkpoint (phase gate)
 
+## Phase 2b: Bug Fix — OpenSpec Change Directory Discovery
+
+- [x] T-26 Fix `features.ts`: scan `openspec/changes/` directory to find the change matching the feature, instead of assuming `openspec/changes/{featureId}/` exists (the change dir uses a slug like `openspec-dev-workflow`, not the full feature ID `2026-03-12-openspec-dev-workflow`)
+  - **Why**: Browser verification revealed the openspec change dir name (slug) doesn't match the worktree feature ID (date-prefixed). FR-3 requires feature discovery to find openspec artifacts.
+  - **Files**: `apps/server/src/routes/features.ts`
+  - **Done when**: API returns `hasSpec: true` and `hasTasks: true` for a worktree whose openspec change dir uses a slug
+- [x] T-27 Fix `tasks.ts`: use same discovery logic to resolve tasks.md path from openspec change dir
+  - **Why**: Same slug mismatch affects task loading. FR-4 requires tasks to be parsed.
+  - **Files**: `apps/server/src/routes/tasks.ts`
+  - **Done when**: `/api/features/:id/tasks` returns parsed tasks for the feature
+- [x] T-28 Rebuild server bundle and verify API responses
+
 ## Phase 3: Build & Integration Verification
 
 - [x] T-18 Build UI and server bundles, verify no build errors or type errors
-- [ ] T-19 Start dev server with a feature worktree containing openspec artifacts, verify Dashboard shows feature
-- [ ] T-20 Verify Code tab displays openspec files in sidebar and renders content with annotations
-- [ ] T-21 Verify Tasks tab correctly parses progress from openspec/changes/{id}/tasks.md (with `## Phase` + `T-N` format)
-- [ ] T-22 Verify archived features at specs/archived/ still appear on Dashboard
-- [ ] T-23 Verify no dead links — clicking design-phase features from Dashboard lands on Code tab
-- [ ] T-24 Run `pnpm knip` — verify no dead code violations
-- [ ] T-25 Review checkpoint (phase gate)
+- [x] T-19 Start dev server with a feature worktree containing openspec artifacts, verify Dashboard shows feature
+- [x] T-20 Verify Code tab displays openspec files in sidebar and renders content with annotations
+- [x] T-21 Verify Tasks tab correctly parses progress from openspec/changes/{id}/tasks.md (with `## Phase` + `T-N` format)
+- [x] T-22 Verify archived features at specs/archived/ still appear on Dashboard
+- [x] T-23 Verify no dead links — clicking design-phase features from Dashboard lands on Code tab
+- [x] T-24 Run `pnpm knip` — verify no dead code violations
+- [x] T-25 Review checkpoint (phase gate)

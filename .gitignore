@@ -47,3 +47,4 @@ specs-completed/
 .claude/marketplace/
 .claude/plugins/local-review
 .claude/worktrees/
+.verify-screenshots/

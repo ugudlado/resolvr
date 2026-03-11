@@ -1,34 +1,44 @@
 import { Hono } from "hono";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { findWorktreePath, safeId } from "../utils.js";
+import { findOpenspecChangeDir, findWorktreePath, safeId } from "../utils.js";
 
-/** Minimal task progress extracted from tasks.md content. */
+interface ParsedTask {
+  id: string;
+  status: string;
+  description: string;
+  dependencies: string[];
+  parallelizable: boolean;
+  why?: string;
+  files?: string;
+  doneWhen?: string;
+}
+
+interface ParsedPhase {
+  name: string;
+  tasks: ParsedTask[];
+  progress: number;
+}
+
+/** Task progress extracted from tasks.md content. */
 function parseTasksMarkdown(markdown: string): {
   total: number;
   completed: number;
   inProgress: number;
-  phases: Array<{
-    name: string;
-    tasks: Array<{ id: string; status: string; description: string }>;
-  }>;
+  phases: ParsedPhase[];
 } {
   const lines = markdown.split("\n");
-  const phases: Array<{
-    name: string;
-    tasks: Array<{ id: string; status: string; description: string }>;
-  }> = [];
-  let currentPhase: {
-    name: string;
-    tasks: Array<{ id: string; status: string; description: string }>;
-  } | null = null;
+  const rawPhases: Array<{ name: string; tasks: ParsedTask[] }> = [];
+  let currentPhase: { name: string; tasks: ParsedTask[] } | null = null;
+  let lastTask: ParsedTask | null = null;
 
   for (const line of lines) {
     if (/^##\s+Status Legend/.test(line)) break;
     const phaseMatch = line.match(/^##\s+(.+)$/);
     if (phaseMatch) {
-      if (currentPhase) phases.push(currentPhase);
+      if (currentPhase) rawPhases.push(currentPhase);
       currentPhase = { name: phaseMatch[1].trim(), tasks: [] };
+      lastTask = null;
       continue;
     }
     if (currentPhase) {
@@ -43,15 +53,64 @@ function parseTasksMarkdown(markdown: string): {
             : marker === "→"
               ? "in_progress"
               : "pending";
-        currentPhase.tasks.push({
+        let desc = taskMatch[3].trim();
+
+        // Extract [P] parallelizable marker
+        const parallelizable = /\[P\]\s*$/.test(desc);
+        if (parallelizable) desc = desc.replace(/\s*\[P\]\s*$/, "").trim();
+
+        // Extract inline (depends: T-1, T-2) dependencies
+        const dependencies: string[] = [];
+        const depMatch = desc.match(/\(depends:\s*([^)]+)\)/i);
+        if (depMatch) {
+          desc = desc.replace(/\s*\(depends:\s*[^)]+\)/, "").trim();
+          for (const d of depMatch[1].split(",")) {
+            const id = d.trim();
+            if (id) dependencies.push(id);
+          }
+        }
+
+        lastTask = {
           id: taskMatch[2],
           status,
-          description: taskMatch[3].trim(),
-        });
+          description: desc,
+          dependencies,
+          parallelizable,
+        };
+        currentPhase.tasks.push(lastTask);
+        continue;
+      }
+
+      // Parse indented metadata lines belonging to the last task
+      if (lastTask) {
+        const whyMatch = line.match(/^\s+-\s+\*\*Why\*\*:\s*(.+)$/);
+        if (whyMatch) {
+          lastTask.why = whyMatch[1].trim();
+          continue;
+        }
+        const filesMatch = line.match(/^\s+-\s+\*\*Files\*\*:\s*(.+)$/);
+        if (filesMatch) {
+          lastTask.files = filesMatch[1].trim();
+          continue;
+        }
+        const doneMatch = line.match(/^\s+-\s+\*\*Done when\*\*:\s*(.+)$/);
+        if (doneMatch) {
+          lastTask.doneWhen = doneMatch[1].trim();
+          continue;
+        }
       }
     }
   }
-  if (currentPhase) phases.push(currentPhase);
+  if (currentPhase) rawPhases.push(currentPhase);
+
+  const phases: ParsedPhase[] = rawPhases.map((p) => {
+    const done = p.tasks.filter((t) => t.status === "done").length;
+    return {
+      ...p,
+      progress:
+        p.tasks.length > 0 ? Math.round((done / p.tasks.length) * 100) : 0,
+    };
+  });
 
   const allTasks = phases.flatMap((p) => p.tasks);
   return {
@@ -74,9 +133,28 @@ export function createTasksRoute(repoRoot: string): Hono {
     }
 
     const wtPath = findWorktreePath(featureId);
-    const tasksFilePath = wtPath
-      ? path.join(wtPath, "openspec", "changes", featureId, "tasks.md")
-      : path.join(repoRoot, "specs", "archived", featureId, "tasks.md");
+    let tasksFilePath: string | null = null;
+
+    if (wtPath) {
+      const openspecDir = await findOpenspecChangeDir(wtPath, featureId);
+      if (openspecDir) {
+        tasksFilePath = path.join(openspecDir, "tasks.md");
+      }
+      // Worktree exists but no openspec dir — don't fall through to archived
+    } else {
+      // No worktree — try archived specs
+      tasksFilePath = path.join(
+        repoRoot,
+        "specs",
+        "archived",
+        featureId,
+        "tasks.md",
+      );
+    }
+
+    if (!tasksFilePath) {
+      return c.json({ error: "tasks.md not found" }, 404);
+    }
 
     let tasksContent: string;
     try {
@@ -85,7 +163,33 @@ export function createTasksRoute(repoRoot: string): Hono {
       return c.json({ error: "tasks.md not found" }, 404);
     }
 
-    const tasks = parseTasksMarkdown(tasksContent);
+    const parsed = parseTasksMarkdown(tasksContent);
+    const overallProgress =
+      parsed.total > 0
+        ? Math.round((parsed.completed / parsed.total) * 100)
+        : 0;
+
+    // Try to read development mode from .openspec.yaml in the same directory
+    let developmentMode: "TDD" | "Non-TDD" = "Non-TDD";
+    try {
+      const yamlContent = await fs.readFile(
+        path.join(path.dirname(tasksFilePath), ".openspec.yaml"),
+        "utf-8",
+      );
+      const modeMatch = yamlContent.match(/^mode:\s*(.+)$/m);
+      if (modeMatch && modeMatch[1].trim().toLowerCase() === "tdd") {
+        developmentMode = "TDD";
+      }
+    } catch {
+      // .openspec.yaml not found — default to Non-TDD
+    }
+
+    const tasks = {
+      ...parsed,
+      featureId,
+      developmentMode,
+      overallProgress,
+    };
     return c.json({ tasks });
   });
 
@@ -107,13 +211,11 @@ export function createTasksRoute(repoRoot: string): Hono {
       return c.json({ error: "content must be a string" }, 400);
     }
 
-    const tasksFilePath = path.join(
-      wtPath,
-      "openspec",
-      "changes",
-      featureId,
-      "tasks.md",
-    );
+    const openspecDir = await findOpenspecChangeDir(wtPath, featureId);
+    if (!openspecDir) {
+      return c.json({ error: "openspec change directory not found" }, 404);
+    }
+    const tasksFilePath = path.join(openspecDir, "tasks.md");
 
     await fs.writeFile(tasksFilePath, body.content, "utf-8");
     return c.json({ ok: true });
