@@ -202,44 +202,51 @@ export function createFeaturesRoute(repoRoot: string): Hono {
       // ------------------------------------------------------------------
       // 2. Archived specs — completed features not already in worktrees
       // ------------------------------------------------------------------
-      const archivedDir = path.join(repoRoot, "specs", "archived");
-      try {
-        const archivedEntries = await fs.readdir(archivedDir, {
-          withFileTypes: true,
-        });
-        for (const entry of archivedEntries) {
-          if (!entry.isDirectory()) continue;
-          const archivedId = entry.name;
-          if (features.some((f) => f.id === archivedId)) continue;
-          const [hasSpec, hasTasks] = await Promise.all([
-            fs
-              .access(path.join(archivedDir, archivedId, "spec.md"))
-              .then(() => true)
-              .catch(() => false),
-            fs
-              .access(path.join(archivedDir, archivedId, "tasks.md"))
-              .then(() => true)
-              .catch(() => false),
-          ]);
-          if (hasSpec || hasTasks) {
-            features.push({
-              id: archivedId,
-              worktreePath: repoRoot,
-              branch: "main",
-              status: "complete",
-              hasSpec,
-              hasTasks,
-              taskProgress: { done: 0, total: 0 },
-              codeThreadCounts: { open: 0, resolved: 0 },
-              specThreadCounts: { open: 0, resolved: 0 },
-              lastActivity: null,
-              filesChanged: 0,
-              sourceType: "worktree",
-            });
+      // Check both legacy specs/archived/ and new openspec/changes/archive/
+      const archivedDirs = [
+        path.join(repoRoot, "specs", "archived"),
+        path.join(repoRoot, "openspec", "changes", "archive"),
+      ];
+      for (const archivedDir of archivedDirs) {
+        try {
+          const archivedEntries = await fs.readdir(archivedDir, {
+            withFileTypes: true,
+          });
+          for (const entry of archivedEntries) {
+            if (!entry.isDirectory()) continue;
+            const archivedId = entry.name;
+            // Skip if already found (prefer legacy path if both exist)
+            if (features.some((f) => f.id === archivedId)) continue;
+            const [hasSpec, hasTasks] = await Promise.all([
+              fs
+                .access(path.join(archivedDir, archivedId, "spec.md"))
+                .then(() => true)
+                .catch(() => false),
+              fs
+                .access(path.join(archivedDir, archivedId, "tasks.md"))
+                .then(() => true)
+                .catch(() => false),
+            ]);
+            if (hasSpec || hasTasks) {
+              features.push({
+                id: archivedId,
+                worktreePath: repoRoot,
+                branch: "main",
+                status: "complete",
+                hasSpec,
+                hasTasks,
+                taskProgress: { done: 0, total: 0 },
+                codeThreadCounts: { open: 0, resolved: 0 },
+                specThreadCounts: { open: 0, resolved: 0 },
+                lastActivity: null,
+                filesChanged: 0,
+                sourceType: "worktree",
+              });
+            }
           }
+        } catch {
+          // Directory doesn't exist — check next location
         }
-      } catch {
-        // No archived directory — that's fine
       }
 
       // ------------------------------------------------------------------

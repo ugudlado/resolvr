@@ -142,14 +142,27 @@ export function createTasksRoute(repoRoot: string): Hono {
       }
       // Worktree exists but no openspec dir — don't fall through to archived
     } else {
-      // No worktree — try archived specs
-      tasksFilePath = path.join(
-        repoRoot,
-        "specs",
-        "archived",
-        featureId,
-        "tasks.md",
-      );
+      // No worktree — try archived specs (both legacy and new locations)
+      const archivedPaths = [
+        path.join(repoRoot, "specs", "archived", featureId, "tasks.md"),
+        path.join(
+          repoRoot,
+          "openspec",
+          "changes",
+          "archive",
+          featureId,
+          "tasks.md",
+        ),
+      ];
+      for (const p of archivedPaths) {
+        try {
+          await fs.access(p);
+          tasksFilePath = p;
+          break;
+        } catch {
+          // Path doesn't exist, try next
+        }
+      }
     }
 
     if (!tasksFilePath) {

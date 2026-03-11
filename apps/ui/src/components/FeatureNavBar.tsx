@@ -52,9 +52,20 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
 
   // Detect active tab segment so we preserve it when switching features
   const defaultFallbackTab = "code";
-  const activeTabPath =
+  const requestedTab =
     tabs.find((t) => pathname.startsWith(`${basePath}/${t.path}`))?.path ??
     defaultFallbackTab;
+
+  // Validate requested tab exists on current feature; clamp to available tabs
+  const isTabAvailable = (tabPath: string): boolean => {
+    if (tabPath === "code") return true; // code always available
+    if (tabPath === "tasks") return currentFeature?.hasTasks ?? false;
+    if (tabPath === "design") return currentFeature?.hasSpec ?? false;
+    return false;
+  };
+  const activeTabPath = isTabAvailable(requestedTab)
+    ? requestedTab
+    : defaultFallbackTab;
 
   // Clean up copy timeout on unmount
   useEffect(() => {
