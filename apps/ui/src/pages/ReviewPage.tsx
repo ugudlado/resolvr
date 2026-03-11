@@ -409,28 +409,25 @@ export function ReviewPage({
     return map;
   }, [threads, outdatedThreadIds]);
 
-  const changeCountByFile = useMemo(() => {
+  const { changeCountByFile, diffStats } = useMemo(() => {
     const map = new Map<string, number>();
+    let additions = 0;
+    let deletions = 0;
     for (const file of parsedFiles) {
       let count = 0;
       for (const hunk of file.hunks)
-        for (const line of hunk.lines)
-          if (line.kind === "add" || line.kind === "del") count += 1;
+        for (const line of hunk.lines) {
+          if (line.kind === "add") {
+            additions++;
+            count++;
+          } else if (line.kind === "del") {
+            deletions++;
+            count++;
+          }
+        }
       map.set(file.path, count);
     }
-    return map;
-  }, [parsedFiles]);
-
-  const diffStats = useMemo(() => {
-    let additions = 0;
-    let deletions = 0;
-    for (const file of parsedFiles)
-      for (const hunk of file.hunks)
-        for (const line of hunk.lines) {
-          if (line.kind === "add") additions++;
-          else if (line.kind === "del") deletions++;
-        }
-    return { additions, deletions };
+    return { changeCountByFile: map, diffStats: { additions, deletions } };
   }, [parsedFiles]);
 
   const visibleFiles = parsedFiles;
@@ -756,10 +753,18 @@ export function ReviewPage({
     if (!panel || !selectedFilePath) return;
     const scrollKey = `review.scroll.${viewKey}|${selectedFilePath}`;
     panel.scrollTop = Number(localStorage.getItem(scrollKey)) || 0;
-    const onScroll = () =>
-      localStorage.setItem(scrollKey, String(panel.scrollTop));
-    panel.addEventListener("scroll", onScroll);
-    return () => panel.removeEventListener("scroll", onScroll);
+    let rafId = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        localStorage.setItem(scrollKey, String(panel.scrollTop));
+      });
+    };
+    panel.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(rafId);
+      panel.removeEventListener("scroll", onScroll);
+    };
   }, [viewKey, selectedFilePath]);
 
   return (
