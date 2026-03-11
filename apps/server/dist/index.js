@@ -3924,7 +3924,7 @@ function triageThreads(threads) {
   );
 }
 function cleanEnv() {
-  const { CLAUDECODE, ...rest } = process.env;
+  const { CLAUDECODE: _CLAUDECODE, ...rest } = process.env;
   return rest;
 }
 function extractText(messages) {
@@ -7391,7 +7391,11 @@ async function buildDiffBundle(worktreePath, requestedTarget, requestedSource, l
             ["diff", "--no-color", "--no-index", "/dev/null", file],
             { cwd: worktreePath, maxBuffer: 20 * 1024 * 1024 }
           ).catch(
-            (err) => err.code === 1 && err.stdout ? { stdout: err.stdout } : Promise.reject(err)
+            (err) => err.code === 1 && err.stdout ? { stdout: err.stdout } : Promise.reject(
+              new Error(
+                String(err.code ?? "unknown")
+              )
+            )
           );
           return stdout;
         } catch {
@@ -7471,7 +7475,7 @@ function createContextRoute(repoRoot2) {
   const app2 = new Hono2();
   app2.get("/context", async (c) => {
     const requestedWorktree = c.req.query("worktree") ?? null;
-    const requestedSource = c.req.query("source") ?? null;
+    const _requestedSource = c.req.query("source") ?? null;
     const requestedTarget = c.req.query("target") ?? null;
     const state2 = getGitState();
     const rawWorktrees = state2?.worktrees ?? [];
@@ -10068,16 +10072,16 @@ if (isDev) {
 server.on("request", (req, res) => {
   const url = req.url ?? "";
   if (url.startsWith("/api")) {
-    honoListener(req, res);
+    void honoListener(req, res);
     return;
   }
   if (viteMiddleware) {
     viteMiddleware(req, res, () => {
-      honoListener(req, res);
+      void honoListener(req, res);
     });
     return;
   }
-  honoListener(req, res);
+  void honoListener(req, res);
 });
 server.listen(port, () => {
   console.log(

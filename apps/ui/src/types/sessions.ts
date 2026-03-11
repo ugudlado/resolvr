@@ -117,8 +117,6 @@ export interface ReviewMessage {
 // Review thread (shared between spec and code sessions)
 // ---------------------------------------------------------------------------
 
-export type ThreadFilter = "open" | "resolved";
-
 export interface ReviewThread {
   id: string;
   anchor: ThreadAnchor;

@@ -54,8 +54,6 @@ export const FEATURE_TAB = {
   Tasks: "tasks",
 } as const;
 
-export type FeatureTab = (typeof FEATURE_TAB)[keyof typeof FEATURE_TAB];
-
 // ---------------------------------------------------------------------------
 // Review thread status
 // ---------------------------------------------------------------------------

@@ -151,16 +151,3 @@ export function useResolveStatus(): ResolveStatus {
 
   return status;
 }
-
-/**
- * Returns true if the given thread is currently being resolved
- * (i.e. in the pending list but not yet in the log).
- */
-export function useIsThreadResolving(threadId: string): boolean {
-  const status = useResolveStatus();
-  if (status.state !== "resolving") return false;
-  const isDone = status.log.some((e) => e.threadId === threadId);
-  if (isDone) return false;
-  if (status.threads.length === 0) return false;
-  return status.threads.some((t) => t.id === threadId);
-}
