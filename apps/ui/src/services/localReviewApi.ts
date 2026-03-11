@@ -23,33 +23,6 @@ export type ReviewThread = {
   labels?: Record<string, string>;
 };
 
-export type InlineComment = {
-  id: string;
-  filePath: string;
-  line: number;
-  side: "old" | "new";
-  text: string;
-  createdAt: string;
-};
-
-export type ReviewSession = {
-  name: string;
-  notes: string;
-  diff: string;
-  diffMode?: DiffMode;
-  committedDiff?: string;
-  uncommittedDiff?: string;
-  allDiff?: string;
-  targetBranch?: string;
-  sourceBranch?: string;
-  worktreePath?: string;
-  threads?: ReviewThread[];
-  comments?: InlineComment[];
-  createdAt?: string;
-  reviewVerdict?: "approved" | "changes_requested" | null;
-  aiReviewStatus?: "running" | "done" | null;
-};
-
 export type RepoWorktree = {
   path: string;
   branch: string;
@@ -63,8 +36,6 @@ export type RepoContext = {
   currentBranch: string;
   defaultTargetBranch: string;
 };
-
-export type DiffMode = "all" | "committed" | "uncommitted";
 
 export type DiffBundle = {
   worktreePath: string;

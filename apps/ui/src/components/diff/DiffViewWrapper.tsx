@@ -217,5 +217,3 @@ export function DiffViewWrapper({
     />
   );
 }
-
-export default DiffViewWrapper;

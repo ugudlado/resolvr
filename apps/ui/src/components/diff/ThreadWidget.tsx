@@ -3,18 +3,11 @@
  * forms inside @git-diff-view widget/extend slots.
  *
  * - ComposeWidget: shown when user clicks "+" to add a new comment on a line.
- * - ThreadDisplay: persistent display for lines that already have threads.
  */
 
 import { useCallback } from "react";
 import { ComposeBox } from "../shared/ComposeBox";
-import { ThreadCard } from "../shared/ThreadCard";
-import { useResolveStatus } from "../../hooks/useResolveStatus";
-import type {
-  DiffLineAnchor,
-  ReviewThread,
-  ThreadSeverity,
-} from "../../types/sessions";
+import type { DiffLineAnchor } from "../../types/sessions";
 
 // ---------------------------------------------------------------------------
 // ComposeWidget
@@ -75,57 +68,6 @@ export function ComposeWidget({
         compact
         quotedText={quotedText}
       />
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// ThreadDisplay
-// ---------------------------------------------------------------------------
-
-export interface ThreadDisplayProps {
-  threads: ReviewThread[];
-  onReply: (threadId: string, text: string) => void;
-  onStatusChange: (
-    threadId: string,
-    status: "open" | "resolved" | "approved",
-  ) => void;
-  onSeverityChange?: (threadId: string, severity: ThreadSeverity) => void;
-}
-
-/**
- * Persistent inline display of review threads at a diff line.
- * Renders each thread as a compact ThreadCard within the extend slot.
- */
-export function ThreadDisplay({
-  threads,
-  onReply,
-  onStatusChange,
-  onSeverityChange,
-}: ThreadDisplayProps) {
-  const resolveStatus = useResolveStatus();
-  const resolvingIds = new Set(
-    resolveStatus.state === "resolving"
-      ? resolveStatus.threads
-          .filter((t) => !resolveStatus.log.some((e) => e.threadId === t.id))
-          .map((t) => t.id)
-      : [],
-  );
-
-  if (threads.length === 0) return null;
-
-  return (
-    <div className="space-y-1.5 border-l-2 border-amber-500/60 bg-[var(--bg-surface)] p-2">
-      {threads.map((thread) => (
-        <ThreadCard
-          key={thread.id}
-          thread={thread}
-          isResolving={resolvingIds.has(thread.id)}
-          onReply={onReply}
-          onStatusChange={onStatusChange}
-          onSeverityChange={onSeverityChange}
-        />
-      ))}
     </div>
   );
 }
