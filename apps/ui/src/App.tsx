@@ -30,7 +30,7 @@ function RootLayout() {
 /** Redirects /features/:featureId to the tab matching the feature's current status. */
 function FeatureDefaultRedirect() {
   const { featureId } = useParams<{ featureId: string }>();
-  const { features, loading } = useFeatures();
+  const { features, loading, error } = useFeatures();
 
   const defaultTab = useMemo(() => {
     if (!FLAGS.DEV_WORKFLOW) return FEATURE_TAB.Code;
@@ -40,21 +40,21 @@ function FeatureDefaultRedirect() {
     return getStatusConfig(feature.status).defaultTab;
   }, [features, featureId]);
 
-  if (loading && features.length === 0) return null;
+  if (loading || (error && features.length === 0)) return null;
   return <Navigate to={defaultTab} replace />;
 }
 
 /** Wrapper that resolves a feature's worktree path and renders ReviewPage in embedded mode. */
 function FeatureCodeTab() {
   const { featureId } = useParams<{ featureId: string }>();
-  const { features, loading } = useFeatures();
+  const { features, loading, error } = useFeatures();
 
   const feature = useMemo(
     () => features.find((f) => f.id === featureId) ?? null,
     [features, featureId],
   );
 
-  if (loading && !feature) {
+  if ((loading || error) && !feature) {
     return (
       <div className="flex h-full items-center justify-center bg-[#0d1117]">
         <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-600 border-t-blue-400" />

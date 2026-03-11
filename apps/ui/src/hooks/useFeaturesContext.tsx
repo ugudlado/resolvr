@@ -11,27 +11,31 @@ import { featureApi, type FeatureInfo } from "../services/featureApi";
 interface FeaturesContextValue {
   features: FeatureInfo[];
   loading: boolean;
+  error: boolean;
   refresh: () => void;
 }
 
 const FeaturesContext = createContext<FeaturesContextValue>({
   features: [],
   loading: true,
+  error: false,
   refresh: () => {},
 });
 
 export function FeaturesProvider({ children }: { children: ReactNode }) {
   const [features, setFeatures] = useState<FeatureInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const refresh = useCallback(() => {
+    setError(false);
     void featureApi
       .getFeatures()
       .then(({ features: f }) => {
         setFeatures(f);
       })
       .catch(() => {
-        // Leave existing features in place on error
+        setError(true);
       })
       .finally(() => {
         setLoading(false);
@@ -43,7 +47,7 @@ export function FeaturesProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   return (
-    <FeaturesContext.Provider value={{ features, loading, refresh }}>
+    <FeaturesContext.Provider value={{ features, loading, error, refresh }}>
       {children}
     </FeaturesContext.Provider>
   );
