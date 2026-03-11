@@ -4,6 +4,7 @@ import { getStatusConfig } from "../../utils/featureStatus";
 import { FEATURE_STATUS } from "../../types/constants";
 import { relativeTime } from "../../utils/timeFormat";
 import PipelineDots from "./PipelineDots";
+import { ThreadProgressRing } from "../shared/ThreadProgressRing";
 import { FLAGS } from "../../config/app";
 
 export interface FeatureCardProps {
@@ -19,18 +20,6 @@ function GitBranchIcon() {
       fill="currentColor"
     >
       <path d="M11.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5zm-2.25.75a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25zM4.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5zM3.5 3.25a.75.75 0 1 1 1.5 0 .75.75 0 0 1-1.5 0z" />
-    </svg>
-  );
-}
-
-function ThreadIcon() {
-  return (
-    <svg
-      className="h-3.5 w-3.5 shrink-0"
-      viewBox="0 0 16 16"
-      fill="currentColor"
-    >
-      <path d="M1.5 2.75a.25.25 0 0 1 .25-.25h8.5a.25.25 0 0 1 .25.25v5.5a.25.25 0 0 1-.25.25h-3.5a.75.75 0 0 0-.53.22L3.5 11.44V9.25a.75.75 0 0 0-.75-.75h-1a.25.25 0 0 1-.25-.25Zm.25-1.75A1.75 1.75 0 0 0 0 2.75v5.5C0 9.216.784 10 1.75 10H2v1.543a1.457 1.457 0 0 0 2.487 1.03L7.061 10h3.189A1.75 1.75 0 0 0 12 8.25v-5.5A1.75 1.75 0 0 0 10.25 1Z" />
     </svg>
   );
 }
@@ -104,7 +93,12 @@ export default function FeatureCard({
   const statusConfig = getStatusConfig(feature.status);
   const { done, total } = feature.taskProgress;
   const progressPct = total > 0 ? Math.round((done / total) * 100) : 0;
-  const hasOpenThreads = feature.openThreads > 0;
+  // Dashboard aggregates both sessions for the summary ring
+  const totalOpen =
+    feature.codeThreadCounts.open + feature.specThreadCounts.open;
+  const totalResolved =
+    feature.codeThreadCounts.resolved + feature.specThreadCounts.resolved;
+  const hasOpenThreads = totalOpen > 0;
   const accentClass = STATUS_ACCENT[feature.status] ?? "";
 
   return (
@@ -175,11 +169,18 @@ export default function FeatureCard({
         <div
           className={`flex items-center gap-1 text-xs ${hasOpenThreads ? "text-yellow-400" : "text-slate-500"}`}
         >
-          <ThreadIcon />
+          <ThreadProgressRing
+            resolved={totalResolved}
+            open={totalOpen}
+            size={18}
+            thickness={2.5}
+          />
           <span>
-            {feature.openThreads > 0
-              ? `${feature.openThreads} open`
-              : "0 threads"}
+            {totalOpen > 0
+              ? `${totalOpen} open`
+              : totalResolved > 0
+                ? "all clear"
+                : "0 threads"}
           </span>
         </div>
         {feature.filesChanged > 0 && (

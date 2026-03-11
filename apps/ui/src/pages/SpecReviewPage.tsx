@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { featureApi } from "../services/featureApi";
 import { useSpecSession } from "../hooks/useSpecSession";
 import { useFeatureHeader } from "../hooks/useFeatureHeader";
+import { useFeatures } from "../hooks/useFeaturesContext";
 import { buildAnchorMap, resolveAnchor } from "../utils/specAnchoring";
 import { SpecOutline } from "../components/spec/SpecOutline";
 import { SpecRenderer } from "../components/spec/SpecRenderer";
@@ -22,6 +23,7 @@ import { ShortcutHelp } from "../components/shared/ShortcutHelp";
 
 export default function SpecReviewPage() {
   const { featureId } = useParams<{ featureId: string }>();
+  const { refresh: refreshFeatures } = useFeatures();
 
   // -------------------------------------------------------------------------
   // Data fetching
@@ -39,7 +41,7 @@ export default function SpecReviewPage() {
     patchThread,
     saveSession,
     setVerdict,
-  } = useSpecSession(featureId);
+  } = useSpecSession(featureId, { onSessionChanged: refreshFeatures });
 
   // Load spec content
   useEffect(() => {

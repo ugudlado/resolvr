@@ -33,6 +33,7 @@ async function createInitialSpecSession(
 
 export function useSpecSession(
   featureId: string | undefined,
+  options?: { onSessionChanged?: () => void },
 ): UseSpecSessionReturn {
   return useFeatureSession<SpecReviewSession>(featureId, {
     realtimeSuffix: "-spec.json",
@@ -42,5 +43,6 @@ export function useSpecSession(
     patchThread: (id, threadId, patch) =>
       featureApi.patchSpecThread(id, threadId, patch),
     createInitialSession: createInitialSpecSession,
+    onSessionChanged: options?.onSessionChanged,
   });
 }

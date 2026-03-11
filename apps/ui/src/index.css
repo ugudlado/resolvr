@@ -419,6 +419,16 @@ body {
   }
 }
 
+@keyframes thread-ring-glow {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
 @keyframes shimmer {
   0% {
     background-position: -200% 0;

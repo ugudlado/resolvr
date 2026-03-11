@@ -25,6 +25,8 @@ interface UseReviewSessionParams {
   targetBranch: string;
   selectedWorktree: string;
   viewKey: string;
+  /** Called after the session is successfully saved to the server (e.g. after thread status changes). */
+  onSessionSaved?: () => void;
 }
 
 interface UseReviewSessionResult {
@@ -54,7 +56,13 @@ export function useReviewSession({
   targetBranch,
   selectedWorktree,
   viewKey,
+  onSessionSaved,
 }: UseReviewSessionParams): UseReviewSessionResult {
+  // Keep callback in a ref to avoid triggering the auto-save effect
+  const onSessionSavedRef = useRef(onSessionSaved);
+  useEffect(() => {
+    onSessionSavedRef.current = onSessionSaved;
+  });
   const [threads, setThreads] = useState<ReviewThread[]>([]);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [summaryNotes, setSummaryNotes] = useState("");
@@ -138,6 +146,7 @@ export function useReviewSession({
             threads: threads as unknown as SessionReviewThread[],
             metadata: { createdAt: now, updatedAt: now },
           });
+          onSessionSavedRef.current?.();
         } catch {
           // Silent — auto-save failures should not interrupt the user
         }

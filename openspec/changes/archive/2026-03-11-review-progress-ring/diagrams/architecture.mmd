@@ -1,0 +1,45 @@
+graph TD
+    subgraph Server["apps/server"]
+        CT["countThreads()"]
+        FI["FeatureInfo<br/>threadCounts: {open, resolved}"]
+        API["/api/features"]
+        CT --> FI
+        FI --> API
+    end
+
+    subgraph Client["apps/ui"]
+        FA["featureApi.getFeatures()"]
+        UFC["useFeaturesContext"]
+        URS["useReviewSession"]
+
+        subgraph Components
+            PR["ProgressRing<br/>(shared component)"]
+            TT["ProgressRingTooltip"]
+            PR --- TT
+        end
+
+        subgraph Embeds
+            RPT["ReviewPage Toolbar<br/>28px ring + 'N open'"]
+            FNB["FeatureNavBar Code Tab<br/>amber count badge"]
+            DFC["Dashboard FeatureCard<br/>18px ring + text"]
+        end
+
+        API --> FA
+        FA --> UFC
+        UFC --> FNB
+        UFC --> DFC
+        URS --> RPT
+
+        PR --> RPT
+        PR --> DFC
+    end
+
+    subgraph Data["Session Files"]
+        SF[".review/sessions/<br/>*-code.json"]
+        SF -->|"threads[]"| CT
+    end
+
+    style PR fill:#065f46,stroke:#34d399,color:#e8e6e3
+    style RPT fill:#1e3a5f,stroke:#60a5fa,color:#e8e6e3
+    style FNB fill:#1e3a5f,stroke:#60a5fa,color:#e8e6e3
+    style DFC fill:#1e3a5f,stroke:#60a5fa,color:#e8e6e3

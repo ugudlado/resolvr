@@ -32,13 +32,16 @@ import { DiffThreadNav } from "../components/diff/DiffThreadNav";
 import {
   AuthorType,
   REVIEW_VERDICT,
+  THREAD_STATUS,
   type ReviewThread as SessionReviewThread,
 } from "../types/sessions";
 import { APP_NAME } from "../config/app";
 import { scrollDiffToLine } from "../utils/keyboardUtils";
 import { ShortcutHelp } from "../components/shared/ShortcutHelp";
 import { CommandPalette } from "../components/shared/CommandPalette";
+import { ThreadProgressRing } from "../components/shared/ThreadProgressRing";
 import { featureApi } from "../services/featureApi";
+import { useFeatures } from "../hooks/useFeaturesContext";
 
 /** Style applied to the keyboard-focused thread (j/k navigation). */
 const focusedThreadStyle: React.CSSProperties = {
@@ -227,6 +230,7 @@ export function ReviewPage({
   sourceBranch: sourceBranchProp,
   embedded,
 }: ReviewPageProps = {}) {
+  const { refresh: refreshFeatures } = useFeatures();
   const [repoContext, setRepoContext] = useState<RepoContext | null>(null);
   const [selectedWorktree, setSelectedWorktree] = useState(worktreePath ?? "");
   const [sourceBranch, setSourceBranch] = useState(sourceBranchProp ?? "");
@@ -305,6 +309,7 @@ export function ReviewPage({
     targetBranch,
     selectedWorktree,
     viewKey,
+    onSessionSaved: refreshFeatures,
   });
 
   const selectedFile =
@@ -394,10 +399,19 @@ export function ReviewPage({
     ? (hunksByFile.get(selectedFile.path) ?? [])
     : [];
 
-  const pendingCount = useMemo(
-    () => threads.filter((t) => t.status === "open").length,
-    [threads],
-  );
+  const { pendingCount, resolvedCount } = useMemo(() => {
+    let pending = 0;
+    let resolved = 0;
+    for (const t of threads) {
+      if (t.status === THREAD_STATUS.Open) pending++;
+      else if (
+        t.status === THREAD_STATUS.Resolved ||
+        t.status === THREAD_STATUS.Approved
+      )
+        resolved++;
+    }
+    return { pendingCount: pending, resolvedCount: resolved };
+  }, [threads]);
 
   const unresolvedThreadCountByFile = useMemo(() => {
     const map = new Map<string, number>();
@@ -878,6 +892,24 @@ export function ReviewPage({
           </span>
           <span className="text-[var(--accent-rose)]">
             &minus;{diffStats.deletions}
+          </span>
+        </div>
+
+        {/* Thread progress ring */}
+        <div className="flex items-center gap-1.5 text-[11px] text-[var(--ink-faint)]">
+          <span className="text-[var(--ink-ghost)]">|</span>
+          <ThreadProgressRing
+            resolved={resolvedCount}
+            open={pendingCount}
+            size={28}
+            thickness={3}
+          />
+          <span>
+            {pendingCount > 0
+              ? `${pendingCount} open`
+              : resolvedCount > 0
+                ? "all clear"
+                : "0 threads"}
           </span>
         </div>
 

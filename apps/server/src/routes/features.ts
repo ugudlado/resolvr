@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { getGitState } from "../git.js";
+import { THREAD_STATUS } from "./sessions.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -25,7 +26,8 @@ export interface FeatureInfo {
   hasSpec: boolean;
   hasTasks: boolean;
   taskProgress: { done: number; total: number };
-  openThreads: number;
+  codeThreadCounts: { open: number; resolved: number };
+  specThreadCounts: { open: number; resolved: number };
   lastActivity: string | null;
   filesChanged: number;
   sourceType: "worktree" | "branch";
@@ -64,19 +66,26 @@ function parseTaskProgress(content: string): { done: number; total: number } {
   return { done, total: checkboxes.length };
 }
 
-function countOpenThreads(specSession: Session, codeSession: Session): number {
-  let count = 0;
-  for (const session of [specSession, codeSession]) {
-    if (!session) continue;
-    const threads = session.threads;
-    if (!Array.isArray(threads)) continue;
-    for (const t of threads) {
-      if (t && typeof t === "object" && "status" in t && t.status === "open") {
-        count++;
-      }
+function countSessionThreads(session: Session): {
+  open: number;
+  resolved: number;
+} {
+  if (!session) return { open: 0, resolved: 0 };
+  const threads = session.threads;
+  if (!Array.isArray(threads)) return { open: 0, resolved: 0 };
+  let open = 0;
+  let resolved = 0;
+  for (const t of threads) {
+    if (t && typeof t === "object" && "status" in t) {
+      if (t.status === THREAD_STATUS.Open) open++;
+      else if (
+        t.status === THREAD_STATUS.Resolved ||
+        t.status === THREAD_STATUS.Approved
+      )
+        resolved++;
     }
   }
-  return count;
+  return { open, resolved };
 }
 
 async function getLastActivity(paths: string[]): Promise<string | null> {
@@ -184,7 +193,8 @@ export function createFeaturesRoute(repoRoot: string): Hono {
             hasSpec,
             hasTasks,
             taskProgress: parseTaskProgress(tasksContent ?? ""),
-            openThreads: countOpenThreads(specSession, codeSession),
+            codeThreadCounts: countSessionThreads(codeSession),
+            specThreadCounts: countSessionThreads(specSession),
             lastActivity,
             filesChanged: countFilesChanged(codeSession),
             sourceType: "worktree",
@@ -223,7 +233,8 @@ export function createFeaturesRoute(repoRoot: string): Hono {
               hasSpec,
               hasTasks,
               taskProgress: { done: 0, total: 0 },
-              openThreads: 0,
+              codeThreadCounts: { open: 0, resolved: 0 },
+              specThreadCounts: { open: 0, resolved: 0 },
               lastActivity: null,
               filesChanged: 0,
               sourceType: "worktree",
@@ -265,7 +276,8 @@ export function createFeaturesRoute(repoRoot: string): Hono {
             hasSpec: false,
             hasTasks: false,
             taskProgress: { done: 0, total: 0 },
-            openThreads: countOpenThreads(null, codeSession),
+            codeThreadCounts: countSessionThreads(codeSession),
+            specThreadCounts: { open: 0, resolved: 0 },
             lastActivity,
             filesChanged: countFilesChanged(codeSession),
             sourceType: "branch" as const,

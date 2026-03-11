@@ -41,6 +41,8 @@ export interface FeatureSessionConfig<T extends SessionBase> {
    * but no session exists yet. If omitted, setVerdict is a no-op when session is null.
    */
   createInitialSession?: (featureId: string) => Promise<T>;
+  /** Called after a session mutation is persisted to the server (e.g. thread patch, save, verdict). */
+  onSessionChanged?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -156,6 +158,7 @@ export function useFeatureSession<T extends SessionBase>(
 
     try {
       await configRef.current.saveSession(fid, updated);
+      configRef.current.onSessionChanged?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save session");
       skipNextUpdate.current = false;
@@ -185,9 +188,14 @@ export function useFeatureSession<T extends SessionBase>(
       skipNextUpdate.current = true;
       const fid = featureIdRef.current;
       if (fid) {
-        void configRef.current.saveSession(fid, updated).catch(() => {
-          skipNextUpdate.current = false;
-        });
+        void configRef.current
+          .saveSession(fid, updated)
+          .then(() => {
+            configRef.current.onSessionChanged?.();
+          })
+          .catch(() => {
+            skipNextUpdate.current = false;
+          });
       }
       return updated;
     });
@@ -232,6 +240,8 @@ export function useFeatureSession<T extends SessionBase>(
             },
           } as T;
         });
+
+        configRef.current.onSessionChanged?.();
       } catch (err) {
         skipNextUpdate.current = false;
         setError(err instanceof Error ? err.message : "Failed to patch thread");
@@ -255,9 +265,14 @@ export function useFeatureSession<T extends SessionBase>(
             metadata: { ...prev.metadata, updatedAt: new Date().toISOString() },
           } as T;
           skipNextUpdate.current = true;
-          void configRef.current.saveSession(fid, updated).catch(() => {
-            skipNextUpdate.current = false;
-          });
+          void configRef.current
+            .saveSession(fid, updated)
+            .then(() => {
+              configRef.current.onSessionChanged?.();
+            })
+            .catch(() => {
+              skipNextUpdate.current = false;
+            });
           return updated;
         }
 
@@ -272,6 +287,7 @@ export function useFeatureSession<T extends SessionBase>(
                 .saveSession(fid, withVerdict)
                 .then(() => {
                   setSession(withVerdict);
+                  configRef.current.onSessionChanged?.();
                 });
             })
             .catch(() => {
