@@ -87,18 +87,9 @@ function extractDateFromId(id: string): string | null {
   return month && day ? `${month} ${day}` : null;
 }
 
-const STATUS_BORDER_COLOR: Record<string, string> = {
-  new: "#60a5fa",
-  design: "#d8b4fe",
-  design_review: "#fde047",
-  code: "#7dd3fc",
-  code_review: "#fcd34d",
-  complete: "#34d399",
-};
-
 const STATUS_PILL: Record<string, { bg: string; text: string; label: string }> =
   {
-    new: { bg: "bg-blue-500/10", text: "text-blue-400", label: "Active" },
+    new: { bg: "bg-blue-500/20", text: "text-blue-300", label: "Active" },
     design: {
       bg: "bg-purple-400/10",
       text: "text-purple-400",
@@ -128,7 +119,6 @@ export default function FeatureCard({
 }: FeatureCardProps) {
   const navigate = useNavigate();
   const parsedTitle = parseFeatureTitle(feature.id);
-  const borderColor = STATUS_BORDER_COLOR[feature.status] ?? "#475569";
   const pill = STATUS_PILL[feature.status] ?? STATUS_PILL.new;
   const showBranch = !isBranchRedundant(feature.branch, feature.id);
   const isComplete = feature.status === "complete";
@@ -142,18 +132,31 @@ export default function FeatureCard({
         if (e.key === "Enter" || e.key === " ")
           void navigate(`/features/${feature.id}`);
       }}
-      className={`flex cursor-pointer items-center gap-4 rounded-lg border bg-[var(--bg-surface)] px-4 py-3.5 transition-all hover:translate-x-1 hover:bg-slate-800/60 ${!isComplete ? "border-blue-500/40 bg-blue-900/20 ring-1 ring-blue-400/20" : "border-[var(--border-default)]"}`}
-      style={{ borderLeftColor: borderColor, borderLeftWidth: "4px" }}
+      className={
+        isComplete
+          ? "group flex cursor-pointer items-center gap-4 rounded-lg border border-l-[3px] border-[var(--border-default)] border-l-transparent bg-[var(--bg-surface)] px-4 py-3 opacity-60 transition-all hover:border-slate-600/60 hover:bg-slate-800/70"
+          : "group flex cursor-pointer items-center gap-4 rounded-lg border border-l-4 border-purple-800/30 border-l-blue-400 bg-blue-950/40 px-4 py-4 ring-1 ring-blue-400/60 transition-all hover:bg-slate-800/90"
+      }
     >
       {/* Title area */}
       <div className="min-w-0 flex-1">
-        <div
-          className={`truncate text-sm font-semibold ${isComplete ? "text-slate-300" : "text-slate-100"}`}
-        >
-          {highlightMatch(parsedTitle, searchQuery)}
+        <div className="flex items-center gap-2">
+          <div
+            className={`truncate text-sm ${isComplete ? "font-normal text-zinc-500" : "font-semibold text-white"}`}
+          >
+            {highlightMatch(parsedTitle, searchQuery)}
+          </div>
+          {/* Status pill — inline with title */}
+          {!isComplete && (
+            <span
+              className={`shrink-0 whitespace-nowrap rounded px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider ${feature.status === "design" ? "border border-violet-500/30 bg-violet-500/20 text-violet-300" : `${pill.bg} ${pill.text}`}`}
+            >
+              {pill.label}
+            </span>
+          )}
         </div>
         <div
-          className={`mt-0.5 font-mono text-[10px] ${isComplete ? "text-slate-600" : "text-slate-500"}`}
+          className={`mt-0.5 ${isComplete ? "text-xs text-zinc-500 opacity-40" : "text-xs text-zinc-500"} font-mono`}
         >
           {highlightMatch(feature.id, searchQuery)}
         </div>
@@ -165,19 +168,23 @@ export default function FeatureCard({
         )}
       </div>
 
-      {/* Status pill */}
-      <span
-        className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${pill.bg} ${pill.text}`}
-      >
-        {pill.label}
-      </span>
-
       {/* Timestamp */}
-      <div className="w-20 shrink-0 text-right text-[11px] tabular-nums text-slate-400">
+      <div
+        className={`w-20 shrink-0 text-right text-[11px] tabular-nums ${isComplete ? "text-slate-600" : "text-slate-300"}`}
+      >
         {feature.lastActivity
           ? relativeTime(feature.lastActivity)
           : (extractDateFromId(feature.id) ?? "—")}
       </div>
+
+      {/* Chevron — hidden at rest, visible on hover */}
+      <svg
+        className={`h-3.5 w-3.5 shrink-0 transition-colors ${isComplete ? "text-zinc-700 group-hover:text-zinc-600" : "text-slate-700 group-hover:text-slate-400"}`}
+        viewBox="0 0 16 16"
+        fill="currentColor"
+      >
+        <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" />
+      </svg>
     </div>
   );
 }

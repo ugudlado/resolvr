@@ -86,7 +86,7 @@ function ThreadNavCard({
     [THREAD_SEVERITY.Critical]:
       "bg-[var(--accent-rose)]/15 text-[var(--accent-rose)]",
     [THREAD_SEVERITY.Style]:
-      "bg-[var(--canvas-overlay)] text-[var(--ink-muted)]",
+      "bg-[var(--bg-overlay)] text-[var(--text-secondary)]",
     [THREAD_SEVERITY.Question]:
       "bg-[var(--accent-amber)]/15 text-[var(--accent-amber)]",
   };
@@ -97,7 +97,7 @@ function ThreadNavCard({
   return (
     <div
       onClick={onClick}
-      className={`cursor-pointer px-3 py-2 transition-colors hover:bg-[var(--canvas-elevated)] ${
+      className={`cursor-pointer px-3 py-2 transition-colors hover:bg-[var(--bg-elevated)] ${
         isActive
           ? "-ml-0.5 border-l-2 border-[var(--accent-blue)] bg-[var(--accent-blue-dim)] pl-2.5"
           : ""
@@ -127,13 +127,13 @@ function ThreadNavCard({
 
       {/* Row 2: preview text */}
       {previewText && (
-        <p className="mt-0.5 truncate text-[12px] text-[var(--ink-muted)]">
+        <p className="mt-0.5 truncate text-[12px] text-[var(--text-secondary)]">
           {previewText}
         </p>
       )}
 
       {/* Row 3: author + time */}
-      <p className="mt-0.5 text-[11px] text-[var(--ink-faint)]">
+      <p className="mt-0.5 text-[11px] text-[var(--text-tertiary)]">
         {author}
         {author && " \u00B7 "}
         {time}
@@ -204,7 +204,7 @@ export function DiffThreadNav({
 
   const threadHeader = (
     <div className="flex items-center gap-1.5 px-3 pb-1 pt-3">
-      <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--ink-muted)]">
+      <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
         Threads
       </p>
       <KeyboardHint label="j k" />
@@ -212,18 +212,23 @@ export function DiffThreadNav({
   );
 
   if (threads.length === 0) {
+    // Minimal collapsed state: just an icon strip
     return (
-      <div className="flex w-60 shrink-0 flex-col overflow-hidden border-l border-[var(--border)] bg-[var(--canvas-raised)]">
-        {threadHeader}
-        <p className="px-3 py-8 text-center text-[12px] text-[var(--ink-ghost)]">
-          No threads yet
-        </p>
+      <div className="flex w-10 shrink-0 flex-col items-center border-l border-[var(--border-default)] bg-[var(--bg-surface)] pt-3">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 16 16"
+          fill="currentColor"
+          className="h-4 w-4 text-[var(--text-muted)]"
+        >
+          <path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v8.5A1.75 1.75 0 0 1 14.25 13H8.061l-2.574 2.573A1.458 1.458 0 0 1 3 14.543V13H1.75A1.75 1.75 0 0 1 0 11.25v-8.5C0 1.784.784 1 1.75 1Z" />
+        </svg>
       </div>
     );
   }
 
   return (
-    <div className="flex w-60 shrink-0 flex-col overflow-hidden border-l border-[var(--border)] bg-[var(--canvas-raised)]">
+    <div className="flex w-60 shrink-0 flex-col overflow-hidden border-l border-[var(--border-default)] bg-[var(--bg-surface)]">
       {threadHeader}
 
       {/* Single scrollable list with Open / Resolved sections */}
@@ -236,7 +241,7 @@ export function DiffThreadNav({
           sticky={false}
         />
         {openThreads.length === 0 ? (
-          <p className="px-3 pb-3 text-[12px] text-[var(--ink-ghost)]">
+          <p className="px-3 pb-3 text-[12px] text-[var(--text-muted)]">
             All threads resolved
           </p>
         ) : (

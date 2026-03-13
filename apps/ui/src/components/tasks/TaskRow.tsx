@@ -66,9 +66,9 @@ function StatusIcon({ status }: { status: TaskStatus }) {
         <span
           style={{
             ...base,
-            backgroundColor: "var(--canvas-elevated)",
-            color: "var(--ink-ghost)",
-            border: "1.5px solid var(--ink-ghost)",
+            backgroundColor: "var(--bg-elevated)",
+            color: "var(--text-muted)",
+            border: "1.5px solid var(--text-muted)",
             boxSizing: "border-box",
           }}
         />
@@ -79,8 +79,8 @@ function StatusIcon({ status }: { status: TaskStatus }) {
         <span
           style={{
             ...base,
-            backgroundColor: "var(--canvas-elevated)",
-            color: "var(--ink-faint)",
+            backgroundColor: "var(--bg-elevated)",
+            color: "var(--text-tertiary)",
           }}
         >
           <svg width={10} height={2} viewBox="0 0 10 2" fill="currentColor">
@@ -108,8 +108,8 @@ function DependencyTag({ id }: { id: string }) {
     <span
       style={{
         ...tagBase,
-        backgroundColor: "var(--canvas-elevated)",
-        color: "var(--ink-faint)",
+        backgroundColor: "var(--bg-elevated)",
+        color: "var(--text-tertiary)",
       }}
     >
       {id}
@@ -122,8 +122,8 @@ function FileTag({ file }: { file: string }) {
     <span
       style={{
         ...tagBase,
-        backgroundColor: "var(--canvas-elevated)",
-        color: "var(--ink-muted)",
+        backgroundColor: "var(--bg-elevated)",
+        color: "var(--text-secondary)",
       }}
     >
       {file}
@@ -161,21 +161,21 @@ function DetailRow({ label, value }: { label: string; value: string }) {
           fontWeight: 600,
           textTransform: "uppercase",
           letterSpacing: "0.04em",
-          color: "var(--ink-faint)",
+          color: "var(--text-tertiary)",
           width: 60,
           flexShrink: 0,
         }}
       >
         {label}
       </span>
-      <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>
+      <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
         {parts.map((part, i) =>
           part.startsWith("`") && part.endsWith("`") ? (
             <code
               key={i}
               style={{
                 fontFamily: "'JetBrains Mono', monospace",
-                backgroundColor: "var(--canvas-elevated)",
+                backgroundColor: "var(--bg-elevated)",
                 color: "var(--accent-blue)",
                 padding: "1px 4px",
                 borderRadius: 3,
@@ -248,7 +248,7 @@ export function TaskRow({ task, allTasks }: TaskRowProps) {
   return (
     <div
       style={{
-        borderBottom: "1px solid var(--border-subtle)",
+        borderBottom: "1px solid var(--border-muted)",
         cursor: "pointer",
       }}
       className="hover:bg-[rgba(96,165,250,0.03)]"
@@ -275,18 +275,22 @@ export function TaskRow({ task, allTasks }: TaskRowProps) {
               style={{
                 fontFamily: "'JetBrains Mono', monospace",
                 fontSize: 11,
-                color: "var(--ink-faint)",
+                color: "var(--text-tertiary)",
+                flexShrink: 0,
               }}
             >
               {task.id}
             </span>
             <span
               style={{
-                fontSize: 14,
+                fontSize: 12,
                 fontWeight: 500,
-                color: isDone ? "var(--ink-muted)" : "var(--ink)",
-                textDecoration: isDone ? "line-through" : "none",
-                textDecorationColor: isDone ? "var(--ink-ghost)" : undefined,
+                color: isDone ? "var(--text-secondary)" : "var(--text-primary)",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+                lineHeight: 1.4,
               }}
             >
               {task.description}
@@ -324,8 +328,8 @@ export function TaskRow({ task, allTasks }: TaskRowProps) {
           {expanded && hasDetails && (
             <div
               style={{
-                backgroundColor: "var(--canvas)",
-                border: "1px solid var(--border-subtle)",
+                backgroundColor: "var(--bg-base)",
+                border: "1px solid var(--border-muted)",
                 borderRadius: 6,
                 padding: "10px 14px",
                 marginTop: 8,
