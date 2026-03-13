@@ -134,15 +134,15 @@ export default function FeatureCard({
       }}
       className={
         isComplete
-          ? "group flex cursor-pointer items-center gap-4 rounded-lg border border-l-[3px] border-[var(--border-default)] border-l-transparent bg-[var(--bg-surface)] px-4 py-3 opacity-60 transition-all hover:border-slate-600/60 hover:bg-slate-800/70"
-          : "group flex cursor-pointer items-center gap-4 rounded-lg border border-l-4 border-purple-800/30 border-l-blue-400 bg-blue-950/40 px-4 py-4 ring-1 ring-blue-400/60 transition-all hover:bg-slate-800/90"
+          ? "group flex cursor-pointer items-center gap-4 rounded-lg border border-l-4 border-[var(--border-default)] border-l-emerald-700 bg-[var(--bg-surface)] px-4 py-3 transition-all hover:bg-slate-800/50"
+          : "group flex cursor-pointer items-center gap-4 rounded-lg border border-l-4 border-[var(--border-default)] border-l-blue-400 bg-[var(--bg-surface)] px-4 py-4 transition-all hover:bg-slate-800/50"
       }
     >
       {/* Title area */}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <div
-            className={`truncate text-sm ${isComplete ? "font-normal text-zinc-500" : "font-semibold text-white"}`}
+            className={`truncate text-sm ${isComplete ? "font-normal text-zinc-400" : "font-semibold text-white"}`}
           >
             {highlightMatch(parsedTitle, searchQuery)}
           </div>
@@ -155,9 +155,7 @@ export default function FeatureCard({
             </span>
           )}
         </div>
-        <div
-          className={`mt-0.5 ${isComplete ? "text-xs text-zinc-500 opacity-40" : "text-xs text-zinc-500"} font-mono`}
-        >
+        <div className="mt-0.5 font-mono text-xs text-zinc-500">
           {highlightMatch(feature.id, searchQuery)}
         </div>
         {showBranch && (
@@ -179,7 +177,7 @@ export default function FeatureCard({
 
       {/* Chevron — hidden at rest, visible on hover */}
       <svg
-        className={`h-3.5 w-3.5 shrink-0 transition-colors ${isComplete ? "text-zinc-700 group-hover:text-zinc-600" : "text-slate-700 group-hover:text-slate-400"}`}
+        className="h-3.5 w-3.5 shrink-0 text-slate-700 transition-colors group-hover:text-slate-400"
         viewBox="0 0 16 16"
         fill="currentColor"
       >
