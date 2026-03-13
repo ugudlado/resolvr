@@ -291,7 +291,7 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
       {/* Row 2: tab pills (left) + header actions slot (right)              */}
       {/* ------------------------------------------------------------------ */}
       <nav
-        className="flex items-center gap-1 px-3 pb-0 pt-0.5"
+        className="flex items-center gap-1 px-3 pb-0 pt-1"
         aria-label="Feature tabs"
       >
         {FLAGS.DEV_WORKFLOW &&
@@ -314,7 +314,7 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
               return (
                 <span
                   key={tab.path}
-                  className="text-ink-ghost cursor-not-allowed rounded-md px-3 py-1 text-sm font-medium"
+                  className="cursor-not-allowed px-3 py-1.5 text-sm font-medium text-zinc-700"
                   title="No active worktree for completed feature"
                 >
                   {tab.label}
@@ -326,10 +326,10 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
               <Link
                 key={tab.path}
                 to={tabPath}
-                className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                className={`relative flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors ${
                   isActive
-                    ? "bg-accent-blue/12 text-accent-blue"
-                    : "text-ink-muted hover:bg-canvas-elevated hover:text-ink"
+                    ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:rounded-t-full after:bg-blue-400 after:content-['']"
+                    : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
                 {tab.label}
