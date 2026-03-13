@@ -245,123 +245,142 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
           )}
         </div>
 
-        {/* Worktree path copy button (icon only) — pushed to the right */}
+        {/* Branch name + worktree path copy button — pushed to the right */}
         {currentFeature && (
-          <button
-            type="button"
-            onClick={() => {
-              if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-              void navigator.clipboard.writeText(currentFeature.worktreePath);
-              setCopied(true);
-              copyTimeoutRef.current = setTimeout(() => setCopied(false), 1500);
-            }}
-            className="text-ink-faint hover:bg-canvas-elevated hover:text-ink-muted ml-auto shrink-0 rounded p-1 transition-colors"
-            aria-label="Copy worktree path"
-            title={`Copy: ${currentFeature.worktreePath}`}
-          >
-            {copied ? (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-                className="text-accent-emerald h-3.5 w-3.5"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-                className="h-3.5 w-3.5"
-              >
-                <path d="M5.5 3.5A1.5 1.5 0 0 1 7 2h2.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 1 .439 1.061V9.5A1.5 1.5 0 0 1 12 11V8.621a3 3 0 0 0-.879-2.121L9 4.379A3 3 0 0 0 6.879 3.5H5.5Z" />
-                <path d="M4 5a1.5 1.5 0 0 0-1.5 1.5v6A1.5 1.5 0 0 0 4 14h5a1.5 1.5 0 0 0 1.5-1.5V8.621a1.5 1.5 0 0 0-.44-1.06L7.94 5.439A1.5 1.5 0 0 0 6.878 5H4Z" />
-              </svg>
-            )}
-          </button>
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            <span
+              className="max-w-[240px] truncate font-mono text-[11px] text-zinc-500"
+              title={currentFeature.branch}
+            >
+              {currentFeature.branch}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                if (copyTimeoutRef.current)
+                  clearTimeout(copyTimeoutRef.current);
+                void navigator.clipboard.writeText(currentFeature.worktreePath);
+                setCopied(true);
+                copyTimeoutRef.current = setTimeout(
+                  () => setCopied(false),
+                  1500,
+                );
+              }}
+              className="text-ink-faint hover:bg-canvas-elevated hover:text-ink-muted shrink-0 rounded p-1 transition-colors"
+              aria-label="Copy worktree path"
+              title={`Copy: ${currentFeature.worktreePath}`}
+            >
+              {copied ? (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                  className="text-accent-emerald h-3.5 w-3.5"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                  className="h-3.5 w-3.5"
+                >
+                  <path d="M5.5 3.5A1.5 1.5 0 0 1 7 2h2.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 1 .439 1.061V9.5A1.5 1.5 0 0 1 12 11V8.621a3 3 0 0 0-.879-2.121L9 4.379A3 3 0 0 0 6.879 3.5H5.5Z" />
+                  <path d="M4 5a1.5 1.5 0 0 0-1.5 1.5v6A1.5 1.5 0 0 0 4 14h5a1.5 1.5 0 0 0 1.5-1.5V8.621a1.5 1.5 0 0 0-.44-1.06L7.94 5.439A1.5 1.5 0 0 0 6.878 5H4Z" />
+                </svg>
+              )}
+            </button>
+          </div>
         )}
       </div>
 
       {/* ------------------------------------------------------------------ */}
-      {/* Row 2: tab pills (left) + header actions slot (right)              */}
+      {/* Row 2: tab pills (left) + header actions slot (right)             */}
+      {/* Hidden when only one tab is available (no tasks.md present)       */}
       {/* ------------------------------------------------------------------ */}
-      <nav
-        className="flex items-center gap-1 px-3 pb-0 pt-1"
-        aria-label="Feature tabs"
-      >
-        {FLAGS.DEV_WORKFLOW &&
-          tabs.map((tab) => {
-            const tabPath = `${basePath}/${tab.path}`;
-            const isActive = pathname.startsWith(tabPath);
+      {(() => {
+        const hasTasks = currentFeature?.hasTasks ?? false;
+        // Count visible tabs: Tasks only when hasTasks, Code always
+        const visibleTabCount = (hasTasks ? 1 : 0) + 1;
+        const showTabs = FLAGS.DEV_WORKFLOW && visibleTabCount > 1;
 
-            // Hide Tasks tab when feature has no tasks
-            if (
-              tab.path === "tasks" &&
-              currentFeature &&
-              !currentFeature.hasTasks
-            )
-              return null;
+        return (
+          <nav
+            className="flex items-center gap-1 px-3 pb-0 pt-1"
+            aria-label="Feature tabs"
+          >
+            {showTabs &&
+              tabs.map((tab) => {
+                const tabPath = `${basePath}/${tab.path}`;
+                const isActive = pathname.startsWith(tabPath);
 
-            const isDisabled =
-              tab.path === "code" && currentFeature?.status === "complete";
+                // Hide Tasks tab when feature has no tasks
+                if (tab.path === "tasks" && !hasTasks) return null;
 
-            if (isDisabled) {
-              return (
-                <span
-                  key={tab.path}
-                  className="cursor-not-allowed px-3 py-1.5 text-sm font-medium text-zinc-700"
-                  title="No active worktree for completed feature"
-                >
-                  {tab.label}
-                </span>
-              );
-            }
+                const isDisabled =
+                  tab.path === "code" && currentFeature?.status === "complete";
 
-            return (
-              <Link
-                key={tab.path}
-                to={tabPath}
-                className={`relative flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors ${
-                  isActive
-                    ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:rounded-t-full after:bg-blue-400 after:content-['']"
-                    : "text-zinc-500 hover:text-zinc-300"
-                }`}
-              >
-                {tab.label}
-
-                {/* Code tab: amber open-thread badge */}
-                {tab.path === "code" &&
-                  currentFeature &&
-                  currentFeature.codeThreadCounts.open > 0 && (
-                    <span className="bg-accent-amber/15 text-accent-amber rounded-full px-1.5 py-0.5 text-[10px] font-semibold">
-                      {currentFeature.codeThreadCounts.open}
+                if (isDisabled) {
+                  return (
+                    <span
+                      key={tab.path}
+                      className="cursor-not-allowed px-3 py-1.5 text-sm font-medium text-zinc-700"
+                      title="No active worktree for completed feature"
+                    >
+                      {tab.label}
                     </span>
-                  )}
+                  );
+                }
 
-                {/* Tasks tab: progress indicator (hide when complete) */}
-                {tab.path === "tasks" &&
-                  currentFeature &&
-                  currentFeature.taskProgress.done <
-                    currentFeature.taskProgress.total && (
-                    <span className="text-ink-faint text-[10px] font-medium">
-                      {currentFeature.taskProgress.done}/
-                      {currentFeature.taskProgress.total}
-                    </span>
-                  )}
-              </Link>
-            );
-          })}
+                return (
+                  <Link
+                    key={tab.path}
+                    to={tabPath}
+                    className={`relative flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors ${
+                      isActive
+                        ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:rounded-t-full after:bg-blue-400 after:content-['']"
+                        : "text-zinc-500 hover:text-zinc-300"
+                    }`}
+                  >
+                    {tab.label}
 
-        {/* Header actions injected by pages (verdict buttons, edit toggle, etc.) */}
-        {headerActions && (
-          <div className="ml-auto flex items-center gap-2">{headerActions}</div>
-        )}
-      </nav>
+                    {/* Code tab: amber open-thread badge */}
+                    {tab.path === "code" &&
+                      currentFeature &&
+                      currentFeature.codeThreadCounts.open > 0 && (
+                        <span className="bg-accent-amber/15 text-accent-amber rounded-full px-1.5 py-0.5 text-[10px] font-semibold">
+                          {currentFeature.codeThreadCounts.open}
+                        </span>
+                      )}
+
+                    {/* Tasks tab: progress indicator (hide when complete) */}
+                    {tab.path === "tasks" &&
+                      currentFeature &&
+                      currentFeature.taskProgress.done <
+                        currentFeature.taskProgress.total && (
+                        <span className="text-ink-faint text-[10px] font-medium">
+                          {currentFeature.taskProgress.done}/
+                          {currentFeature.taskProgress.total}
+                        </span>
+                      )}
+                  </Link>
+                );
+              })}
+
+            {/* Header actions injected by pages (verdict buttons, edit toggle, etc.) */}
+            {headerActions && (
+              <div className="ml-auto flex items-center gap-2">
+                {headerActions}
+              </div>
+            )}
+          </nav>
+        );
+      })()}
     </header>
   );
 }

@@ -17,7 +17,6 @@ import {
   type ThreadLogEntry,
   type ThreadInfo,
 } from "../../hooks/useResolveStatus";
-import { FLAGS } from "../../config/app";
 
 // ---------------------------------------------------------------------------
 // ResolveRunLog — scrollable log of per-thread resolve outcomes
@@ -121,17 +120,6 @@ export function ReviewVerdict({
   const hasFailed =
     resolveStatus.state === "failed" && matchesFeature(resolveStatus);
 
-  let approveClass: string;
-  if (disabled) {
-    approveClass =
-      "cursor-not-allowed bg-[var(--bg-elevated)] text-[var(--text-muted)]";
-  } else if (isApproved) {
-    approveClass =
-      "bg-emerald-500/25 text-emerald-300 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.35)]";
-  } else {
-    approveClass = "bg-emerald-500/15 text-emerald-400";
-  }
-
   let requestChangesClass: string;
   if (disabled) {
     requestChangesClass =
@@ -145,33 +133,6 @@ export function ReviewVerdict({
 
   return (
     <div className="flex items-center gap-2">
-      {/* Approve button — gated behind DEV_WORKFLOW flag */}
-      {FLAGS.DEV_WORKFLOW && (
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => onVerdictChange("approved")}
-          className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all duration-200 ${approveClass} `}
-        >
-          {isApproved && (
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z" />
-            </svg>
-          )}
-          {isApproved ? "Approved" : "Approve"}
-
-          {/* Open thread warning badge */}
-          {openThreadCount > 0 && !disabled && (
-            <span
-              className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500/20 px-1 text-[10px] font-semibold leading-none text-amber-400"
-              title={`${openThreadCount} open thread${openThreadCount === 1 ? "" : "s"}`}
-            >
-              {openThreadCount}
-            </span>
-          )}
-        </button>
-      )}
-
       {/* Request Changes button */}
       <button
         type="button"

@@ -10,12 +10,12 @@ export interface FeatureRowProps {
 }
 
 const ROW_ACCENT: Record<FeatureStatus, string> = {
-  new: "border-l-slate-600",
+  new: "border-l-slate-700",
   design: "border-l-purple-500",
   design_review: "border-l-amber-400",
   code: "border-l-blue-400",
   code_review: "border-l-amber-400",
-  complete: "border-l-accent-emerald",
+  complete: "border-l-transparent",
 };
 
 function GitBranchIcon() {
@@ -69,6 +69,60 @@ function highlightMatch(text: string, query: string): React.ReactNode {
   );
 }
 
+const KNOWN_ACRONYMS = new Set([
+  "ui",
+  "api",
+  "css",
+  "pr",
+  "ci",
+  "cd",
+  "cli",
+  "url",
+  "http",
+  "id",
+  "tdd",
+  "sdk",
+]);
+const LOWERCASE_WORDS = new Set([
+  "and",
+  "or",
+  "of",
+  "the",
+  "in",
+  "for",
+  "to",
+  "a",
+  "an",
+  "at",
+  "by",
+  "with",
+  "from",
+  "on",
+  "only",
+]);
+
+function formatFeatureTitle(id: string): string {
+  const withoutDate = id.replace(/^\d{4}-\d{2}-\d{2}-/, "");
+  const words = withoutDate.split("-");
+  return words
+    .map((w, i) => {
+      const lower = w.toLowerCase();
+      // Always capitalize first and last word
+      if (i === 0 || i === words.length - 1) {
+        return KNOWN_ACRONYMS.has(lower)
+          ? w.toUpperCase()
+          : w.charAt(0).toUpperCase() + w.slice(1);
+      }
+      // Lowercase small words in the middle
+      if (LOWERCASE_WORDS.has(lower)) return lower;
+      // Uppercase known acronyms
+      if (KNOWN_ACRONYMS.has(lower)) return w.toUpperCase();
+      // Default title case
+      return w.charAt(0).toUpperCase() + w.slice(1);
+    })
+    .join(" ");
+}
+
 /** Status pill styles matching mockup: amber for review states, blue for code, emerald for complete */
 const STATUS_PILL: Record<
   FeatureStatus,
@@ -100,8 +154,8 @@ const STATUS_PILL: Record<
     label: "Code Review",
   },
   complete: {
-    bg: "bg-[rgba(52,211,153,0.12)]",
-    text: "text-[var(--accent-emerald)]",
+    bg: "bg-slate-700/40",
+    text: "text-slate-400",
     label: "Complete",
   },
 };
@@ -145,65 +199,77 @@ export default function FeatureRow({
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") handleActivate();
       }}
-      className={`grid cursor-pointer items-center gap-6 rounded-lg border border-l-[3px] border-[var(--border-default)] bg-[var(--bg-surface)] px-5 py-3.5 transition-all duration-200 hover:translate-x-1 hover:border-slate-600 hover:bg-[var(--canvas-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)] ${accentClass} ${isComplete ? "opacity-60" : ""}`}
-      style={{ gridTemplateColumns: "2.5fr 1fr 1.5fr 1.2fr auto" }}
+      className={`grid cursor-pointer items-center gap-6 rounded-lg border border-l-[3px] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)] ${accentClass} ${
+        isComplete
+          ? "hover:bg-[var(--bg-surface)]/30 border-transparent bg-transparent px-5 py-1.5 opacity-50 hover:opacity-75"
+          : "border-[var(--border-default)] bg-[var(--bg-surface)] px-5 py-3.5 hover:translate-x-1 hover:border-slate-600 hover:bg-[var(--canvas-elevated)]"
+      }`}
+      style={{ gridTemplateColumns: "2fr 1fr 1.5fr 1.2fr auto" }}
     >
       {/* Col 1: Title + Branch */}
       <div className="min-w-0">
-        <div className="truncate font-mono text-sm font-semibold text-slate-100">
-          {highlightMatch(feature.id, searchQuery)}
+        <div className="truncate text-sm font-semibold text-slate-100">
+          {highlightMatch(formatFeatureTitle(feature.id), searchQuery)}
         </div>
-        <div className="mt-0.5 flex items-center gap-1">
-          <GitBranchIcon />
-          <span className="truncate text-[11px] text-slate-500">
-            {feature.branch}
-          </span>
-        </div>
+        {!(isComplete && feature.branch === "main") && (
+          <div className="mt-0.5 flex items-center gap-1">
+            <GitBranchIcon />
+            <span className="truncate text-[11px] text-slate-500">
+              {feature.branch}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Col 2: Status pill */}
       {FLAGS.DEV_WORKFLOW ? <StatusPill status={feature.status} /> : <div />}
 
-      {/* Col 3: Metrics */}
-      <div className="flex flex-col gap-1.5 text-[12px]">
-        <div
-          className={`flex items-center gap-1.5 ${
-            totalOpen > 0
-              ? "font-medium text-amber-400"
-              : totalResolved > 0
-                ? "text-[var(--accent-emerald)]"
-                : "text-slate-500"
-          }`}
-        >
-          {totalOpen === 0 && totalResolved > 0 ? (
-            <svg
-              className="h-3 w-3 shrink-0"
-              viewBox="0 0 16 16"
-              fill="currentColor"
+      {/* Col 3: Metrics (hidden when complete) */}
+      {!isComplete ? (
+        <div className="flex flex-col gap-1.5 text-[12px]">
+          {(totalOpen > 0 || totalResolved > 0) && (
+            <div
+              className={`flex items-center gap-1.5 ${
+                totalOpen > 0
+                  ? "font-medium text-amber-400"
+                  : totalResolved > 0
+                    ? "text-[var(--accent-emerald)]"
+                    : "text-slate-500"
+              }`}
             >
-              <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z" />
-            </svg>
-          ) : (
-            <ThreadIcon />
+              {totalOpen === 0 && totalResolved > 0 ? (
+                <svg
+                  className="h-3 w-3 shrink-0"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z" />
+                </svg>
+              ) : (
+                <ThreadIcon />
+              )}
+              <span>
+                {totalOpen > 0
+                  ? `${totalOpen} Open Threads`
+                  : totalResolved > 0
+                    ? "All threads resolved"
+                    : "0 threads"}
+              </span>
+            </div>
           )}
-          <span>
-            {totalOpen > 0
-              ? `${totalOpen} Open Threads`
-              : totalResolved > 0
-                ? "All threads resolved"
-                : "0 threads"}
-          </span>
+          {feature.filesChanged > 0 && (
+            <div className="flex items-center gap-1.5 text-slate-500">
+              <FileIcon />
+              <span>{feature.filesChanged} files</span>
+            </div>
+          )}
         </div>
-        {feature.filesChanged > 0 && (
-          <div className="flex items-center gap-1.5 text-slate-500">
-            <FileIcon />
-            <span>{feature.filesChanged} files</span>
-          </div>
-        )}
-      </div>
+      ) : (
+        <div />
+      )}
 
-      {/* Col 4: Progress bar (hidden when total === 0) */}
-      {FLAGS.DEV_WORKFLOW && total > 0 ? (
+      {/* Col 4: Progress bar (hidden when complete or total === 0) */}
+      {FLAGS.DEV_WORKFLOW && total > 0 && !isComplete ? (
         <div className="min-w-0">
           <div className="h-1 overflow-hidden rounded-full bg-[var(--ink-ghost,#2d3748)]">
             <div
@@ -219,10 +285,14 @@ export default function FeatureRow({
         <div />
       )}
 
-      {/* Col 5: Relative time */}
-      <div className="text-right font-mono text-[11px] tabular-nums text-[var(--ink-faint,#6b7280)]">
-        {relativeTime(feature.lastActivity)}
-      </div>
+      {/* Col 5: Relative time — only show for active features */}
+      {isComplete ? (
+        <div />
+      ) : (
+        <div className="text-right font-mono text-[11px] tabular-nums text-[var(--ink-faint,#6b7280)]">
+          {relativeTime(feature.lastActivity) || null}
+        </div>
+      )}
     </div>
   );
 }
