@@ -1,15 +1,3 @@
 {
-  "mcpServers": {
-    "pal": {
-      "command": "/opt/homebrew/bin/uvx",
-      "args": [
-        "--from",
-        "git+https://github.com/BeehiveInnovations/pal-mcp-server.git",
-        "pal-mcp-server"
-      ],
-      "env": {
-        "CUSTOM_API_URL": "http://localhost:1"
-      }
-    }
-  }
+  "mcpServers": {}
 }
