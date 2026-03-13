@@ -1,0 +1,11 @@
+graph TD
+    Dashboard["Dashboard (pages/Dashboard.tsx)"]
+    Dashboard --> Grid["2-Column Card Grid"]
+    Dashboard --> SC["SkeletonCard\n(loading state)"]
+    Grid --> FC1["FeatureCard"]
+    Grid --> FC2["FeatureCard"]
+    Grid --> FC3["FeatureCard (...)"]
+
+    FNB["FeatureNavBar\n(2 rows)"]
+    FNB --> Row1["Row 1\n[back] [feature switcher] [path]"]
+    FNB --> Row2["Row 2\n[tabs] [actions]"]

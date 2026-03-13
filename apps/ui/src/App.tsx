@@ -54,7 +54,7 @@ function FeatureCodeTab() {
 
   if ((loading || error) && !feature) {
     return (
-      <div className="flex h-full items-center justify-center bg-[#0d1117]">
+      <div className="flex h-full items-center justify-center bg-[var(--bg-base)]">
         <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-600 border-t-blue-400" />
       </div>
     );
@@ -62,7 +62,7 @@ function FeatureCodeTab() {
 
   if (!feature?.worktreePath) {
     return (
-      <div className="flex h-full items-center justify-center bg-[#0d1117]">
+      <div className="flex h-full items-center justify-center bg-[var(--bg-base)]">
         <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-600 border-t-blue-400" />
       </div>
     );

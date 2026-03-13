@@ -31,15 +31,15 @@ export function TaskTimeline({ taskProgress }: TaskTimelineProps) {
       style={{
         maxWidth: 960,
         margin: "0 auto",
-        padding: "32px 40px 80px",
+        padding: "20px 40px 80px",
       }}
     >
       {/* Progress header */}
       <div
         style={{
           borderBottom: "1px solid var(--border-muted)",
-          paddingBottom: 12,
-          marginBottom: 16,
+          paddingBottom: 8,
+          marginBottom: 12,
         }}
       >
         {/* Title row */}
@@ -55,7 +55,7 @@ export function TaskTimeline({ taskProgress }: TaskTimelineProps) {
           <h1
             style={{
               fontFamily: "'Newsreader', serif",
-              fontSize: 28,
+              fontSize: 20,
               fontWeight: 700,
               letterSpacing: "-0.02em",
               color: "var(--text-primary)",
@@ -69,17 +69,6 @@ export function TaskTimeline({ taskProgress }: TaskTimelineProps) {
               Non-TDD
             </span>
           )}
-        </div>
-        {/* Feature ID */}
-        <div
-          style={{
-            fontSize: 12,
-            color: "var(--text-tertiary)",
-            fontFamily: "monospace",
-            marginBottom: 6,
-          }}
-        >
-          {featureId}
         </div>
         {/* Stats + inline legend row */}
         <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">

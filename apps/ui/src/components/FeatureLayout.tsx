@@ -13,7 +13,7 @@ export default function FeatureLayout() {
 
   return (
     <FeatureHeaderProvider>
-      <div className="bg-canvas text-ink flex h-screen flex-col overflow-hidden">
+      <div className="flex h-screen flex-col overflow-hidden bg-[var(--bg-base)] text-[var(--ink)]">
         <FeatureNavBar featureId={featureId ?? ""} />
 
         <div className="min-h-0 flex-1">

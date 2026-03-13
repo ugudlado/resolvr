@@ -1,0 +1,11 @@
+graph TD
+    Dashboard["Dashboard (pages/Dashboard.tsx)"]
+    Dashboard --> Filter["Status Filter Bar"]
+    Dashboard --> List["1-Column Row List"]
+    Dashboard --> SR["SkeletonRow\n(loading state)"]
+    List --> FR1["FeatureRow"]
+    List --> FR2["FeatureRow"]
+    List --> FR3["FeatureRow (...)"]
+
+    FNB["FeatureNavBar\n(1 row)"]
+    FNB --> Row1["Row 1\n[back] [feature switcher] [tabs] [path] [actions]"]
