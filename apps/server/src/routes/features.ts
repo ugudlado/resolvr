@@ -29,7 +29,7 @@ export interface FeatureInfo {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers (logic mirrored from apps/ui/vite.config.ts)
+// Helpers
 // ---------------------------------------------------------------------------
 
 function deriveFeatureStatus(

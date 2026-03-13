@@ -101,7 +101,7 @@ PORT=3000 pnpm -C apps/ui dev   # Vite dev server on port 3000
 - **Routing**: React Router with feature-based layout (FeatureLayout + FeatureNavBar)
 - **State**: Zustand with Immer middleware
 - **Styling**: Tailwind CSS
-- **API**: In dev mode, Vite plugin middleware in `vite.config.ts` provides REST endpoints; in production, served by apps/server
+- **API**: All REST endpoints live in `apps/server/src/routes/` (Hono). In dev mode, Hono serves API routes and embeds Vite as HMR middleware — no API logic in `vite.config.ts`
 
 ### Plugin
 
@@ -138,9 +138,15 @@ PORT=3000           # Change server/UI dev port (default: 37003)
 
 1. **Workspace commands**: Use `pnpm -C apps/ui` for app-specific commands; use bare `pnpm` for repo-root commands
 2. **Package manager**: Use `pnpm` (not npm); dependencies locked via pnpm-lock.yaml
-3. **API routes**: Production: `apps/server/src/routes/`; Dev: also mirrored in `apps/ui/vite.config.ts` as Vite plugin middleware
+3. **API routes**: All routes live exclusively in `apps/server/src/routes/` — no duplication in `vite.config.ts`
 4. **Session files**: Live in `.review/sessions/` (gitignored); created when user saves review sessions
 5. **Built dist**: Both `apps/ui/dist/` and `apps/server/dist/` are committed to git for zero-build plugin installation
 6. **Server bundle**: Run `pnpm -C apps/server build` after changing server code; bundles all deps via esbuild
 7. **Plugin layout**: Source files live at repo root (`.claude-plugin/`, `commands/`, `agents/`, `hooks/`, `scripts/`) — do not create copies in subdirectories
 8. **Pre-commit hooks**: Husky runs lint-staged on staged files (ESLint + Prettier) before commit
+
+## Gotchas
+
+- **Never edit `dist/`**: Always work in `src/`; use `PORT=3003 pnpm -C apps/ui dev` for UI dev with HMR
+- **API routes are NOT duplicated**: All routes live in `apps/server/src/routes/` only — `vite.config.ts` has no API logic
+- **Server bundle not auto-rebuilt**: Run `pnpm -C apps/server build` after any server-side change; committed `dist/index.js` is what the plugin uses at runtime
