@@ -28,9 +28,20 @@
     --text-muted: #484f58;
 
     /* Accents */
+    --color-accent: #3b82f6;
     --accent-blue: #1f6feb;
     --accent-blue-muted: rgba(31, 111, 235, 0.2);
     --accent-blue-text: #58a6ff;
+    --accent-blue-dim: #1e3a5f;
+
+    --accent-emerald: #34d399;
+    --accent-emerald-dim: #1a4d3a;
+
+    --accent-amber: #fbbf24;
+    --accent-amber-dim: #4d3a1a;
+
+    --accent-rose: #fb7185;
+    --accent-rose-dim: #4d1a2a;
 
     /* Semantic — Diff */
     --diff-added-bg: #0d4a1a;
@@ -59,26 +70,6 @@
     --pipeline-implement: #58a6ff;
     --pipeline-review: #f0883e;
     --pipeline-done: #3fb950;
-
-    /* Notion Dark tokens */
-    --canvas: #1a1a1f;
-    --canvas-raised: #222228;
-    --canvas-elevated: #2a2a31;
-    --canvas-overlay: #32323a;
-    --ink: #f0eeeb;
-    --ink-muted: #bdbbb8;
-    --ink-faint: #908e8c;
-    --ink-ghost: #605f65;
-    --accent-emerald: #34d399;
-    --accent-emerald-dim: #065f46;
-    --accent-amber: #fbbf24;
-    --accent-amber-dim: #78350f;
-    --accent-blue: #60a5fa;
-    --accent-blue-dim: #1e3a5f;
-    --accent-rose: #fb7185;
-    --accent-rose-dim: #4c1d2e;
-    --border: #383840;
-    --border-subtle: #2e2e35;
 
     /* Shadows */
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -325,13 +316,23 @@ body {
  * Override @git-diff-view/react's `.diff-line-extend-wrapper *` rule which
  * resets color to `initial` (black), making thread text invisible on dark bg.
  * Only target the wrapper and prose content — NOT colored badges/indicators.
+ * Also increase line-height for better readability.
  * --------------------------------------------------------------------------- */
 .diff-line-extend-wrapper {
-  color: var(--ink);
+  color: var(--text-primary);
 }
 .diff-line-extend-wrapper .prose-review,
 .diff-line-extend-wrapper .prose-review * {
-  color: var(--ink);
+  color: var(--text-primary);
+}
+
+/* Increase diff line height for better readability */
+.diff-view .diff-line-wrapper {
+  line-height: 1.6;
+}
+.diff-view td {
+  padding-top: 2px;
+  padding-bottom: 2px;
 }
 
 /* ---------------------------------------------------------------------------

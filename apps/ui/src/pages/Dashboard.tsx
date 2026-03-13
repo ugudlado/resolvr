@@ -37,26 +37,13 @@ function sortFeatures(
   });
 }
 
-function RefreshIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="currentColor"
-    >
-      <path d="M8 3a5 5 0 0 0-4.546 2.914.5.5 0 1 1-.908-.418A6 6 0 0 1 14 8a.5.5 0 0 1-1 0 5 5 0 0 0-5-5zm4.546 7.086a.5.5 0 1 1 .908.418A6 6 0 0 1 2 8a.5.5 0 0 1 1 0 5 5 0 0 0 5.546 4.986z" />
-    </svg>
-  );
-}
-
 export default function Dashboard() {
   const [features, setFeatures] = useState<FeatureInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("activity");
+  const [showAllCompleted, setShowAllCompleted] = useState(false);
 
   const fetchFeatures = useCallback(async () => {
     setLoading(true);
@@ -98,10 +85,10 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-base)]">
-      <div className="mx-auto max-w-6xl px-6 py-6">
+      <div className="mx-auto max-w-6xl px-6 py-6 pb-16">
         {/* Header */}
         <div className="mb-4 flex items-center justify-between gap-4">
-          <h1 className="shrink-0 font-serif text-2xl font-semibold text-slate-100">
+          <h1 className="shrink-0 font-mono text-2xl font-bold tracking-tight text-slate-100">
             {APP_NAME}
           </h1>
           <button
@@ -109,9 +96,21 @@ export default function Dashboard() {
               void fetchFeatures();
             }}
             disabled={loading}
-            className="flex items-center gap-1.5 rounded px-3 py-1.5 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded px-2 py-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
           >
-            <RefreshIcon className={loading ? "animate-spin" : undefined} />
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={loading ? "animate-spin" : undefined}
+            >
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+            </svg>
             Refresh
           </button>
         </div>
@@ -193,35 +192,69 @@ export default function Dashboard() {
                 No features matching "{searchQuery}"
               </p>
             )}
-            {allFeatures.length > 0 && (
-              <div className="flex flex-col gap-2">
-                {allFeatures.map((feature, index) => {
-                  const prevFeature = index > 0 ? allFeatures[index - 1] : null;
-                  const isFirstCompleted =
-                    feature.status === "complete" &&
-                    prevFeature?.status !== "complete";
-                  const completedCount = allFeatures.filter(
-                    (f) => f.status === "complete",
-                  ).length;
-                  return (
-                    <div key={feature.id}>
-                      {isFirstCompleted && (
-                        <div className="mb-1 mt-3 flex items-center gap-3">
-                          <span className="text-[11px] font-medium uppercase tracking-widest text-slate-500">
-                            Completed · {completedCount}
-                          </span>
-                          <div className="flex-1 border-t border-slate-700/60" />
+            {allFeatures.length > 0 &&
+              (() => {
+                const activeCount = allFeatures.filter(
+                  (f) => f.status !== "complete",
+                ).length;
+                const completedFeatures = allFeatures.filter(
+                  (f) => f.status === "complete",
+                );
+                const completedCount = completedFeatures.length;
+                return (
+                  <div className="flex flex-col gap-2">
+                    {allFeatures.map((feature, index) => {
+                      const prevFeature =
+                        index > 0 ? allFeatures[index - 1] : null;
+                      const isFirstActive =
+                        index === 0 && feature.status !== "complete";
+                      const isFirstCompleted =
+                        feature.status === "complete" &&
+                        prevFeature?.status !== "complete";
+                      const completedIndex = completedFeatures.indexOf(feature);
+                      const shouldHideCompleted =
+                        feature.status === "complete" &&
+                        completedIndex >= 5 &&
+                        !showAllCompleted;
+
+                      if (shouldHideCompleted) return null;
+
+                      return (
+                        <div key={feature.id}>
+                          {isFirstActive && (
+                            <div className="mb-2 flex items-center gap-3">
+                              <span className="border-l-4 border-blue-500 pl-2 font-mono text-xs font-semibold uppercase tracking-widest text-zinc-400">
+                                Active · {activeCount}
+                              </span>
+                              <div className="flex-1 border-t border-slate-700/60" />
+                            </div>
+                          )}
+                          {isFirstCompleted && (
+                            <div className="mb-2 mt-3 flex items-center gap-3">
+                              <span className="border-l-4 border-zinc-700 pl-2 font-mono text-[11px] font-semibold uppercase tracking-widest text-zinc-600">
+                                Completed · {completedCount}
+                              </span>
+                              <div className="flex-1 border-t border-slate-700/60" />
+                            </div>
+                          )}
+                          <FeatureCard
+                            feature={feature}
+                            searchQuery={searchQuery}
+                          />
                         </div>
-                      )}
-                      <FeatureCard
-                        feature={feature}
-                        searchQuery={searchQuery}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                      );
+                    })}
+                    {!showAllCompleted && completedCount > 5 && (
+                      <button
+                        onClick={() => setShowAllCompleted(true)}
+                        className="mt-1 flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-zinc-700 py-2.5 font-mono text-xs uppercase tracking-widest text-zinc-500 transition-colors hover:border-zinc-500 hover:text-zinc-300"
+                      >
+                        Show {completedCount - 5} more completed features
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
           </>
         )}
       </div>

@@ -150,32 +150,38 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
         <span className="text-ink-ghost select-none text-xs">/</span>
 
         {/* Feature switcher dropdown */}
-        <div ref={dropdownRef} className="relative">
+        <div
+          ref={dropdownRef}
+          className="relative min-w-0"
+          style={{ maxWidth: "420px", flex: "0 1 420px" }}
+        >
           <button
             type="button"
             onClick={() => setDropdownOpen((o) => !o)}
-            className="hover:bg-canvas-elevated flex max-w-xs items-center gap-2 rounded-md px-2 py-1 transition-colors"
+            className="border-border hover:bg-canvas-elevated hover:border-border-subtle flex w-full items-center gap-2 rounded-md border px-3 py-1.5 transition-colors"
+            title={featureId}
           >
-            <span className="text-ink truncate font-mono text-sm font-medium">
-              {formatFeatureLabel(featureId)}
-            </span>
-
-            {/* Status badge */}
-            {currentFeature &&
-              (() => {
-                const config = getStatusConfig(currentFeature.status);
+            <span className="text-ink flex min-w-0 flex-1 items-baseline gap-1.5 font-mono text-sm font-medium">
+              {(() => {
+                const label = formatFeatureLabel(featureId);
+                const match = label.match(/^(\d{4}-\d{2}-\d{2})\s+—\s+(.+)$/);
+                if (!match) return <span className="truncate">{label}</span>;
                 return (
-                  <span
-                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${config.color} ${config.bgColor}`}
-                  >
-                    {config.label}
-                  </span>
+                  <>
+                    <span className="shrink-0 text-xs text-zinc-500">
+                      {match[1]} —
+                    </span>
+                    <span className="truncate text-sm font-medium text-zinc-200">
+                      {match[2]}
+                    </span>
+                  </>
                 );
               })()}
+            </span>
 
             {/* Chevron */}
             <svg
-              className={`text-ink-faint h-3 w-3 transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
+              className={`text-ink-faint h-3.5 w-3.5 shrink-0 transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
               viewBox="0 0 12 12"
               fill="currentColor"
             >
@@ -239,54 +245,45 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
           )}
         </div>
 
-        {/* Worktree path + copy button — pushed to the right */}
+        {/* Worktree path copy button (icon only) — pushed to the right */}
         {currentFeature && (
-          <div className="ml-auto flex items-center gap-1.5 overflow-hidden">
-            <span className="text-ink-faint truncate font-mono text-[11px]">
-              {currentFeature.worktreePath}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                if (copyTimeoutRef.current)
-                  clearTimeout(copyTimeoutRef.current);
-                void navigator.clipboard.writeText(currentFeature.worktreePath);
-                setCopied(true);
-                copyTimeoutRef.current = setTimeout(
-                  () => setCopied(false),
-                  1500,
-                );
-              }}
-              className="text-ink-faint hover:bg-canvas-elevated hover:text-ink-muted shrink-0 rounded p-1 transition-colors"
-              aria-label="Copy worktree path"
-              title="Copy worktree path"
-            >
-              {copied ? (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  className="text-accent-emerald h-3.5 w-3.5"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  className="h-3.5 w-3.5"
-                >
-                  <path d="M5.5 3.5A1.5 1.5 0 0 1 7 2h2.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 1 .439 1.061V9.5A1.5 1.5 0 0 1 12 11V8.621a3 3 0 0 0-.879-2.121L9 4.379A3 3 0 0 0 6.879 3.5H5.5Z" />
-                  <path d="M4 5a1.5 1.5 0 0 0-1.5 1.5v6A1.5 1.5 0 0 0 4 14h5a1.5 1.5 0 0 0 1.5-1.5V8.621a1.5 1.5 0 0 0-.44-1.06L7.94 5.439A1.5 1.5 0 0 0 6.878 5H4Z" />
-                </svg>
-              )}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+              void navigator.clipboard.writeText(currentFeature.worktreePath);
+              setCopied(true);
+              copyTimeoutRef.current = setTimeout(() => setCopied(false), 1500);
+            }}
+            className="text-ink-faint hover:bg-canvas-elevated hover:text-ink-muted ml-auto shrink-0 rounded p-1 transition-colors"
+            aria-label="Copy worktree path"
+            title={`Copy: ${currentFeature.worktreePath}`}
+          >
+            {copied ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                className="text-accent-emerald h-3.5 w-3.5"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                className="h-3.5 w-3.5"
+              >
+                <path d="M5.5 3.5A1.5 1.5 0 0 1 7 2h2.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 1 .439 1.061V9.5A1.5 1.5 0 0 1 12 11V8.621a3 3 0 0 0-.879-2.121L9 4.379A3 3 0 0 0 6.879 3.5H5.5Z" />
+                <path d="M4 5a1.5 1.5 0 0 0-1.5 1.5v6A1.5 1.5 0 0 0 4 14h5a1.5 1.5 0 0 0 1.5-1.5V8.621a1.5 1.5 0 0 0-.44-1.06L7.94 5.439A1.5 1.5 0 0 0 6.878 5H4Z" />
+              </svg>
+            )}
+          </button>
         )}
       </div>
 
@@ -294,7 +291,7 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
       {/* Row 2: tab pills (left) + header actions slot (right)              */}
       {/* ------------------------------------------------------------------ */}
       <nav
-        className="flex items-center gap-1 px-3 pb-0 pt-1"
+        className="flex items-center gap-1 px-3 pb-0 pt-0.5"
         aria-label="Feature tabs"
       >
         {FLAGS.DEV_WORKFLOW &&
@@ -317,7 +314,7 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
               return (
                 <span
                   key={tab.path}
-                  className="text-ink-ghost cursor-not-allowed rounded-md px-3 py-1.5 text-sm font-medium"
+                  className="text-ink-ghost cursor-not-allowed rounded-md px-3 py-1 text-sm font-medium"
                   title="No active worktree for completed feature"
                 >
                   {tab.label}
@@ -329,7 +326,7 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
               <Link
                 key={tab.path}
                 to={tabPath}
-                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-sm font-medium transition-colors ${
                   isActive
                     ? "bg-accent-blue/12 text-accent-blue"
                     : "text-ink-muted hover:bg-canvas-elevated hover:text-ink"
@@ -346,13 +343,16 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
                     </span>
                   )}
 
-                {/* Tasks tab: progress indicator */}
-                {tab.path === "tasks" && currentFeature && (
-                  <span className="text-ink-faint text-[10px] font-medium">
-                    {currentFeature.taskProgress.done}/
-                    {currentFeature.taskProgress.total}
-                  </span>
-                )}
+                {/* Tasks tab: progress indicator (hide when complete) */}
+                {tab.path === "tasks" &&
+                  currentFeature &&
+                  currentFeature.taskProgress.done <
+                    currentFeature.taskProgress.total && (
+                    <span className="text-ink-faint text-[10px] font-medium">
+                      {currentFeature.taskProgress.done}/
+                      {currentFeature.taskProgress.total}
+                    </span>
+                  )}
               </Link>
             );
           })}

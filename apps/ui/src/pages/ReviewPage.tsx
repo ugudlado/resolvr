@@ -121,7 +121,7 @@ function SearchSelect({
   };
 
   const triggerClass =
-    "flex items-center gap-1.5 bg-transparent text-left text-xs font-medium text-[var(--ink)] outline-none";
+    "flex items-center gap-1.5 bg-transparent text-left text-xs font-medium text-[var(--text-primary)] outline-none";
 
   return (
     <div ref={containerRef} className="relative">
@@ -139,20 +139,20 @@ function SearchSelect({
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 12 12"
           fill="currentColor"
-          className="h-2.5 w-2.5 text-[var(--ink-faint)]"
+          className="h-2.5 w-2.5 text-[var(--text-tertiary)]"
         >
           <path d="M6 8.825a.47.47 0 0 1-.354-.146l-3.5-3.5a.5.5 0 0 1 .708-.708L6 7.618l3.146-3.147a.5.5 0 0 1 .708.708l-3.5 3.5A.47.47 0 0 1 6 8.825Z" />
         </svg>
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1.5 w-72 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--canvas-elevated)] shadow-xl shadow-black/30">
-          <div className="border-b border-[var(--border)] px-3 py-2">
-            <div className="flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--canvas)] px-2 py-1.5">
+        <div className="absolute left-0 top-full z-50 mt-1.5 w-72 overflow-hidden rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] shadow-xl shadow-black/30">
+          <div className="border-b border-[var(--border-default)] px-3 py-2">
+            <div className="flex items-center gap-2 rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-2 py-1.5">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 16 16"
                 fill="currentColor"
-                className="h-3.5 w-3.5 shrink-0 text-[var(--ink-faint)]"
+                className="h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]"
               >
                 <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1ZM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0Z" />
               </svg>
@@ -166,13 +166,13 @@ function SearchSelect({
                 }}
                 onKeyDown={onKeyDown}
                 placeholder={placeholder}
-                className="w-full bg-transparent text-xs text-[var(--ink)] placeholder-[var(--ink-faint)] outline-none"
+                className="w-full bg-transparent text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none"
               />
             </div>
           </div>
           <ul ref={listRef} className="max-h-60 overflow-y-auto py-1">
             {filtered.length === 0 && (
-              <li className="px-3 py-2 text-xs text-[var(--ink-faint)]">
+              <li className="px-3 py-2 text-xs text-[var(--text-tertiary)]">
                 No matching branches
               </li>
             )}
@@ -183,8 +183,8 @@ function SearchSelect({
                 onMouseEnter={() => setCursor(i)}
                 className={`flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs transition-colors ${
                   i === cursor
-                    ? "bg-[var(--accent-blue-dim)] text-[var(--ink)]"
-                    : "text-[var(--ink-muted)]"
+                    ? "bg-[var(--accent-blue-dim)] text-[var(--text-primary)]"
+                    : "text-[var(--text-secondary)]"
                 }`}
               >
                 <span
@@ -200,7 +200,7 @@ function SearchSelect({
                   </svg>
                 </span>
                 <span
-                  className={`truncate font-mono ${opt === value ? "font-medium text-[var(--ink)]" : ""}`}
+                  className={`truncate font-mono ${opt === value ? "font-medium text-[var(--text-primary)]" : ""}`}
                 >
                   {opt}
                 </span>
@@ -250,7 +250,7 @@ export function ReviewPage({
   const [selectedCommit, setSelectedCommit] = useState("");
   const [selectedCommitDiff, setSelectedCommitDiff] = useState("");
 
-  const [showFolderTree, setShowFolderTree] = useState(true);
+  const [showFolderTree, setShowFolderTree] = useState(false);
 
   /** Line where the compose widget is open, or null if closed. */
   const [composingAt, setComposingAt] = useState<{
@@ -278,6 +278,10 @@ export function ReviewPage({
   const reviewPanelRef = useRef<HTMLDivElement | null>(null);
   const sidebarRef = useRef<HTMLElement | null>(null);
   const diffPanelRef = useRef<HTMLDivElement | null>(null);
+  const [sidebarWidth, setSidebarWidth] = useState(208);
+  const isDragging = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartWidth = useRef(0);
   // Track the last viewKey for which we auto-selected a file, so we don't override
   // the user's manual file selection on every render.
   const autoSelectedViewKeyRef = useRef("");
@@ -507,45 +511,45 @@ export function ReviewPage({
     }
   };
 
-  const refreshDiffBundle = async (
-    worktreePath: string,
-    source: string,
-    target: string,
-  ) => {
-    if (!worktreePath || !source || !target) return;
-    setStatus(`Diffing ${source} ← ${target}...`);
-    try {
-      const bundle = await localReviewApi.getDiffBundle({
-        worktreePath,
-        sourceBranch: source,
-        targetBranch: target,
-      });
-      setDiffBundle(bundle);
-      setSelectedCommit("");
-      setSelectedCommitDiff("");
-      setStatus(`${bundle.sourceBranch} → ${bundle.targetBranch}`);
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to load diff");
-    }
-  };
+  const refreshDiffBundle = useCallback(
+    async (worktreePath: string, source: string, target: string) => {
+      if (!worktreePath || !source || !target) return;
+      setStatus(`Diffing ${source} ← ${target}...`);
+      try {
+        const bundle = await localReviewApi.getDiffBundle({
+          worktreePath,
+          sourceBranch: source,
+          targetBranch: target,
+        });
+        setDiffBundle(bundle);
+        setSelectedCommit("");
+        setSelectedCommitDiff("");
+        setStatus(`${bundle.sourceBranch} → ${bundle.targetBranch}`);
+      } catch (error) {
+        setStatus(
+          error instanceof Error ? error.message : "Failed to load diff",
+        );
+      }
+    },
+    [],
+  );
 
-  const refreshCommits = async (
-    worktreePath: string,
-    source: string,
-    target: string,
-  ) => {
-    if (!worktreePath || !source || !target) return;
-    try {
-      const commitList = await localReviewApi.getCommits({
-        worktreePath,
-        sourceBranch: source,
-        targetBranch: target,
-      });
-      setCommits(commitList);
-    } catch {
-      setCommits([]);
-    }
-  };
+  const refreshCommits = useCallback(
+    async (worktreePath: string, source: string, target: string) => {
+      if (!worktreePath || !source || !target) return;
+      try {
+        const commitList = await localReviewApi.getCommits({
+          worktreePath,
+          sourceBranch: source,
+          targetBranch: target,
+        });
+        setCommits(commitList);
+      } catch {
+        setCommits([]);
+      }
+    },
+    [],
+  );
 
   /** Called when user clicks "+" on a diff line to open the compose widget. */
   const handleAddComment = useCallback(
@@ -633,13 +637,20 @@ export function ReviewPage({
 
   useEffect(() => {
     void refreshRepoContext();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: refreshRepoContext captures props that must not trigger re-fetch
   }, []);
 
   useEffect(() => {
     if (!selectedWorktree || !sourceBranch || !targetBranch) return;
     void refreshDiffBundle(selectedWorktree, sourceBranch, targetBranch);
     void refreshCommits(selectedWorktree, sourceBranch, targetBranch);
-  }, [selectedWorktree, sourceBranch, targetBranch]);
+  }, [
+    selectedWorktree,
+    sourceBranch,
+    targetBranch,
+    refreshDiffBundle,
+    refreshCommits,
+  ]);
 
   useEffect(() => {
     // Only auto-select when the view (branch/commit combo) actually changes, not on every
@@ -717,11 +728,11 @@ export function ReviewPage({
     [visibleFiles],
   );
 
-  const handleApprove = () => {
+  const handleApprove = useCallback(() => {
     setReviewVerdict(REVIEW_VERDICT.Approved);
-  };
+  }, []);
 
-  const triggerResolve = () => {
+  const triggerResolve = useCallback(() => {
     if (featureId) {
       featureApi.triggerResolve(featureId, "code").catch((err) => {
         setStatus(
@@ -729,12 +740,12 @@ export function ReviewPage({
         );
       });
     }
-  };
+  }, [featureId]);
 
-  const handleRequestChanges = () => {
+  const handleRequestChanges = useCallback(() => {
     setReviewVerdict(REVIEW_VERDICT.ChangesRequested);
     triggerResolve();
-  };
+  }, [triggerResolve]);
 
   // Inject verdict into FeatureNavBar when embedded
   const { setHeaderActions } = useFeatureHeader();
@@ -755,7 +766,16 @@ export function ReviewPage({
         />
       </div>,
     );
-  }, [embedded, reviewVerdict, pendingCount, setHeaderActions]);
+  }, [
+    embedded,
+    reviewVerdict,
+    pendingCount,
+    setHeaderActions,
+    featureId,
+    handleApprove,
+    handleRequestChanges,
+    triggerResolve,
+  ]);
 
   // Clean up header actions on unmount
   useEffect(() => {
@@ -783,27 +803,27 @@ export function ReviewPage({
 
   return (
     <div
-      className={`flex flex-col bg-[var(--canvas)] text-[var(--ink)] ${embedded ? "h-full" : "h-screen"}`}
+      className={`flex flex-col bg-[var(--bg-base)] text-[var(--text-primary)] ${embedded ? "h-full" : "h-screen"}`}
     >
       {/* Top toolbar */}
-      <header className="flex shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--canvas-raised)] px-4 py-2.5">
+      <header className="flex shrink-0 items-center gap-3 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-1.5">
         {!embedded && (
-          <span className="mr-1 text-sm font-semibold text-[var(--ink)]">
+          <span className="mr-1 text-sm font-semibold text-[var(--text-primary)]">
             {APP_NAME}
           </span>
         )}
 
         {embedded ? (
           <>
-            <span className="rounded-md border border-[var(--border)] bg-[var(--canvas)] px-2 py-1 text-xs text-[var(--ink)]">
+            <span className="rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-2 py-1 text-xs text-[var(--text-primary)]">
               {sourceBranch || "..."}
             </span>
-            <span className="text-[var(--ink-ghost)]">&rarr;</span>
+            <span className="text-[var(--text-muted)]">&rarr;</span>
           </>
         ) : (
           <>
-            <div className="flex flex-col rounded-md border border-[var(--border)] bg-[var(--canvas)] px-2 py-1">
-              <span className="text-[10px] text-[var(--ink-faint)]">
+            <div className="flex max-w-[160px] flex-col rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-2 py-1">
+              <span className="text-[10px] text-[var(--text-tertiary)]">
                 compare
               </span>
               <SearchSelect
@@ -813,12 +833,12 @@ export function ReviewPage({
                 placeholder="Filter branches…"
               />
             </div>
-            <span className="text-[var(--ink-ghost)]">&rarr;</span>
+            <span className="text-[var(--text-muted)]">&rarr;</span>
           </>
         )}
 
-        <div className="flex flex-col rounded-md border border-[var(--border)] bg-[var(--canvas)] px-2 py-1">
-          <span className="text-[10px] text-[var(--ink-faint)]">base</span>
+        <div className="flex max-w-[140px] flex-col rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-2 py-1">
+          <span className="text-[10px] text-[var(--text-tertiary)]">base</span>
           <SearchSelect
             value={targetBranch}
             options={repoContext?.branches ?? []}
@@ -827,8 +847,10 @@ export function ReviewPage({
           />
         </div>
 
-        <div className="flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--canvas)] px-2 py-1">
-          <span className="text-[10px] text-[var(--ink-faint)]">commit</span>
+        <div className="flex max-w-[180px] items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--bg-base)] px-2 py-1">
+          <span className="text-[10px] text-[var(--text-tertiary)]">
+            commit
+          </span>
           <SearchSelect
             value={
               selectedCommit
@@ -858,7 +880,7 @@ export function ReviewPage({
               const idx = commits.findIndex((c) => c.hash === selectedCommit);
               void applyCommitSelection(idx <= 0 ? "" : commits[idx - 1].hash);
             }}
-            className="text-sm text-[var(--ink-muted)] hover:text-[var(--ink)]"
+            className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             title="Previous commit [ key"
             aria-label="Previous commit [ key"
           >
@@ -876,7 +898,7 @@ export function ReviewPage({
               if (idx < commits.length - 1)
                 void applyCommitSelection(commits[idx + 1].hash);
             }}
-            className="text-sm text-[var(--ink-muted)] hover:text-[var(--ink)]"
+            className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             title="Next commit ] key"
             aria-label="Next commit ] key"
           >
@@ -885,7 +907,7 @@ export function ReviewPage({
         </div>
 
         {/* Diff stats */}
-        <div className="flex items-center gap-2 text-[11px] text-[var(--ink-faint)]">
+        <div className="flex items-center gap-2 text-[11px] text-[var(--text-tertiary)]">
           <span>{visibleFiles.length} files</span>
           <span className="text-[var(--accent-emerald)]">
             +{diffStats.additions}
@@ -896,15 +918,15 @@ export function ReviewPage({
         </div>
 
         {/* Thread progress ring */}
-        <div className="flex items-center gap-1.5 text-[11px] text-[var(--ink-faint)]">
-          <span className="text-[var(--ink-ghost)]">|</span>
+        <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-tertiary)]">
+          <span className="text-[var(--text-muted)]">|</span>
           <ThreadProgressRing
             resolved={resolvedCount}
             open={pendingCount}
             size={28}
             thickness={3}
           />
-          <span>
+          <span className="rounded-full border border-zinc-700 bg-zinc-800 px-2 py-0.5 font-mono text-xs text-zinc-400">
             {pendingCount > 0
               ? `${pendingCount} open`
               : resolvedCount > 0
@@ -912,27 +934,6 @@ export function ReviewPage({
                 : "0 threads"}
           </span>
         </div>
-
-        {/* Copy branch name */}
-        <button
-          type="button"
-          className="flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[11px] text-[var(--ink-faint)] transition-colors hover:bg-[var(--canvas)] hover:text-[var(--ink-muted)]"
-          title="Copy branch name"
-          onClick={() => {
-            void navigator.clipboard.writeText(sourceBranch);
-          }}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 16 16"
-            fill="currentColor"
-            className="h-3 w-3 shrink-0"
-          >
-            <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z" />
-            <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z" />
-          </svg>
-          {sourceBranch}
-        </button>
 
         {!embedded && (
           <div className="ml-auto flex items-center gap-2">
@@ -983,6 +984,33 @@ export function ReviewPage({
           changeCountByFile={changeCountByFile}
           keyboardSelectedIndex={selectedFileIndex}
           sidebarRef={sidebarRef}
+          width={sidebarWidth}
+        />
+
+        {/* Drag handle */}
+        <div
+          className="group relative z-10 w-1 shrink-0 cursor-col-resize bg-[var(--border-default)] hover:bg-[var(--accent-blue)] active:bg-[var(--accent-blue)]"
+          style={{ transition: "background 0.15s" }}
+          onMouseDown={(e) => {
+            isDragging.current = true;
+            dragStartX.current = e.clientX;
+            dragStartWidth.current = sidebarWidth;
+            e.preventDefault();
+            const onMove = (ev: MouseEvent) => {
+              if (!isDragging.current) return;
+              const delta = ev.clientX - dragStartX.current;
+              setSidebarWidth(
+                Math.max(140, Math.min(480, dragStartWidth.current + delta)),
+              );
+            };
+            const onUp = () => {
+              isDragging.current = false;
+              document.removeEventListener("mousemove", onMove);
+              document.removeEventListener("mouseup", onUp);
+            };
+            document.addEventListener("mousemove", onMove);
+            document.addEventListener("mouseup", onUp);
+          }}
         />
 
         {/* Diff panel */}
@@ -992,25 +1020,47 @@ export function ReviewPage({
           className="flex min-w-0 flex-1 flex-col outline-none"
         >
           {!selectedFile ? (
-            <div className="flex flex-1 items-center justify-center text-sm text-[var(--ink-ghost)]">
+            <div className="flex flex-1 items-center justify-center text-sm text-[var(--text-muted)]">
               Select a file to review
             </div>
           ) : (
             <>
               {/* File header */}
-              <div className="flex shrink-0 items-center gap-2 border-b border-[var(--border)] bg-[var(--canvas-raised)] px-4 py-2">
+              <div className="flex shrink-0 items-center gap-2 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-1.5">
                 <FileIcon status={selectedFile.status} />
-                <span className="font-[family-name:JetBrains_Mono,monospace] text-sm text-[var(--ink)]">
+                <span className="min-w-0 flex-1 truncate font-mono text-sm text-blue-400">
                   {selectedFile.path}
                 </span>
-                <span className="ml-auto text-xs text-[var(--ink-ghost)]">
+                <button
+                  type="button"
+                  title="Copy file path"
+                  className="shrink-0 rounded p-0.5 text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
+                  onClick={() =>
+                    void navigator.clipboard.writeText(selectedFile.path)
+                  }
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                </button>
+                <span className="shrink-0 text-xs text-[var(--text-muted)]">
                   {changeCountByFile.get(selectedFile.path) ?? 0} changes
                 </span>
                 <button
                   className={`ml-2 rounded px-2 py-0.5 text-xs font-medium transition-colors ${
                     diffMode === "unified"
-                      ? "bg-[var(--canvas-elevated)] text-[var(--ink)]"
-                      : "text-[var(--ink-faint)] hover:text-[var(--ink)]"
+                      ? "bg-[var(--bg-elevated)] text-[var(--text-primary)]"
+                      : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
                   }`}
                   onClick={() => setDiffMode("unified")}
                 >
@@ -1019,8 +1069,8 @@ export function ReviewPage({
                 <button
                   className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
                     diffMode === "split"
-                      ? "bg-[var(--canvas-elevated)] text-[var(--ink)]"
-                      : "text-[var(--ink-faint)] hover:text-[var(--ink)]"
+                      ? "bg-[var(--bg-elevated)] text-[var(--text-primary)]"
+                      : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
                   }`}
                   onClick={() => setDiffMode("split")}
                 >
