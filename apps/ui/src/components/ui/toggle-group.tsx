@@ -15,11 +15,10 @@ const ToggleGroupContext = React.createContext<ToggleGroupContextValue>({
   spacing: 0,
 });
 
-interface ToggleGroupProps
-  extends React.ComponentProps<typeof ToggleGroupPrimitive.Root>,
-    VariantProps<typeof toggleVariants> {
-  spacing?: number;
-}
+type ToggleGroupProps = React.ComponentProps<typeof ToggleGroupPrimitive.Root> &
+  VariantProps<typeof toggleVariants> & {
+    spacing?: number;
+  };
 
 function ToggleGroup({
   className,

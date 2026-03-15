@@ -81,7 +81,7 @@ export function OverviewTab({
       <ToggleGroup
         type="single"
         value={overviewFilter}
-        onValueChange={(val) => {
+        onValueChange={(val: string) => {
           if (val) onFilterChange(val as typeof overviewFilter);
         }}
         className="flex flex-wrap gap-1"

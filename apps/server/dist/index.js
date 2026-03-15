@@ -8169,10 +8169,16 @@ function parseTasksMarkdown(markdown) {
   let lastTask = null;
   for (const line of lines) {
     if (/^##\s+Status Legend/.test(line)) break;
-    const phaseMatch = line.match(/^##\s+(.+)$/);
+    const phaseMatch = line.match(/^##\s+(?:\[([^\]]*)\]\s+)?(.+)$/);
     if (phaseMatch) {
       if (currentPhase) rawPhases.push(currentPhase);
-      currentPhase = { name: phaseMatch[1].trim(), tasks: [] };
+      const phaseMarker = phaseMatch[1] ?? " ";
+      const phaseStatus = phaseMarker === "x" || phaseMarker === "~" ? "done" : phaseMarker === "\u2192" ? "in_progress" : "pending";
+      currentPhase = {
+        name: phaseMatch[2].trim(),
+        status: phaseStatus,
+        tasks: []
+      };
       lastTask = null;
       continue;
     }
