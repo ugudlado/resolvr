@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+## 1.2.0 — 2026-03-15
+
+### UI
+
+- Migrate to shadcn/ui component library (Button, Badge, Skeleton, Dialog, Command, Popover, Collapsible, ToggleGroup, Textarea, Alert)
+- Upgrade Tailwind CSS v3 to v4 with CSS-first config and oklch theming
+- Add keyboard shortcut help dialog with focus trapping (shadcn Dialog)
+- Rewrite command palette with cmdk for improved fuzzy search and accessibility
+- Replace FeatureNavBar dropdown with shadcn Popover
+
+* Move copy-path icon next to file name in diff header
+* Replace /Users/home paths with ~ in worktree path display
+* Pin dark mode via class="dark" for consistent shadcn component styling
+  ! Fix CommandItem name collision crashing command palette
+  ! Fix tasks not rendering due to CollapsibleContent height animation
+  ! Fix ComposeBox textarea text barely visible on dark theme
+  ! Fix DialogHeader outside portal breaking ARIA structure
+  ! Fix ToggleGroup type errors with Radix union props
+
+### Server
+
+- Support heading-format tasks.md with phase/task status markers ([x]/[ ]/[→])
+
+* Replace hardcoded home paths with $HOME in release-prep command
+
+### Docs
+
+- Update README with dashboard, tasks, and review screenshots
+- Add keyboard shortcuts and task tracking sections to README
+
 ## [1.1.0] - 2026-03-14
 
 ### UI/Dashboard
