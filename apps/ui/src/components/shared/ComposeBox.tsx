@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 export interface ComposeBoxProps {
   onSubmit: (text: string) => void;
@@ -80,7 +81,7 @@ export function ComposeBox({
           </p>
         </div>
       )}
-      <textarea
+      <Textarea
         ref={textareaRef}
         rows={rowCount}
         value={text}
