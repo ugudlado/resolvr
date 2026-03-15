@@ -1,6 +1,6 @@
 # Tasks: shadcn/ui Migration + Tailwind v4 Upgrade
 
-## Phase 1: Foundation
+## [x] Phase 1: Foundation
 
 ### [x] T-1: Set up path aliases and shadcn utility
 
@@ -81,7 +81,7 @@
 
 ---
 
-## Phase 2: Shared Components
+## [x] Phase 2: Shared Components
 
 ### [x] T-5: Add shadcn Button component and migrate ComposeBox
 
@@ -155,7 +155,7 @@
 
 ---
 
-## Phase 3: Layout and Navigation
+## [x] Phase 3: Layout and Navigation
 
 ### [x] T-9: Add shadcn Command and migrate CommandPalette
 
@@ -221,7 +221,7 @@
 
 ---
 
-## Phase 4: Dashboard and Error Handling
+## [x] Phase 4: Dashboard and Error Handling
 
 ### [x] T-12: Migrate ErrorBoundary fallback to use shadcn Alert + Button
 
@@ -241,7 +241,7 @@
 
 ---
 
-## Phase 5: Review and Tasks
+## [x] Phase 5: Review and Tasks
 
 ### [x] T-13: Migrate ReviewVerdict buttons to shadcn Button
 
@@ -303,7 +303,7 @@
 
 ---
 
-## Phase 6: Cleanup
+## [x] Phase 6: Cleanup
 
 ### [x] T-16: Add shadcn Textarea and complete ComposeBox migration
 
@@ -404,7 +404,7 @@ T-1 (aliases) ───┐
                   │                 T-18 (Import consistency)
 ```
 
-## Phase Gate Criteria
+## [x] Phase Gate Criteria
 
 | Phase                 | Tasks              | Gate                                                                                                                             |
 | --------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |

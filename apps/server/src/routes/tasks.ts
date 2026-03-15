@@ -16,6 +16,7 @@ interface ParsedTask {
 
 interface ParsedPhase {
   name: string;
+  status: string;
   tasks: ParsedTask[];
   progress: number;
 }
@@ -28,18 +29,37 @@ function parseTasksMarkdown(markdown: string): {
   phases: ParsedPhase[];
 } {
   const lines = markdown.split("\n");
-  const rawPhases: Array<{ name: string; tasks: ParsedTask[] }> = [];
-  let currentPhase: { name: string; tasks: ParsedTask[] } | null = null;
+  const rawPhases: Array<{
+    name: string;
+    status: string;
+    tasks: ParsedTask[];
+  }> = [];
+  let currentPhase: {
+    name: string;
+    status: string;
+    tasks: ParsedTask[];
+  } | null = null;
   let lastTask: ParsedTask | null = null;
 
   for (const line of lines) {
     if (/^##\s+Status Legend/.test(line)) break;
 
-    // Phase heading: "## Phase 1: Foundation"
-    const phaseMatch = line.match(/^##\s+(.+)$/);
+    // Phase heading: "## Phase 1: Foundation" or "## [x] Phase 1: Foundation"
+    const phaseMatch = line.match(/^##\s+(?:\[([^\]]*)\]\s+)?(.+)$/);
     if (phaseMatch) {
       if (currentPhase) rawPhases.push(currentPhase);
-      currentPhase = { name: phaseMatch[1].trim(), tasks: [] };
+      const phaseMarker = phaseMatch[1] ?? " ";
+      const phaseStatus =
+        phaseMarker === "x" || phaseMarker === "~"
+          ? "done"
+          : phaseMarker === "→"
+            ? "in_progress"
+            : "pending";
+      currentPhase = {
+        name: phaseMatch[2].trim(),
+        status: phaseStatus,
+        tasks: [],
+      };
       lastTask = null;
       continue;
     }
