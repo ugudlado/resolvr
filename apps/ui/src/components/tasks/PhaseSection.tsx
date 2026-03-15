@@ -1,10 +1,6 @@
 import { useState } from "react";
 import type { Phase } from "../../types/sessions";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { TaskRow } from "./TaskRow";
 
 export interface PhaseSectionProps {
@@ -99,13 +95,13 @@ export function PhaseSection({ phase }: PhaseSectionProps) {
       </CollapsibleTrigger>
 
       {/* Body — task list */}
-      <CollapsibleContent className="overflow-hidden transition-all">
+      {!collapsed && (
         <div style={{ padding: "0 18px 14px" }}>
           {phase.tasks.map((task) => (
             <TaskRow key={task.id} task={task} allTasks={phase.tasks} />
           ))}
         </div>
-      </CollapsibleContent>
+      )}
     </Collapsible>
   );
 }

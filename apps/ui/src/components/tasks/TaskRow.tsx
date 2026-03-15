@@ -1,11 +1,7 @@
 import { useState } from "react";
 import type { Task, TaskStatus } from "../../types/sessions";
 import { fileName } from "../../utils/diffUtils";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { DepChain } from "../shared/DepChain";
 
 export interface TaskRowProps {
@@ -339,22 +335,20 @@ export function TaskRow({ task, allTasks }: TaskRowProps) {
       </CollapsibleTrigger>
 
       {/* Expanded details panel */}
-      {hasDetails && (
-        <CollapsibleContent className="overflow-hidden transition-all">
-          <div
-            style={{
-              backgroundColor: "var(--bg-base)",
-              border: "1px solid var(--border-muted)",
-              borderRadius: 6,
-              padding: "10px 14px",
-              marginBottom: 8,
-            }}
-          >
-            {task.why && <DetailRow label="Why" value={task.why} />}
-            {task.files && <DetailRow label="Files" value={task.files} />}
-            {task.doneWhen && <DetailRow label="Done" value={task.doneWhen} />}
-          </div>
-        </CollapsibleContent>
+      {hasDetails && expanded && (
+        <div
+          style={{
+            backgroundColor: "var(--bg-base)",
+            border: "1px solid var(--border-muted)",
+            borderRadius: 6,
+            padding: "10px 14px",
+            marginBottom: 8,
+          }}
+        >
+          {task.why && <DetailRow label="Why" value={task.why} />}
+          {task.files && <DetailRow label="Files" value={task.files} />}
+          {task.doneWhen && <DetailRow label="Done" value={task.doneWhen} />}
+        </div>
       )}
     </Collapsible>
   );
