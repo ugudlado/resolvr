@@ -10,7 +10,7 @@ import {
   CommandEmpty,
   CommandGroup,
   CommandInput,
-  CommandItem,
+  CommandItem as CommandItemPrimitive,
   CommandList,
   CommandShortcut,
 } from "@/components/ui/command";
@@ -81,7 +81,7 @@ export function CommandPalette({ open, onClose, items }: CommandPaletteProps) {
                   className="text-[var(--text-muted)] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
                 >
                   {groupItems.map((item) => (
-                    <CommandItem
+                    <CommandItemPrimitive
                       key={item.id}
                       value={item.label}
                       onSelect={() => {
@@ -103,7 +103,7 @@ export function CommandPalette({ open, onClose, items }: CommandPaletteProps) {
                           </kbd>
                         </CommandShortcut>
                       )}
-                    </CommandItem>
+                    </CommandItemPrimitive>
                   ))}
                 </CommandGroup>
               );
