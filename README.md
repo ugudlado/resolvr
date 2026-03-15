@@ -76,11 +76,10 @@ Full keyboard navigation for power users — press `?` for the shortcut help ove
 
 ## Commands
 
-| Command                                | Description                                                 |
-| -------------------------------------- | ----------------------------------------------------------- |
-| `/local-review:open [feature]`         | Open the review UI, optionally navigate to a feature        |
-| `/local-review:resolve [session]`      | Resolve all open threads in the latest or specified session |
-| `/local-review:release-prep [version]` | Prepare a release with changelog, version bump, and git tag |
+| Command                           | Description                                                 |
+| --------------------------------- | ----------------------------------------------------------- |
+| `/local-review:open [feature]`    | Open the review UI, optionally navigate to a feature        |
+| `/local-review:resolve [session]` | Resolve all open threads in the latest or specified session |
 
 ## Workflow
 
