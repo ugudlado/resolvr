@@ -1028,20 +1028,27 @@ export function ReviewPage({
               {/* File header */}
               <div className="flex shrink-0 items-center gap-2 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-1.5">
                 <FileIcon status={selectedFile.status} />
-                <span className="min-w-0 flex-1 truncate font-mono text-sm text-blue-400">
+                <span className="min-w-0 truncate font-mono text-sm text-blue-400">
                   {selectedFile.path}
                 </span>
                 <button
                   type="button"
                   title="Copy file path"
-                  className="shrink-0 rounded p-0.5 text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
+                  className="shrink-0 rounded p-1 transition-all hover:bg-[var(--bg-elevated)]"
+                  style={{ color: "var(--text-secondary)", opacity: 0.7 }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.opacity = "1";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.opacity = "0.7";
+                  }}
                   onClick={() =>
                     void navigator.clipboard.writeText(selectedFile.path)
                   }
                 >
                   <svg
-                    width="13"
-                    height="13"
+                    width="14"
+                    height="14"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -1053,6 +1060,7 @@ export function ReviewPage({
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                   </svg>
                 </button>
+                <div className="flex-1" />
                 <span className="shrink-0 text-xs text-[var(--text-muted)]">
                   {changeCountByFile.get(selectedFile.path) ?? 0} changes
                 </span>
