@@ -5,6 +5,11 @@ import { useFeatures } from "../hooks/useFeaturesContext";
 import { useFeatureHeader } from "../hooks/useFeatureHeader";
 import { formatFeatureLabel } from "../utils/formatFeatureLabel";
 import { FLAGS } from "../config/app";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface FeatureNavBarProps {
   featureId: string;
@@ -39,7 +44,6 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const { features, refresh: refreshFeatures } = useFeatures();
   const [searchQuery, setSearchQuery] = useState("");
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [copied, setCopied] = useState(false);
@@ -89,21 +93,6 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
     }
   }, [dropdownOpen]);
 
-  // Close dropdown on outside click
-  useEffect(() => {
-    if (!dropdownOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node)
-      ) {
-        setDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [dropdownOpen]);
-
   const handleSwitch = useCallback(
     (id: string) => {
       setDropdownOpen(false);
@@ -150,100 +139,99 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
         <span className="text-ink-ghost select-none text-xs">/</span>
 
         {/* Feature switcher dropdown */}
-        <div
-          ref={dropdownRef}
-          className="relative min-w-0"
-          style={{ maxWidth: "420px", flex: "0 1 420px" }}
-        >
-          <button
-            type="button"
-            onClick={() => setDropdownOpen((o) => !o)}
-            className="border-border hover:bg-canvas-elevated hover:border-border-subtle flex w-full items-center gap-2 rounded-md border px-3 py-1.5 transition-colors"
-            title={featureId}
-          >
-            <span className="text-ink flex min-w-0 flex-1 items-baseline gap-1.5 font-mono text-sm font-medium">
-              {(() => {
-                const label = formatFeatureLabel(featureId);
-                const match = label.match(/^(\d{4}-\d{2}-\d{2})\s+—\s+(.+)$/);
-                if (!match) return <span className="truncate">{label}</span>;
-                return (
-                  <>
-                    <span className="shrink-0 text-xs text-zinc-500">
-                      {match[1]} —
-                    </span>
-                    <span className="truncate text-sm font-medium text-zinc-200">
-                      {match[2]}
-                    </span>
-                  </>
-                );
-              })()}
-            </span>
-
-            {/* Chevron */}
-            <svg
-              className={`text-ink-faint h-3.5 w-3.5 shrink-0 transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
-              viewBox="0 0 12 12"
-              fill="currentColor"
+        <Popover open={dropdownOpen} onOpenChange={setDropdownOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="border-border hover:bg-canvas-elevated hover:border-border-subtle flex items-center gap-2 rounded-md border px-3 py-1.5 transition-colors"
+              style={{ maxWidth: "420px", flex: "0 1 420px" }}
+              title={featureId}
             >
-              <path d="M2.22 4.22a.75.75 0 0 1 1.06 0L6 6.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L2.22 5.28a.75.75 0 0 1 0-1.06z" />
-            </svg>
-          </button>
+              <span className="text-ink flex min-w-0 flex-1 items-baseline gap-1.5 font-mono text-sm font-medium">
+                {(() => {
+                  const label = formatFeatureLabel(featureId);
+                  const match = label.match(/^(\d{4}-\d{2}-\d{2})\s+—\s+(.+)$/);
+                  if (!match) return <span className="truncate">{label}</span>;
+                  return (
+                    <>
+                      <span className="shrink-0 text-xs text-zinc-500">
+                        {match[1]} —
+                      </span>
+                      <span className="truncate text-sm font-medium text-zinc-200">
+                        {match[2]}
+                      </span>
+                    </>
+                  );
+                })()}
+              </span>
 
-          {dropdownOpen && (
-            <div className="border-border bg-canvas-raised absolute left-0 top-full z-50 mt-1 w-96 rounded-lg border shadow-lg shadow-black/40">
-              {/* Search input */}
-              <div className="border-border border-b p-2">
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Filter features..."
-                  className="bg-canvas-elevated text-ink placeholder-ink-faint ring-border focus:ring-accent-blue w-full rounded px-2.5 py-1.5 text-xs outline-none ring-1"
-                />
-              </div>
+              {/* Chevron */}
+              <svg
+                className={`text-ink-faint h-3.5 w-3.5 shrink-0 transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
+                viewBox="0 0 12 12"
+                fill="currentColor"
+              >
+                <path d="M2.22 4.22a.75.75 0 0 1 1.06 0L6 6.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L2.22 5.28a.75.75 0 0 1 0-1.06z" />
+              </svg>
+            </button>
+          </PopoverTrigger>
 
-              {/* Feature list */}
-              <div className="max-h-64 overflow-y-auto py-1">
-                {filtered.length === 0 ? (
-                  <div className="text-ink-faint px-3 py-4 text-center text-xs">
-                    No features found
-                  </div>
-                ) : (
-                  filtered.map((f) => {
-                    const fConfig = getStatusConfig(f.status);
-                    return (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => handleSwitch(f.id)}
-                        className={`hover:bg-canvas-elevated flex w-full flex-col gap-0.5 px-3 py-2 text-left text-xs transition-colors ${
-                          f.id === featureId
-                            ? "bg-accent-blue/10 text-accent-blue"
-                            : "text-ink-muted"
-                        }`}
-                      >
-                        <span className="flex items-center gap-2">
-                          <span className="text-ink truncate font-mono">
-                            {formatFeatureLabel(f.id)}
-                          </span>
-                          <span
-                            className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${fConfig.color} ${fConfig.bgColor}`}
-                          >
-                            {fConfig.label}
-                          </span>
-                        </span>
-                        <span className="text-ink-faint truncate font-mono text-[10px]">
-                          {f.worktreePath}
-                        </span>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
+          <PopoverContent
+            align="start"
+            className="border-border bg-canvas-raised w-96 rounded-lg border p-0 shadow-lg shadow-black/40"
+          >
+            {/* Search input */}
+            <div className="border-border border-b p-2">
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Filter features..."
+                className="bg-canvas-elevated text-ink placeholder-ink-faint ring-border focus:ring-accent-blue w-full rounded px-2.5 py-1.5 text-xs outline-none ring-1"
+              />
             </div>
-          )}
-        </div>
+
+            {/* Feature list */}
+            <div className="max-h-64 overflow-y-auto py-1">
+              {filtered.length === 0 ? (
+                <div className="text-ink-faint px-3 py-4 text-center text-xs">
+                  No features found
+                </div>
+              ) : (
+                filtered.map((f) => {
+                  const fConfig = getStatusConfig(f.status);
+                  return (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => handleSwitch(f.id)}
+                      className={`hover:bg-canvas-elevated flex w-full flex-col gap-0.5 px-3 py-2 text-left text-xs transition-colors ${
+                        f.id === featureId
+                          ? "bg-accent-blue/10 text-accent-blue"
+                          : "text-ink-muted"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="text-ink truncate font-mono">
+                          {formatFeatureLabel(f.id)}
+                        </span>
+                        <span
+                          className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${fConfig.color} ${fConfig.bgColor}`}
+                        >
+                          {fConfig.label}
+                        </span>
+                      </span>
+                      <span className="text-ink-faint truncate font-mono text-[10px]">
+                        {f.worktreePath}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
 
         {/* Branch name + worktree path copy button — pushed to the right */}
         {currentFeature && (
