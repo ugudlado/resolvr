@@ -45,16 +45,16 @@ export function CommandPalette({ open, onClose, items }: CommandPaletteProps) {
         if (!isOpen) onClose();
       }}
     >
-      <DialogHeader className="sr-only">
-        <DialogTitle>Command Palette</DialogTitle>
-        <DialogDescription>
-          Search files, threads, and actions
-        </DialogDescription>
-      </DialogHeader>
       <DialogContent
         className="overflow-hidden border-[var(--border-default)] bg-[var(--bg-surface)] p-0 text-[var(--text-primary)]"
         showCloseButton={false}
       >
+        <DialogHeader className="sr-only">
+          <DialogTitle>Command Palette</DialogTitle>
+          <DialogDescription>
+            Search files, threads, and actions
+          </DialogDescription>
+        </DialogHeader>
         <Command
           filter={(value, search) => {
             if (value.toLowerCase().includes(search.toLowerCase())) return 1;

@@ -3,6 +3,9 @@
 
 @import "tailwindcss";
 
+/* Dark mode: class-based (always-dark app, pinned via class="dark" on <html>) */
+@custom-variant dark (&:is(.dark *));
+
 /* ---------------------------------------------------------------------------
  * Theme — register custom colors and fonts as Tailwind utilities (v4)
  * --------------------------------------------------------------------------- */
