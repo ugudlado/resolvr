@@ -261,7 +261,9 @@ export function TaskRow({ task, allTasks }: TaskRowProps) {
       className="hover:bg-[rgba(96,165,250,0.03)]"
     >
       <CollapsibleTrigger asChild>
-        <div
+        <button
+          type="button"
+          className="w-full text-left"
           style={{
             display: "flex",
             gap: 10,
@@ -333,7 +335,7 @@ export function TaskRow({ task, allTasks }: TaskRowProps) {
               </div>
             )}
           </div>
-        </div>
+        </button>
       </CollapsibleTrigger>
 
       {/* Expanded details panel */}

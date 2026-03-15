@@ -65,6 +65,7 @@ export function CommandPalette({ open, onClose, items }: CommandPaletteProps) {
           <CommandInput
             placeholder="Search files, threads, actions..."
             className="text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+            aria-label="Command palette search"
           />
           <CommandList className="max-h-80">
             <CommandEmpty className="text-[var(--text-muted)]">

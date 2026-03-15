@@ -42,8 +42,9 @@ export function PhaseSection({ phase }: PhaseSectionProps) {
     >
       {/* Header — clickable to collapse */}
       <CollapsibleTrigger asChild>
-        <div
-          className="rounded-sm border-l-4 border-emerald-500 bg-zinc-800/40 px-3 py-2 hover:bg-[var(--bg-elevated)]"
+        <button
+          type="button"
+          className="w-full rounded-sm border-l-4 border-emerald-500 bg-zinc-800/40 px-3 py-2 text-left hover:bg-[var(--bg-elevated)]"
           style={{
             display: "flex",
             alignItems: "center",
@@ -94,7 +95,7 @@ export function PhaseSection({ phase }: PhaseSectionProps) {
           >
             {doneCount}/{totalCount}
           </span>
-        </div>
+        </button>
       </CollapsibleTrigger>
 
       {/* Body — task list */}

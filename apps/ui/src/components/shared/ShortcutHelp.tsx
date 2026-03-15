@@ -1,6 +1,7 @@
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -45,6 +46,9 @@ export function ShortcutHelp({ open, onClose, shortcuts }: ShortcutHelpProps) {
           <DialogTitle className="text-xs font-semibold uppercase tracking-widest text-[var(--text-tertiary)]">
             Keyboard Shortcuts
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            List of keyboard shortcuts available on this page
+          </DialogDescription>
         </DialogHeader>
 
         {/* Shortcut rows */}
