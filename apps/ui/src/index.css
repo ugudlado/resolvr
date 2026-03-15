@@ -1,98 +1,166 @@
 @import "@fontsource/geist-sans";
 @import "@fontsource/geist-mono";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+ * Theme — register custom colors and fonts as Tailwind utilities (v4)
+ * --------------------------------------------------------------------------- */
+
+@theme inline {
+  /* Backgrounds (from CSS vars) */
+  --color-base: var(--bg-base);
+  --color-surface: var(--bg-surface);
+  --color-elevated: var(--bg-elevated);
+  --color-overlay: var(--bg-overlay);
+
+  /* Canvas palette (hardcoded) */
+  --color-canvas: #1a1a1f;
+  --color-canvas-raised: #222228;
+  --color-canvas-elevated: #2a2a31;
+  --color-canvas-overlay: #32323a;
+
+  /* Ink palette */
+  --color-ink: #e8e6e3;
+  --color-ink-muted: #9a9898;
+  --color-ink-faint: #5e5d5c;
+  --color-ink-ghost: #3d3d42;
+
+  /* Accent colors */
+  --color-accent-emerald: #34d399;
+  --color-accent-emerald-dim: #065f46;
+  --color-accent-amber: #fbbf24;
+  --color-accent-amber-dim: #78350f;
+  --color-accent-blue: #60a5fa;
+  --color-accent-blue-dim: #1e3a5f;
+  --color-accent-rose: #fb7185;
+  --color-accent-rose-dim: #4c1d2e;
+
+  /* Border */
+  --color-border: #2e2e35;
+  --color-border-subtle: #262629;
+
+  /* Fonts */
+  --font-sans: "DM Sans", "system-ui", "sans-serif";
+  --font-serif: "Newsreader", "Georgia", "serif";
+  --font-mono: "JetBrains Mono", "monospace";
+
+  /* shadcn semantic tokens (oklch) */
+  --color-background: oklch(0.16 0.02 250);
+  --color-foreground: oklch(0.94 0.01 250);
+  --color-card: oklch(0.2 0.02 250);
+  --color-card-foreground: oklch(0.94 0.01 250);
+  --color-popover: oklch(0.2 0.02 250);
+  --color-popover-foreground: oklch(0.94 0.01 250);
+  --color-primary: oklch(0.72 0.14 245);
+  --color-primary-foreground: oklch(1 0 0);
+  --color-secondary: oklch(0.25 0.02 250);
+  --color-secondary-foreground: oklch(0.94 0.01 250);
+  --color-muted: oklch(0.25 0.02 250);
+  --color-muted-foreground: oklch(0.65 0.02 245);
+  --color-accent: oklch(0.25 0.02 250);
+  --color-accent-foreground: oklch(0.94 0.01 250);
+  --color-destructive: oklch(0.63 0.22 25);
+  --color-destructive-foreground: oklch(1 0 0);
+  --color-input: oklch(0.3 0.01 250);
+  --color-ring: oklch(0.62 0.17 250);
+  --color-sidebar: oklch(0.2 0.02 250);
+  --color-sidebar-foreground: oklch(0.94 0.01 250);
+  --color-sidebar-accent: oklch(0.25 0.02 250);
+  --color-sidebar-accent-foreground: oklch(0.94 0.01 250);
+  --color-sidebar-border: oklch(0.3 0.01 250);
+  --color-sidebar-ring: oklch(0.62 0.17 250);
+  --color-sidebar-primary: oklch(0.72 0.14 245);
+  --color-sidebar-primary-foreground: oklch(1 0 0);
+  --radius: 0.5rem;
+}
 
 /* ---------------------------------------------------------------------------
  * Design Tokens — single source of truth for all visual values
  * --------------------------------------------------------------------------- */
 
-@layer base {
-  :root {
-    /* Backgrounds */
-    --bg-base: #0d1117;
-    --bg-surface: #161b22;
-    --bg-elevated: #21262d;
-    --bg-overlay: #30363d;
+:root {
+  /* Backgrounds */
+  --bg-base: #0d1117;
+  --bg-surface: #161b22;
+  --bg-elevated: #21262d;
+  --bg-overlay: #30363d;
 
-    /* Borders */
-    --border-default: #30363d;
-    --border-muted: #21262d;
+  /* Borders */
+  --border-default: #30363d;
+  --border-muted: #21262d;
 
-    /* Text */
-    --text-primary: #e6edf3;
-    --text-secondary: #8b949e;
-    --text-tertiary: #6e7681;
-    --text-muted: #484f58;
+  /* Text */
+  --text-primary: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-tertiary: #6e7681;
+  --text-muted: #484f58;
 
-    /* Accents */
-    --color-accent: #3b82f6;
-    --accent-blue: #1f6feb;
-    --accent-blue-muted: rgba(31, 111, 235, 0.2);
-    --accent-blue-text: #58a6ff;
-    --accent-blue-dim: #1e3a5f;
+  /* Accents */
+  --color-accent: #3b82f6;
+  --accent-blue: #1f6feb;
+  --accent-blue-muted: rgba(31, 111, 235, 0.2);
+  --accent-blue-text: #58a6ff;
+  --accent-blue-dim: #1e3a5f;
 
-    --accent-emerald: #34d399;
-    --accent-emerald-dim: #1a4d3a;
+  --accent-emerald: #34d399;
+  --accent-emerald-dim: #1a4d3a;
 
-    --accent-amber: #fbbf24;
-    --accent-amber-dim: #4d3a1a;
+  --accent-amber: #fbbf24;
+  --accent-amber-dim: #4d3a1a;
 
-    --accent-rose: #fb7185;
-    --accent-rose-dim: #4d1a2a;
+  --accent-rose: #fb7185;
+  --accent-rose-dim: #4d1a2a;
 
-    /* Semantic — Diff */
-    --diff-added-bg: #0d4a1a;
-    --diff-added-gutter: #0a3d15;
-    --diff-deleted-bg: #4a0d0d;
-    --diff-deleted-gutter: #3d0a0a;
-    --diff-hunk-bg: #1f2937;
-    --diff-hunk-gutter: #1a2332;
+  /* Semantic — Diff */
+  --diff-added-bg: #0d4a1a;
+  --diff-added-gutter: #0a3d15;
+  --diff-deleted-bg: #4a0d0d;
+  --diff-deleted-gutter: #3d0a0a;
+  --diff-hunk-bg: #1f2937;
+  --diff-hunk-gutter: #1a2332;
 
-    /* Semantic — Status */
-    --color-success: #3fb950;
-    --color-warning: #d29922;
-    --color-danger: #f85149;
-    --color-info: #58a6ff;
+  /* Semantic — Status */
+  --color-success: #3fb950;
+  --color-warning: #d29922;
+  --color-danger: #f85149;
+  --color-info: #58a6ff;
 
-    /* Status badges */
-    --status-open: #d29922;
-    --status-open-bg: rgba(210, 153, 34, 0.2);
-    --status-resolved: #8b5cf6;
-    --status-resolved-bg: rgba(139, 92, 246, 0.2);
-    --status-approved: #3fb950;
-    --status-approved-bg: rgba(63, 185, 80, 0.2);
+  /* Status badges */
+  --status-open: #d29922;
+  --status-open-bg: rgba(210, 153, 34, 0.2);
+  --status-resolved: #8b5cf6;
+  --status-resolved-bg: rgba(139, 92, 246, 0.2);
+  --status-approved: #3fb950;
+  --status-approved-bg: rgba(63, 185, 80, 0.2);
 
-    /* Pipeline (from spec) */
-    --pipeline-spec: #bc8cff;
-    --pipeline-implement: #58a6ff;
-    --pipeline-review: #f0883e;
-    --pipeline-done: #3fb950;
+  /* Pipeline (from spec) */
+  --pipeline-spec: #bc8cff;
+  --pipeline-implement: #58a6ff;
+  --pipeline-review: #f0883e;
+  --pipeline-done: #3fb950;
 
-    /* Shadows */
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
 
-    /* Transitions */
-    --transition-fast: 150ms ease;
-    --transition-normal: 250ms ease;
-    --transition-slow: 350ms ease;
-  }
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 350ms ease;
+}
 
-  /* Focus ring for keyboard navigation */
-  *:focus-visible {
-    outline: 2px solid var(--accent-blue);
-    outline-offset: 2px;
-    border-radius: 4px;
-  }
+/* Focus ring for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 
-  /* Remove focus ring for mouse clicks */
-  *:focus:not(:focus-visible) {
-    outline: none;
-  }
+/* Remove focus ring for mouse clicks */
+*:focus:not(:focus-visible) {
+  outline: none;
 }
 
 body {
@@ -440,64 +508,71 @@ body {
 }
 
 /* ---------------------------------------------------------------------------
- * Transition & animation utilities
+ * Keyframes for transition & animation utilities
  * --------------------------------------------------------------------------- */
 
-@layer utilities {
-  .thread-enter {
-    animation: slideDown 250ms ease-out;
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
   }
-  @keyframes slideDown {
-    from {
-      opacity: 0;
-      transform: translateY(-8px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
+}
 
-  .compose-enter {
-    animation: fadeSlideDown 200ms ease-out;
+@keyframes fadeSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
   }
-  @keyframes fadeSlideDown {
-    from {
-      opacity: 0;
-      transform: translateY(-4px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
+}
 
-  .sidebar-item {
-    transition:
-      transform var(--transition-fast),
-      background-color var(--transition-fast);
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
   }
-  .sidebar-item:hover {
-    transform: translateX(2px);
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
+}
 
-  .status-badge {
-    transition:
-      background-color var(--transition-normal),
-      color var(--transition-normal);
-  }
+/* ---------------------------------------------------------------------------
+ * Transition & animation utilities (Tailwind v4 @utility syntax)
+ * --------------------------------------------------------------------------- */
 
-  .stagger-fade-in {
-    animation: fadeIn 200ms ease-out both;
-  }
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(4px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
+@utility thread-enter {
+  animation: slideDown 250ms ease-out;
+}
+
+@utility compose-enter {
+  animation: fadeSlideDown 200ms ease-out;
+}
+
+@utility sidebar-item {
+  transition:
+    transform var(--transition-fast),
+    background-color var(--transition-fast);
+}
+
+@utility status-badge {
+  transition:
+    background-color var(--transition-normal),
+    color var(--transition-normal);
+}
+
+@utility stagger-fade-in {
+  animation: fadeIn 200ms ease-out both;
+}
+
+/* sidebar-item hover — plain CSS (pseudo-selectors not supported inside @utility) */
+.sidebar-item:hover {
+  transform: translateX(2px);
 }
