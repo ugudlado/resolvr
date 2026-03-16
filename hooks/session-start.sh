@@ -38,5 +38,13 @@ if [ "$SERVER_ALREADY_RUNNING" = false ]; then
   done
 fi
 
+# Register current workspace (non-blocking)
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
+if [ -n "$REPO_ROOT" ]; then
+  curl -s -X POST "http://localhost:$PORT/api/workspaces/register" \
+    -H "Content-Type: application/json" \
+    -d "{\"path\": \"$REPO_ROOT\"}" >/dev/null 2>&1 || true
+fi
+
 # Cold-start the resolver daemon (non-blocking — fires and forgets)
 curl -s -X POST "http://localhost:$PORT/api/resolver/cold-start" >/dev/null 2>&1 || true

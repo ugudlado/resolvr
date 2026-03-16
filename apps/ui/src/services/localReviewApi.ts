@@ -75,13 +75,18 @@ export const localReviewApi = {
   async getContext(
     worktreePath?: string,
     repo?: string | null,
+    workspace?: string | null,
   ): Promise<RepoContext> {
     const params = new URLSearchParams();
     if (worktreePath) {
       params.set("worktree", worktreePath);
     }
     const suffix = params.toString() ? `?${params.toString()}` : "";
-    const url = withRepo(`/api/context${suffix}`, repo ?? null);
+    const url = withRepo(
+      `/api/context${suffix}`,
+      repo ?? null,
+      workspace ?? null,
+    );
     const response = await fetch(url);
     return await parseJson<RepoContext>(response);
   },
@@ -91,6 +96,7 @@ export const localReviewApi = {
     sourceBranch?: string;
     targetBranch?: string;
     repo?: string | null;
+    workspace?: string | null;
   }): Promise<DiffBundle> {
     const query = new URLSearchParams();
     if (params.worktreePath) {
@@ -103,7 +109,11 @@ export const localReviewApi = {
       query.set("source", params.sourceBranch);
     }
     const suffix = query.toString() ? `?${query.toString()}` : "";
-    const url = withRepo(`/api/diff${suffix}`, params.repo ?? null);
+    const url = withRepo(
+      `/api/diff${suffix}`,
+      params.repo ?? null,
+      params.workspace ?? null,
+    );
     const response = await fetch(url);
     return await parseJson<DiffBundle>(response);
   },
@@ -113,6 +123,7 @@ export const localReviewApi = {
     sourceBranch?: string;
     targetBranch?: string;
     repo?: string | null;
+    workspace?: string | null;
   }): Promise<CommitInfo[]> {
     const query = new URLSearchParams();
     if (params.worktreePath) {
@@ -125,7 +136,11 @@ export const localReviewApi = {
       query.set("source", params.sourceBranch);
     }
     const suffix = query.toString() ? `?${query.toString()}` : "";
-    const url = withRepo(`/api/commits${suffix}`, params.repo ?? null);
+    const url = withRepo(
+      `/api/commits${suffix}`,
+      params.repo ?? null,
+      params.workspace ?? null,
+    );
     const response = await fetch(url);
     const data = await parseJson<{ commits: CommitInfo[] }>(response);
     return data.commits;
@@ -135,6 +150,7 @@ export const localReviewApi = {
     worktreePath?: string;
     commit: string;
     repo?: string | null;
+    workspace?: string | null;
   }): Promise<string> {
     const query = new URLSearchParams();
     if (params.worktreePath) {
@@ -144,6 +160,7 @@ export const localReviewApi = {
     const url = withRepo(
       `/api/commit-diff?${query.toString()}`,
       params.repo ?? null,
+      params.workspace ?? null,
     );
     const response = await fetch(url);
     const data = await parseJson<{ diff: string }>(response);
@@ -154,10 +171,15 @@ export const localReviewApi = {
     worktreePath?: string;
     filePath: string;
     repo?: string | null;
+    workspace?: string | null;
   }): Promise<string> {
     const query = new URLSearchParams({ path: params.filePath });
     if (params.worktreePath) query.set("worktree", params.worktreePath);
-    const url = withRepo(`/api/file?${query.toString()}`, params.repo ?? null);
+    const url = withRepo(
+      `/api/file?${query.toString()}`,
+      params.repo ?? null,
+      params.workspace ?? null,
+    );
     const response = await fetch(url);
     const data = await parseJson<{ content: string }>(response);
     return data.content;

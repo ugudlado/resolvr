@@ -3,25 +3,41 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { AppEnv } from "../types.js";
+import { resolveWorkspace } from "../workspaces.js";
 
 /**
- * Hono middleware that extracts and validates the `?repo` query parameter.
+ * Hono middleware that resolves the repo root for each request.
  *
- * When `?repo` is provided, the path is validated (exists, is a git repo,
- * no path traversal) and set on the Hono context as `repoRoot`.
- * When absent, `defaultRepoRoot` is used.
+ * Priority: `?repo=/path` (direct) > `?workspace=name` (registry lookup) > default.
  */
 export function repoMiddleware(defaultRepoRoot: string) {
   return async (c: Context<AppEnv>, next: Next) => {
     const repoParam = c.req.query("repo");
+    const workspaceParam = c.req.query("workspace");
 
-    if (!repoParam) {
+    // No override — use default
+    if (!repoParam && !workspaceParam) {
+      c.set("repoRoot", defaultRepoRoot);
+      return next();
+    }
+
+    // Resolve workspace name to path
+    let targetPath = repoParam;
+    if (!targetPath && workspaceParam) {
+      const resolved = resolveWorkspace(workspaceParam);
+      if (!resolved) {
+        return c.json({ error: `Unknown workspace: ${workspaceParam}` }, 400);
+      }
+      targetPath = resolved;
+    }
+
+    if (!targetPath) {
       c.set("repoRoot", defaultRepoRoot);
       return next();
     }
 
     // Reject path traversal before any resolution
-    if (repoParam.includes("..")) {
+    if (targetPath.includes("..")) {
       return c.json(
         { error: "Invalid repo path: path traversal not allowed" },
         400,
@@ -29,7 +45,7 @@ export function repoMiddleware(defaultRepoRoot: string) {
     }
 
     // Expand tilde
-    let resolved = repoParam;
+    let resolved = targetPath;
     if (resolved.startsWith("~")) {
       resolved = os.homedir() + resolved.slice(1);
     }

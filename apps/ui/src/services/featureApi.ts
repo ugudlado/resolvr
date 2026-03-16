@@ -67,16 +67,20 @@ export const featureApi = {
   // Worktrees
   getWorktrees(
     repo?: string | null,
+    workspace?: string | null,
   ): Promise<{ worktrees: WorktreeListItem[]; error?: string }> {
     return apiFetch<{ worktrees: WorktreeListItem[]; error?: string }>(
-      withRepo(`${BASE}/worktrees`, repo ?? null),
+      withRepo(`${BASE}/worktrees`, repo ?? null, workspace ?? null),
     );
   },
 
   // Features
-  getFeatures(repo?: string | null): Promise<{ features: FeatureInfo[] }> {
+  getFeatures(
+    repo?: string | null,
+    workspace?: string | null,
+  ): Promise<{ features: FeatureInfo[] }> {
     return apiFetch<{ features: FeatureInfo[] }>(
-      withRepo(`${BASE}/features`, repo ?? null),
+      withRepo(`${BASE}/features`, repo ?? null, workspace ?? null),
     );
   },
 

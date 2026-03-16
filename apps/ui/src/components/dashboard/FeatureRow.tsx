@@ -182,7 +182,7 @@ export default function FeatureRow({
   searchQuery = "",
 }: FeatureRowProps) {
   const navigate = useNavigate();
-  const { repo } = useRepoContext();
+  const { repo, workspace } = useRepoContext();
   const { done, total } = feature.taskProgress;
   const progressPct = total > 0 ? Math.round((done / total) * 100) : 0;
   const totalOpen =
@@ -193,7 +193,7 @@ export default function FeatureRow({
   const accentClass = ROW_ACCENT[feature.status] ?? "border-l-slate-600";
 
   function handleActivate() {
-    void navigate(withRepo(`/features/${feature.id}`, repo));
+    void navigate(withRepo(`/features/${feature.id}`, repo, workspace));
   }
 
   return (

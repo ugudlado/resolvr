@@ -43,19 +43,27 @@ Start the review UI so you can browse the dashboard or jump directly into a feat
 4. Build and open the URL based on the detected mode:
 
    ```bash
-   # Default — dashboard scoped to current repo
-   open "http://localhost:37003?repo=$REPO_ROOT"
+   # Derive workspace name from repo directory basename
+   WORKSPACE_NAME=$(basename "$REPO_ROOT")
 
-   # With explicit --repo
+   # Register workspace with the server (idempotent)
+   curl -s -X POST "http://localhost:37003/api/workspaces/register" \
+     -H "Content-Type: application/json" \
+     -d "{\"path\": \"$REPO_ROOT\"}" >/dev/null 2>&1 || true
+
+   # Default — dashboard scoped to current workspace
+   open "http://localhost:37003?workspace=$WORKSPACE_NAME"
+
+   # With explicit --repo (full path override)
    open "http://localhost:37003?repo=<path>"
 
    # Standalone with source branch and/or worktree pre-selected
-   open "http://localhost:37003?repo=$REPO_ROOT&source=<branch>"
-   open "http://localhost:37003?repo=$REPO_ROOT&worktree=<encoded-path>"
+   open "http://localhost:37003?workspace=$WORKSPACE_NAME&source=<branch>"
+   open "http://localhost:37003?workspace=$WORKSPACE_NAME&worktree=<encoded-path>"
 
-   # With --spec / --code / --tasks (include repo param)
-   open "http://localhost:37003/features/$FEATURE_ID/code?repo=$REPO_ROOT"
-   open "http://localhost:37003/features/$FEATURE_ID/tasks?repo=$REPO_ROOT"
+   # With --spec / --code / --tasks (include workspace param)
+   open "http://localhost:37003/features/$FEATURE_ID/code?workspace=$WORKSPACE_NAME"
+   open "http://localhost:37003/features/$FEATURE_ID/tasks?workspace=$WORKSPACE_NAME"
    ```
 
    Note: The `open` command requires disabling the sandbox since it needs macOS Launch Services.

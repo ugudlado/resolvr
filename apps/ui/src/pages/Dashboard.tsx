@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { featureApi, type FeatureInfo } from "../services/featureApi";
 import FeatureRow from "../components/dashboard/FeatureRow";
 import SkeletonRow from "../components/dashboard/SkeletonRow";
 import EmptyState from "../components/dashboard/EmptyState";
 import { APP_NAME, APP_VERSION } from "../config/app";
 import { FEATURE_STATUS, type FeatureStatus } from "../types/sessions";
-import { useRepoContext } from "../hooks/useRepoContext";
+import { useRepoContext, useWorkspaces } from "../hooks/useRepoContext";
 
 type SortKey = "activity" | "status" | "name";
 
@@ -57,7 +58,9 @@ const SELECT_STYLE = {
 };
 
 export default function Dashboard() {
-  const { repo, repoName } = useRepoContext();
+  const { repo, workspace, repoName } = useRepoContext();
+  const workspaces = useWorkspaces();
+  const [, setSearchParams] = useSearchParams();
   const [features, setFeatures] = useState<FeatureInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,14 +75,22 @@ export default function Dashboard() {
     setLoading(true);
     setError(null);
     try {
-      const data = await featureApi.getFeatures(repo);
+      const data = await featureApi.getFeatures(repo, workspace);
       setFeatures(data.features);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load features");
     } finally {
       setLoading(false);
     }
-  }, [repo]);
+  }, [repo, workspace]);
+
+  function handleWorkspaceChange(value: string) {
+    if (!value) {
+      setSearchParams({});
+    } else {
+      setSearchParams({ workspace: value });
+    }
+  }
 
   useEffect(() => {
     void fetchFeatures();
@@ -136,12 +147,27 @@ export default function Dashboard() {
             <span className="text-xs font-normal text-[var(--text-muted)]">
               v{APP_VERSION}
             </span>
-            {repoName && (
+            {repoName && !workspaces.length && (
               <span className="text-sm font-normal text-slate-400">
                 / {repoName}
               </span>
             )}
           </h1>
+          {workspaces.length > 0 && (
+            <select
+              value={workspace ?? ""}
+              onChange={(e) => handleWorkspaceChange(e.target.value)}
+              className="rounded-md bg-[var(--bg-base)] py-1.5 pl-2.5 pr-7 text-sm text-slate-400 ring-1 ring-[var(--border-default)] focus:outline-none focus:ring-[var(--accent-blue)]"
+              style={SELECT_STYLE}
+            >
+              <option value="">All workspaces</option>
+              {workspaces.map((ws) => (
+                <option key={ws.name} value={ws.name}>
+                  {ws.name}
+                </option>
+              ))}
+            </select>
+          )}
           <button
             onClick={() => {
               void fetchFeatures();
