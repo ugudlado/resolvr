@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-03-16
+
+- Add plugin cache version cleanup on SessionStart to remove old cached versions and save disk space
+
+* Simplify active version detection by reading from plugin.json instead of installed_plugins.json
+
 ## 1.2.1 — 2026-03-16
 
 - Version display next to app title in Dashboard and ReviewPage headers
