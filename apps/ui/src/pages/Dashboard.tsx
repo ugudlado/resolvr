@@ -3,7 +3,7 @@ import { featureApi, type FeatureInfo } from "../services/featureApi";
 import FeatureRow from "../components/dashboard/FeatureRow";
 import SkeletonRow from "../components/dashboard/SkeletonRow";
 import EmptyState from "../components/dashboard/EmptyState";
-import { APP_NAME } from "../config/app";
+import { APP_NAME, APP_VERSION } from "../config/app";
 import { FEATURE_STATUS, type FeatureStatus } from "../types/sessions";
 
 type SortKey = "activity" | "status" | "name";
@@ -129,8 +129,11 @@ export default function Dashboard() {
       <div className="mx-auto max-w-6xl px-6 py-6 pb-16">
         {/* Header */}
         <div className="mb-4 flex items-center justify-between gap-4">
-          <h1 className="shrink-0 font-mono text-2xl font-bold tracking-tight text-slate-100">
+          <h1 className="flex shrink-0 items-baseline gap-2 font-mono text-2xl font-bold tracking-tight text-slate-100">
             {APP_NAME}
+            <span className="text-xs font-normal text-[var(--text-muted)]">
+              v{APP_VERSION}
+            </span>
           </h1>
           <button
             onClick={() => {

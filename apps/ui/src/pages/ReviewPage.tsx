@@ -35,7 +35,7 @@ import {
   THREAD_STATUS,
   type ReviewThread as SessionReviewThread,
 } from "../types/sessions";
-import { APP_NAME } from "../config/app";
+import { APP_NAME, APP_VERSION } from "../config/app";
 import { scrollDiffToLine } from "../utils/keyboardUtils";
 import { ShortcutHelp } from "../components/shared/ShortcutHelp";
 import { CommandPalette } from "../components/shared/CommandPalette";
@@ -808,8 +808,11 @@ export function ReviewPage({
       {/* Top toolbar */}
       <header className="flex shrink-0 items-center gap-3 border-b border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-1.5">
         {!embedded && (
-          <span className="mr-1 text-sm font-semibold text-[var(--text-primary)]">
+          <span className="mr-1 flex items-baseline gap-1.5 text-sm font-semibold text-[var(--text-primary)]">
             {APP_NAME}
+            <span className="text-[10px] font-normal text-[var(--text-muted)]">
+              v{APP_VERSION}
+            </span>
           </span>
         )}
 
