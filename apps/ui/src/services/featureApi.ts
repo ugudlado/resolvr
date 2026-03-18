@@ -78,8 +78,8 @@ export const featureApi = {
   getFeatures(
     repo?: string | null,
     workspace?: string | null,
-  ): Promise<{ features: FeatureInfo[] }> {
-    return apiFetch<{ features: FeatureInfo[] }>(
+  ): Promise<{ features: FeatureInfo[]; repoName?: string }> {
+    return apiFetch<{ features: FeatureInfo[]; repoName?: string }>(
       withRepo(`${BASE}/features`, repo ?? null, workspace ?? null),
     );
   },

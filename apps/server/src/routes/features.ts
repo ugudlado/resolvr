@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { getGitState } from "../git.js";
+import { getGitState, refreshGitState } from "../git.js";
 import os from "node:os";
 import type { AppEnv } from "../types.js";
 import { findOpenspecChangeDir } from "../utils.js";
@@ -122,7 +122,11 @@ export function createFeaturesRoute(_repoRoot: string): Hono<AppEnv> {
     const repoRoot = c.get("repoRoot");
     const sessionsDir = path.join(repoRoot, ".review", "sessions");
     try {
-      const gitState = getGitState();
+      // Use cached state for default repo, fresh state for overrides
+      const isOverride = repoRoot !== _repoRoot;
+      const gitState = isOverride
+        ? await refreshGitState(repoRoot)
+        : getGitState();
       if (!gitState) {
         return c.json({ features: [], error: "git state not yet computed" });
       }
@@ -295,7 +299,7 @@ export function createFeaturesRoute(_repoRoot: string): Hono<AppEnv> {
       );
       features.push(...branchFeatures);
 
-      return c.json({ features });
+      return c.json({ features, repoName: path.basename(repoRoot) });
     } catch (err) {
       const message = err instanceof Error ? err.message : "unknown error";
       return c.json({ features: [], error: message });

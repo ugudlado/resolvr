@@ -33,6 +33,16 @@ export function registerWorkspace(repoPath: string): boolean {
   const resolved = path.resolve(
     repoPath.startsWith("~") ? os.homedir() + repoPath.slice(1) : repoPath,
   );
+
+  // Skip git worktrees — only register actual repos (.git must be a directory, not a file)
+  const gitPath = path.join(resolved, ".git");
+  try {
+    const stat = fs.statSync(gitPath);
+    if (!stat.isDirectory()) return false; // worktree has .git as a file
+  } catch {
+    return false; // no .git at all
+  }
+
   const name = path.basename(resolved);
   const workspaces = getWorkspaces();
 
