@@ -23,8 +23,11 @@ commands/           — Slash commands (open, resolve)
 agents/             — Subagent definitions (review-resolver)
 hooks/              — Session hooks (auto-start dev server)
 scripts/            — Shell scripts (context extraction)
-specs/              — Feature specifications (active and archived)
+openspec/changes/   — Active and archived feature specifications
 apps/server/        — Standalone Hono server (REST API + WebSocket + static UI)
+  src/middleware/    — Request middleware (repo context resolution)
+  src/workspaces.ts — Workspace registry (multi-repo support)
+  src/types.ts      — Shared server types (AppEnv)
   dist/             — Bundled output via esbuild (committed for zero-build install)
   cjs-shim.js       — CJS compatibility shim for ESM bundle
 apps/ui/            — React review app (Vite + Tailwind + TypeScript)
@@ -37,8 +40,8 @@ apps/ui/            — React review app (Vite + Tailwind + TypeScript)
     spec/           — Spec viewer (AnnotatableParagraph, diagrams)
     tasks/          — Task board (PhaseCard, TaskBoard)
   src/config/       — App configuration
-  src/hooks/        — Custom React hooks (7 hooks)
-  src/pages/        — Page components (Dashboard, CodeReview, SpecReview, Tasks, Review)
+  src/hooks/        — Custom React hooks (useRepoContext, useFeaturesContext, etc.)
+  src/pages/        — Page components (Dashboard, ReviewPage, TasksPage)
   src/services/     — API clients (localReviewApi, featureApi)
   src/styles/       — CSS themes (terminal-luxe)
   src/types/        — TypeScript type definitions
@@ -89,7 +92,8 @@ PORT=3000 pnpm -C apps/ui dev   # Vite dev server on port 3000
 ### Server (apps/server)
 
 - **Framework**: Hono on Node.js HTTP server
-- **API**: REST endpoints for sessions, features, specs, tasks, context
+- **API**: REST endpoints for sessions, features, specs, tasks, context, workspaces
+- **Multi-repo**: Repo middleware resolves workspace context per-request; workspace registry persists repos in `~/.config/local-review/workspaces.json`
 - **Real-time**: WebSocket push for session and git state changes (chokidar file watcher)
 - **Build**: esbuild bundles all deps (hono, ws, chokidar) into single `dist/index.js` for zero-install plugin support
 - **Externals**: `vite` (dev-only) and `@anthropic-ai/claude-agent-sdk` (resolver daemon) are not bundled
@@ -150,3 +154,4 @@ PORT=3000           # Change server/UI dev port (default: 37003)
 - **Never edit `dist/`**: Always work in `src/`; use `PORT=3003 pnpm -C apps/ui dev` for UI dev with HMR
 - **API routes are NOT duplicated**: All routes live in `apps/server/src/routes/` only — `vite.config.ts` has no API logic
 - **Server bundle not auto-rebuilt**: Run `pnpm -C apps/server build` after any server-side change; committed `dist/index.js` is what the plugin uses at runtime
+- **Worktree `.git` is a file**: Git worktrees have a `.git` file (not directory) pointing to the parent repo. Use `git rev-parse --git-common-dir` to find the real repo root — `path.basename()` on a worktree path gives the worktree folder name, not the repo name

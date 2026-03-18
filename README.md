@@ -32,7 +32,7 @@ Browse code changes with syntax highlighting. Click `+` on any line to start a t
 
 ### Feature dashboard
 
-See all active and completed features at a glance with status badges, thread counts, file counts, and task progress.
+See all active and completed features at a glance with status badges, thread counts, file counts, and task progress. Switch between workspaces to view features across multiple repos.
 
 ![Feature dashboard with active and completed features](docs/images/dashboard.png)
 
@@ -101,10 +101,10 @@ Full keyboard navigation for power users — press `?` for the shortcut help ove
 
 The plugin ships with two apps:
 
-- **`apps/server`** — Standalone Hono server (REST API + WebSocket). Built with esbuild into a single bundled `dist/index.js` for zero-install plugin support.
+- **`apps/server`** — Standalone Hono server (REST API + WebSocket). Built with esbuild into a single bundled `dist/index.js` for zero-install plugin support. Supports multi-repo via workspace registry and per-request repo middleware.
 - **`apps/ui`** — React frontend built with Vite, Tailwind CSS v4, and shadcn/ui components. Built dist committed to git, served as static files by the server.
 
-The `SessionStart` hook auto-starts the server via `node apps/server/dist/index.js` — no `pnpm install` or build step needed after plugin installation.
+The `SessionStart` hook auto-starts the server and registers the current repo as a workspace — no `pnpm install` or build step needed after plugin installation.
 
 ### UI Component Library
 
