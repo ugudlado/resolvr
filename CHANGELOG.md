@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-03-19
+
+### Server
+
+- Multi-repo dashboard with workspace registry and SessionStart hook integration
+- Repo middleware for context propagation across all API routes
+- Real repo name resolution for worktree environments
+
+* Refactored API routes to propagate repo context (context, features, sessions, spec, tasks)
+* Updated open command with repo selection UI
+
+! Fix repo name resolution for worktrees to prevent stale environments
+! Fix dashboard labels to use API repoName instead of workspace name
+
+### UI
+
+- Dashboard design overhaul with multi-repo context
+- Repo context hook for workspace-aware component behavior
+
+* Recovered dashboard design from orphaned commits
+* Updated FeatureNavBar and FeatureRow components for multi-repo support
+
+### Documentation
+
+- Updated CLAUDE.md and README for multi-repo dashboard
+
 ## [1.2.2] - 2026-03-16
 
 - Add plugin cache version cleanup on SessionStart to remove old cached versions and save disk space
