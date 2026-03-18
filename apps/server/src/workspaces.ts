@@ -10,7 +10,16 @@ export interface Workspace {
 const CONFIG_DIR = path.join(os.homedir(), ".config", "local-review");
 const WORKSPACES_FILE = path.join(CONFIG_DIR, "workspaces.json");
 
-/** Read all registered workspaces. */
+/** Returns true when the path is an actual git repo (not a worktree). */
+function isRealRepo(p: string): boolean {
+  try {
+    return fs.statSync(path.join(p, ".git")).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/** Read all registered workspaces, filtering out stale worktree entries. */
 export function getWorkspaces(): Workspace[] {
   try {
     const raw = fs.readFileSync(WORKSPACES_FILE, "utf-8");
@@ -21,7 +30,8 @@ export function getWorkspaces(): Workspace[] {
         typeof w === "object" &&
         w !== null &&
         typeof (w as Workspace).name === "string" &&
-        typeof (w as Workspace).path === "string",
+        typeof (w as Workspace).path === "string" &&
+        isRealRepo((w as Workspace).path),
     );
   } catch {
     return [];

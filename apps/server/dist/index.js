@@ -7304,13 +7304,20 @@ import os from "node:os";
 import path2 from "node:path";
 var CONFIG_DIR = path2.join(os.homedir(), ".config", "local-review");
 var WORKSPACES_FILE = path2.join(CONFIG_DIR, "workspaces.json");
+function isRealRepo(p) {
+  try {
+    return fs2.statSync(path2.join(p, ".git")).isDirectory();
+  } catch {
+    return false;
+  }
+}
 function getWorkspaces() {
   try {
     const raw2 = fs2.readFileSync(WORKSPACES_FILE, "utf-8");
     const data = JSON.parse(raw2);
     if (!Array.isArray(data)) return [];
     return data.filter(
-      (w) => typeof w === "object" && w !== null && typeof w.name === "string" && typeof w.path === "string"
+      (w) => typeof w === "object" && w !== null && typeof w.name === "string" && typeof w.path === "string" && isRealRepo(w.path)
     );
   } catch {
     return [];
@@ -7320,6 +7327,13 @@ function registerWorkspace(repoPath) {
   const resolved = path2.resolve(
     repoPath.startsWith("~") ? os.homedir() + repoPath.slice(1) : repoPath
   );
+  const gitPath = path2.join(resolved, ".git");
+  try {
+    const stat4 = fs2.statSync(gitPath);
+    if (!stat4.isDirectory()) return false;
+  } catch {
+    return false;
+  }
   const name = path2.basename(resolved);
   const workspaces = getWorkspaces();
   if (workspaces.some((w) => w.path === resolved)) return false;
@@ -7719,6 +7733,7 @@ function createContextRoute(_repoRoot) {
 init_cjs_shim();
 import fs7 from "node:fs/promises";
 import path7 from "node:path";
+import { execFileSync } from "node:child_process";
 import os4 from "node:os";
 
 // src/utils.ts
@@ -7930,6 +7945,17 @@ var HOME = os4.homedir();
 function tildefy(p) {
   return p.startsWith(HOME) ? "~" + p.slice(HOME.length) : p;
 }
+function getRepoName(repoRoot2) {
+  try {
+    const commonDir = execFileSync("git", ["rev-parse", "--git-common-dir"], {
+      cwd: repoRoot2,
+      encoding: "utf-8"
+    }).trim();
+    return path7.basename(path7.dirname(path7.resolve(repoRoot2, commonDir)));
+  } catch {
+    return path7.basename(repoRoot2);
+  }
+}
 function deriveFeatureStatus(codeSession, hasOpenspecArtifacts) {
   if (codeSession) {
     const codeVerdict = codeSession.reviewVerdict;
@@ -7991,7 +8017,8 @@ function createFeaturesRoute(_repoRoot) {
     const repoRoot2 = c.get("repoRoot");
     const sessionsDir2 = path7.join(repoRoot2, ".review", "sessions");
     try {
-      const gitState = getGitState();
+      const isOverride = repoRoot2 !== _repoRoot;
+      const gitState = isOverride ? await refreshGitState(repoRoot2) : getGitState();
       if (!gitState) {
         return c.json({ features: [], error: "git state not yet computed" });
       }
@@ -8120,7 +8147,7 @@ function createFeaturesRoute(_repoRoot) {
         })
       );
       features.push(...branchFeatures);
-      return c.json({ features });
+      return c.json({ features, repoName: getRepoName(repoRoot2) });
     } catch (err) {
       const message = err instanceof Error ? err.message : "unknown error";
       return c.json({ features: [], error: message });
