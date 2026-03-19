@@ -1,0 +1,38 @@
+graph TD
+    subgraph "VS Code Extension (apps/vscode)"
+        CMD["'Open Diff' Command"] --> DPM["DiffPanelManager"]
+        DPM --> BCP["BaseContentProvider<br/>(local-review-base: scheme)"]
+        DPM --> CFT["ChangedFilesTree<br/>(Sidebar TreeView)"]
+        DPM --> |"vscode.diff command"| DIFF["VS Code Diff Editor<br/>(Native side-by-side)"]
+
+        BCP --> |"git show main:path"| GIT["Git CLI"]
+
+        DIFF --> |"Left pane (old)"| VURI["Virtual URI<br/>local-review-base:/path"]
+        DIFF --> |"Right pane (new)"| FURI["File URI<br/>file:///worktree/path"]
+
+        CM["CommentManager<br/>(extended)"] --> |"old-side threads"| VURI
+        CM --> |"new-side threads"| FURI
+        CM --> |"commentingRangeProvider"| DIFF
+
+        SC["ServerClient<br/>(+getDiff)"] --> |"REST"| SERVER
+        WS["WsClient"] --> |"WebSocket"| SERVER
+    end
+
+    subgraph "Local Review Server"
+        SERVER["Hono Server<br/>localhost:37003"]
+        SERVER --> |"GET /api/context/diff"| DIFFEP["Diff Endpoint"]
+        SERVER --> |"POST/PATCH threads"| SESSEP["Session Endpoints"]
+        SERVER --> |"POST /api/resolver/resolve"| RESOLVER["AI Resolver"]
+    end
+
+    subgraph "Browser UI"
+        BROWSER["React App"] --> |"REST + WS"| SERVER
+    end
+
+    CFT --> |"click file"| DPM
+    WS --> |"session-updated"| CM
+
+    style DPM fill:#4a9eff,color:#fff
+    style BCP fill:#4a9eff,color:#fff
+    style CFT fill:#4a9eff,color:#fff
+    style CMD fill:#4a9eff,color:#fff

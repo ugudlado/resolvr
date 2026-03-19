@@ -72,6 +72,25 @@ export function startGitWatcher(repoRoot: string): void {
 const sessionWatchers = new Map<string, FSWatcher>();
 
 /**
+ * Suppression set for files recently broadcast by route handlers.
+ * Prevents double-broadcast when the file watcher fires after a route write.
+ */
+const recentlyBroadcast = new Set<string>();
+
+/**
+ * Mark a session file as recently broadcast by a route handler.
+ * The file watcher will skip broadcasting for this file for 500ms.
+ */
+export function suppressWatcherBroadcast(
+  workspaceName: string,
+  fileName: string,
+): void {
+  const key = `${workspaceName}/${fileName}`;
+  recentlyBroadcast.add(key);
+  setTimeout(() => recentlyBroadcast.delete(key), 500);
+}
+
+/**
  * Start watching a workspace's central sessions directory.
  * No-ops if already watching this workspace.
  */
@@ -88,11 +107,13 @@ export function startSessionWatcher(
     })
     .on("change", (filePath: string) => {
       if (!filePath.endsWith(".json")) return;
+      const fileName = path.basename(filePath);
+      const key = `${workspaceName}/${fileName}`;
+      if (recentlyBroadcast.has(key)) return; // already broadcast by route handler
       void (async () => {
         try {
           const content = await fs.readFile(filePath, "utf-8");
           const session = JSON.parse(content) as unknown;
-          const fileName = path.basename(filePath);
           broadcast({
             event: WS_EVENTS.SESSION_UPDATED,
             data: { workspaceName, fileName, session },

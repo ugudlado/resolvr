@@ -52,8 +52,44 @@
       {
         "command": "local-review.unresolveThread",
         "title": "Re-open"
+      },
+      {
+        "command": "local-review.openDiff",
+        "title": "Local Review: Open Diff",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "local-review.openDiffFile",
+        "title": "Local Review: Open Diff File"
+      },
+      {
+        "command": "local-review.refreshDiff",
+        "title": "Local Review: Refresh Diff",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "local-review.closeDiff",
+        "title": "Local Review: Close Diff"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "local-review",
+          "title": "Local Review",
+          "icon": "$(comment-discussion)"
+        }
+      ]
+    },
+    "views": {
+      "local-review": [
+        {
+          "id": "localReview.changedFiles",
+          "name": "Changed Files",
+          "when": "local-review.hasDiffPanel"
+        }
+      ]
+    },
     "menus": {
       "comments/commentThread/context": [
         {
@@ -70,6 +106,19 @@
           "command": "local-review.resolveThread",
           "group": "inline",
           "when": "commentController == local-review && !commentThreadIsEmpty"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "local-review.openDiffFile",
+          "when": "false"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "local-review.refreshDiff",
+          "when": "view == localReview.changedFiles",
+          "group": "navigation"
         }
       ],
       "comments/commentThread/title": [

@@ -6,6 +6,7 @@ import {
   writeSessionFile,
 } from "../sessions";
 import { safeId } from "../utils";
+import { suppressWatcherBroadcast } from "../watcher";
 import type { Broadcaster } from "../watcher";
 
 // ---------------------------------------------------------------------------
@@ -125,6 +126,15 @@ function registerSessionCRUD(
     const fileName = `${featureId}${fileSuffix}`;
     writeSessionFile(workspaceName, fileName, JSON.stringify(session, null, 2));
 
+    // Broadcast so other clients (VS Code extension, other browser tabs) see the update
+    if (broadcast) {
+      suppressWatcherBroadcast(workspaceName, fileName);
+      broadcast({
+        event: "review:session-updated",
+        data: { fileName, session },
+      });
+    }
+
     return c.json({ ok: true });
   });
 
@@ -200,7 +210,7 @@ function registerSessionCRUD(
     // Broadcast session-updated on every PATCH so VS Code extension sees
     // replies and status changes in real-time
     if (broadcast) {
-      const fileName = `${featureId}${fileSuffix}`;
+      suppressWatcherBroadcast(workspaceName, fileName);
       broadcast({
         event: "review:session-updated",
         data: { fileName, session },
@@ -297,6 +307,7 @@ function registerSessionCRUD(
     writeSessionFile(workspaceName, fileName, JSON.stringify(session, null, 2));
 
     if (broadcast) {
+      suppressWatcherBroadcast(workspaceName, fileName);
       broadcast({
         event: "review:session-updated",
         data: { fileName, session },

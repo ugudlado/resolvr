@@ -7,6 +7,7 @@ import type {
 } from "./serverClient";
 import { serverClient } from "./serverClient";
 import { ThreadMapper } from "./threadMapper";
+import { SCHEME_BASE } from "./baseContentProvider";
 
 export class CommentManager implements vscode.Disposable {
   private _controller: vscode.CommentController;
@@ -27,10 +28,16 @@ export class CommentManager implements vscode.Disposable {
       "Local Review",
     );
 
-    // Enable the "+" gutter icon to allow commenting on any line
+    // Enable the "+" gutter icon on real files and virtual base-content files
     this._controller.commentingRangeProvider = {
       provideCommentingRanges(document: vscode.TextDocument) {
-        return [new vscode.Range(0, 0, document.lineCount - 1, 0)];
+        if (
+          document.uri.scheme === "file" ||
+          document.uri.scheme === SCHEME_BASE
+        ) {
+          return [new vscode.Range(0, 0, document.lineCount - 1, 0)];
+        }
+        return [];
       },
     };
 
@@ -232,13 +239,26 @@ export class CommentManager implements vscode.Disposable {
     vsThread: vscode.CommentThread,
     text: string,
   ): Promise<SessionThread> {
-    const relativePath = vscode.workspace.asRelativePath(vsThread.uri);
+    const uri = vsThread.uri;
+
+    // Detect old-side vs new-side from URI scheme
+    let relativePath: string;
+    let side: "old" | "new";
+    if (uri.scheme === SCHEME_BASE) {
+      // Virtual URI — old-side comment in diff panel
+      relativePath = uri.path.startsWith("/") ? uri.path.slice(1) : uri.path;
+      side = "old";
+    } else {
+      relativePath = vscode.workspace.asRelativePath(uri);
+      side = "new";
+    }
+
     // range may be undefined in older VS Code API typings — default to line 0
     const range = vsThread.range ?? new vscode.Range(0, 0, 0, 0);
     const line = range.start.line + 1; // 0-based → 1-based
     const lineEnd = range.end.line + 1;
 
-    const document = await vscode.workspace.openTextDocument(vsThread.uri);
+    const document = await vscode.workspace.openTextDocument(uri);
     const lineContent = document.lineAt(range.start.line).text;
     const hash = createHash("sha256")
       .update(lineContent)
@@ -266,7 +286,7 @@ export class CommentManager implements vscode.Disposable {
         preview: lineContent.slice(0, 120),
         line,
         lineEnd,
-        side: "new",
+        side,
       },
       status: "open",
       severity: "improvement",
@@ -299,15 +319,14 @@ export class CommentManager implements vscode.Disposable {
       return null;
     }
 
-    // Skip old-side anchors — can't render in working tree
+    // Route old-side threads to virtual URI (visible in diff panel left pane).
+    // When no diff is open, the virtual document isn't visible — same as before.
+    let filePath: vscode.Uri;
     if (threadSide === "old") {
-      this._outputChannel.appendLine(
-        `Skipping old-side thread ${sessionThread.id} on ${threadPath}:${threadLine}`,
-      );
-      return null;
+      filePath = vscode.Uri.parse(`${SCHEME_BASE}:/${threadPath}`);
+    } else {
+      filePath = vscode.Uri.file(`${this._workspaceRoot}/${threadPath}`);
     }
-
-    const filePath = vscode.Uri.file(`${this._workspaceRoot}/${threadPath}`);
 
     // 1-based session lines → 0-based VS Code range
     const startLine = threadLine - 1;

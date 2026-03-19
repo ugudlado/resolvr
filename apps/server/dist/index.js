@@ -7919,8 +7919,8 @@ function createContextRoute(_repoRoot) {
 
 // src/routes/features.ts
 init_cjs_shim();
-import fs8 from "node:fs/promises";
-import path8 from "node:path";
+import fs9 from "node:fs/promises";
+import path9 from "node:path";
 import os5 from "node:os";
 
 // src/utils.ts
@@ -7979,741 +7979,6 @@ async function findOpenspecChangeDir(wtPath, featureId) {
 
 // src/routes/sessions.ts
 init_cjs_shim();
-var THREAD_STATUS = {
-  Open: "open",
-  Resolved: "resolved",
-  Approved: "approved"
-};
-var SESSION_CONFIGS = {
-  code: {
-    pathSegment: "code-session",
-    fileSuffix: "-code.json"
-  },
-  spec: {
-    pathSegment: "spec-session",
-    fileSuffix: "-spec.json",
-    onPatchThread: (thread, session) => {
-      thread.lastUpdatedAt = (/* @__PURE__ */ new Date()).toISOString();
-      const metadata = session.metadata;
-      if (metadata) {
-        metadata.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
-      }
-    }
-  }
-};
-function registerSessionCRUD(app2, config, _sessionType, broadcast3) {
-  const { pathSegment, fileSuffix, onPatchThread } = config;
-  app2.get(`/:id/${pathSegment}`, async (c) => {
-    const workspaceName = c.get("workspaceName");
-    const featureId = safeId(c.req.param("id"));
-    if (!featureId) {
-      return c.json({ error: "Invalid feature id" }, 400);
-    }
-    const fileName = `${featureId}${fileSuffix}`;
-    const result = await readSessionFile(workspaceName, fileName);
-    if (!result) {
-      return c.json({ session: null });
-    }
-    return c.json({ session: JSON.parse(result) });
-  });
-  app2.post(`/:id/${pathSegment}`, async (c) => {
-    const workspaceName = c.get("workspaceName");
-    const featureId = safeId(c.req.param("id"));
-    if (!featureId) {
-      return c.json({ error: "Invalid feature id" }, 400);
-    }
-    const session = await c.req.json();
-    const fileName = `${featureId}${fileSuffix}`;
-    writeSessionFile(workspaceName, fileName, JSON.stringify(session, null, 2));
-    return c.json({ ok: true });
-  });
-  app2.delete(`/:id/${pathSegment}`, async (c) => {
-    const workspaceName = c.get("workspaceName");
-    const featureId = safeId(c.req.param("id"));
-    if (!featureId) {
-      return c.json({ error: "Invalid feature id" }, 400);
-    }
-    const fileName = `${featureId}${fileSuffix}`;
-    await deleteSessionFile(workspaceName, fileName);
-    return c.json({ ok: true });
-  });
-  app2.patch(`/:id/${pathSegment}/threads/:threadId`, async (c) => {
-    const workspaceName = c.get("workspaceName");
-    const featureId = safeId(c.req.param("id"));
-    if (!featureId) {
-      return c.json({ error: "Invalid feature id" }, 400);
-    }
-    const threadId = c.req.param("threadId");
-    const fileName = `${featureId}${fileSuffix}`;
-    const result = await readSessionFile(workspaceName, fileName);
-    if (!result) {
-      return c.json({ error: "Session not found" }, 404);
-    }
-    const session = JSON.parse(result);
-    const threads = session.threads ?? [];
-    const threadIndex = threads.findIndex((t) => t.id === threadId);
-    if (threadIndex === -1) {
-      return c.json({ error: "Thread not found" }, 404);
-    }
-    const patch = await c.req.json();
-    const updatedThread = { ...threads[threadIndex] };
-    if (patch.status !== void 0) {
-      updatedThread.status = patch.status;
-    }
-    if (patch.severity !== void 0) {
-      updatedThread.severity = patch.severity;
-    }
-    if (patch.messages !== void 0) {
-      updatedThread.messages = [
-        ...updatedThread.messages ?? [],
-        ...patch.messages
-      ];
-    }
-    if (patch.labels !== void 0) {
-      updatedThread.labels = {
-        ...updatedThread.labels ?? {},
-        ...patch.labels
-      };
-    }
-    onPatchThread?.(updatedThread, session);
-    threads[threadIndex] = updatedThread;
-    session.threads = threads;
-    writeSessionFile(workspaceName, fileName, JSON.stringify(session, null, 2));
-    if (broadcast3) {
-      const fileName2 = `${featureId}${fileSuffix}`;
-      broadcast3({
-        event: "review:session-updated",
-        data: { fileName: fileName2, session }
-      });
-    }
-    if (broadcast3 && updatedThread.status === THREAD_STATUS.Resolved) {
-      broadcast3({
-        event: "review:resolve-thread-done",
-        data: {
-          featureId,
-          threadId,
-          filePath: updatedThread.filePath ?? "",
-          line: updatedThread.line ?? 0,
-          outcome: "resolved"
-        }
-      });
-    }
-    return c.json({ ok: true, thread: updatedThread });
-  });
-  app2.get(`/:id/${pathSegment}/threads`, async (c) => {
-    const workspaceName = c.get("workspaceName");
-    const featureId = safeId(c.req.param("id"));
-    if (!featureId) {
-      return c.json({ error: "Invalid feature id" }, 400);
-    }
-    const fileName = `${featureId}${fileSuffix}`;
-    const content = await readSessionFile(workspaceName, fileName);
-    if (!content) {
-      return c.json({ threads: [] });
-    }
-    try {
-      const session = JSON.parse(content);
-      return c.json({ threads: session.threads ?? [] });
-    } catch {
-      return c.json({ threads: [] });
-    }
-  });
-  app2.post(`/:id/${pathSegment}/threads`, async (c) => {
-    const workspaceName = c.get("workspaceName");
-    const featureId = safeId(c.req.param("id"));
-    if (!featureId) {
-      return c.json({ error: "Invalid feature id" }, 400);
-    }
-    const thread = await c.req.json();
-    if (!thread.id || thread.anchor === void 0 || !thread.status || !thread.messages) {
-      return c.json(
-        { error: "Thread must have id, anchor, status, and messages" },
-        400
-      );
-    }
-    const fileName = `${featureId}${fileSuffix}`;
-    const content = await readSessionFile(workspaceName, fileName);
-    if (!content) {
-      return c.json({ error: "Session not found" }, 404);
-    }
-    let session;
-    try {
-      session = JSON.parse(content);
-    } catch {
-      return c.json({ error: "Session not found" }, 404);
-    }
-    const threads = session.threads ?? [];
-    threads.push(thread);
-    session.threads = threads;
-    if (session.metadata) {
-      session.metadata.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
-    }
-    writeSessionFile(workspaceName, fileName, JSON.stringify(session, null, 2));
-    if (broadcast3) {
-      broadcast3({
-        event: "review:session-updated",
-        data: { fileName, session }
-      });
-    }
-    return c.json({ thread }, 201);
-  });
-}
-function createSessionsRoute(broadcast3) {
-  const app2 = new Hono2();
-  for (const [type, config] of Object.entries(SESSION_CONFIGS)) {
-    registerSessionCRUD(app2, config, type, broadcast3);
-  }
-  return app2;
-}
-
-// src/routes/features.ts
-var HOME = os5.homedir();
-function tildefy(p) {
-  return p.startsWith(HOME) ? "~" + p.slice(HOME.length) : p;
-}
-function deriveFeatureStatus(codeSession, hasOpenspecArtifacts) {
-  if (codeSession) {
-    const codeVerdict = codeSession.reviewVerdict;
-    if (codeVerdict === "changes_requested") return "code";
-    if (codeVerdict === "approved") return "complete";
-    return "code_review";
-  }
-  if (hasOpenspecArtifacts) return "design";
-  return "new";
-}
-function parseTaskProgress(content) {
-  const checkboxes = content.match(/- \[[x→~ ]\] T-?\d+/gi) ?? [];
-  const done = checkboxes.filter((c) => /- \[[x~]\]/i.test(c)).length;
-  return { done, total: checkboxes.length };
-}
-function countSessionThreads(session) {
-  if (!session) return { open: 0, resolved: 0 };
-  const threads = session.threads;
-  if (!Array.isArray(threads)) return { open: 0, resolved: 0 };
-  let open2 = 0;
-  let resolved = 0;
-  for (const t of threads) {
-    if (t && typeof t === "object" && "status" in t) {
-      if (t.status === THREAD_STATUS.Open) open2++;
-      else if (t.status === THREAD_STATUS.Resolved || t.status === THREAD_STATUS.Approved)
-        resolved++;
-    }
-  }
-  return { open: open2, resolved };
-}
-async function getLastActivity(paths) {
-  const stats = await Promise.all(
-    paths.map((p) => fs8.stat(p).catch(() => null))
-  );
-  let latest = null;
-  for (const stat4 of stats) {
-    if (stat4 && (!latest || stat4.mtime > latest)) latest = stat4.mtime;
-  }
-  return latest ? latest.toISOString() : null;
-}
-function countFilesChanged(codeSession) {
-  if (!codeSession) return 0;
-  const diff = codeSession.diff;
-  if (typeof diff !== "string") return 0;
-  const matches = diff.match(/^diff --git /gm);
-  return matches ? matches.length : 0;
-}
-async function readJsonSession(filePath) {
-  try {
-    const content = await fs8.readFile(filePath, "utf-8");
-    return JSON.parse(content);
-  } catch {
-    return null;
-  }
-}
-function createFeaturesRoute(_repoRoot) {
-  const app2 = new Hono2();
-  app2.get("/", async (c) => {
-    const repoRoot2 = c.get("repoRoot");
-    const workspaceName = c.get("workspaceName");
-    const sessionsDir = getSessionsDir(workspaceName);
-    try {
-      let gitState = getGitState(repoRoot2);
-      if (!gitState) {
-        gitState = await refreshGitState(repoRoot2);
-      }
-      const features = [];
-      const repoName = workspaceName;
-      await Promise.all(
-        gitState.worktrees.slice(1).map(async (wt) => {
-          const featureId = path8.basename(wt.path);
-          const codeSessionPath = path8.join(
-            sessionsDir,
-            `${featureId}-code.json`
-          );
-          const openspecDir = await findOpenspecChangeDir(wt.path, featureId);
-          let hasOpenspecArtifacts = false;
-          let tasksContent = null;
-          let lastActivity = null;
-          let codeSession = null;
-          if (openspecDir) {
-            const proposalMdPath = path8.join(openspecDir, "proposal.md");
-            const specMdPath = path8.join(openspecDir, "spec.md");
-            const designMdPath = path8.join(openspecDir, "design.md");
-            const tasksMdPath = path8.join(openspecDir, "tasks.md");
-            const results = await Promise.all([
-              readJsonSession(codeSessionPath),
-              fs8.access(proposalMdPath).then(() => true).catch(() => false),
-              fs8.access(specMdPath).then(() => true).catch(() => false),
-              fs8.access(designMdPath).then(() => true).catch(() => false),
-              fs8.readFile(tasksMdPath, "utf-8").catch(() => null),
-              getLastActivity([
-                proposalMdPath,
-                specMdPath,
-                designMdPath,
-                tasksMdPath,
-                codeSessionPath
-              ])
-            ]);
-            codeSession = results[0];
-            hasOpenspecArtifacts = results[1] || results[2] || results[3];
-            tasksContent = results[4];
-            lastActivity = results[5];
-          } else {
-            [codeSession, lastActivity] = await Promise.all([
-              readJsonSession(codeSessionPath),
-              getLastActivity([codeSessionPath])
-            ]);
-          }
-          const hasTasks = tasksContent !== null;
-          features.push({
-            id: featureId,
-            worktreePath: tildefy(wt.path),
-            branch: wt.branch,
-            status: deriveFeatureStatus(codeSession, hasOpenspecArtifacts),
-            hasSpec: hasOpenspecArtifacts,
-            hasTasks,
-            taskProgress: parseTaskProgress(tasksContent ?? ""),
-            codeThreadCounts: countSessionThreads(codeSession),
-            specThreadCounts: { open: 0, resolved: 0 },
-            lastActivity,
-            filesChanged: countFilesChanged(codeSession),
-            sourceType: "worktree",
-            repoName
-          });
-        })
-      );
-      const archivedDirs = [
-        path8.join(repoRoot2, "specs", "archived"),
-        path8.join(repoRoot2, "openspec", "changes", "archive")
-      ];
-      for (const archivedDir of archivedDirs) {
-        try {
-          const archivedEntries = await fs8.readdir(archivedDir, {
-            withFileTypes: true
-          });
-          for (const entry of archivedEntries) {
-            if (!entry.isDirectory()) continue;
-            const archivedId = entry.name;
-            if (features.some((f) => f.id === archivedId)) continue;
-            const [hasSpec, hasTasks] = await Promise.all([
-              fs8.access(path8.join(archivedDir, archivedId, "spec.md")).then(() => true).catch(() => false),
-              fs8.access(path8.join(archivedDir, archivedId, "tasks.md")).then(() => true).catch(() => false)
-            ]);
-            if (hasSpec || hasTasks) {
-              features.push({
-                id: archivedId,
-                worktreePath: tildefy(repoRoot2),
-                branch: "main",
-                status: "complete",
-                hasSpec,
-                hasTasks,
-                taskProgress: { done: 0, total: 0 },
-                codeThreadCounts: { open: 0, resolved: 0 },
-                specThreadCounts: { open: 0, resolved: 0 },
-                lastActivity: null,
-                filesChanged: 0,
-                sourceType: "worktree",
-                repoName
-              });
-            }
-          }
-        } catch {
-        }
-      }
-      const existingSlugs = new Set(features.map((f) => f.id));
-      const branchesToProcess = gitState.unmergedBranches.map((branchName) => ({
-        branchName,
-        slug: branchName.includes("/") ? branchName.slice(branchName.lastIndexOf("/") + 1) : branchName
-      })).filter(({ slug }) => !existingSlugs.has(slug));
-      const branchFeatures = await Promise.all(
-        branchesToProcess.map(async ({ branchName, slug }) => {
-          const codeSessionPath = path8.join(sessionsDir, `${slug}-code.json`);
-          const [codeSession, lastActivity] = await Promise.all([
-            readJsonSession(codeSessionPath),
-            getLastActivity([codeSessionPath])
-          ]);
-          return {
-            id: slug,
-            worktreePath: tildefy(repoRoot2),
-            branch: branchName,
-            status: deriveFeatureStatus(codeSession, false),
-            hasSpec: false,
-            hasTasks: false,
-            taskProgress: { done: 0, total: 0 },
-            codeThreadCounts: countSessionThreads(codeSession),
-            specThreadCounts: { open: 0, resolved: 0 },
-            lastActivity,
-            filesChanged: countFilesChanged(codeSession),
-            sourceType: "branch",
-            repoName
-          };
-        })
-      );
-      features.push(...branchFeatures);
-      setLastActive(repoRoot2);
-      return c.json({ features, repoName: workspaceName });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "unknown error";
-      return c.json({ features: [], error: message });
-    }
-  });
-  return app2;
-}
-
-// src/routes/spec.ts
-init_cjs_shim();
-import fs9 from "node:fs/promises";
-import path9 from "node:path";
-async function resolveSpecPath(featureId, repoRoot2) {
-  const wtPath = await findWorktreePath(featureId, repoRoot2);
-  if (wtPath) {
-    return path9.join(wtPath, "specs", "active", featureId, "spec.md");
-  }
-  return path9.join(repoRoot2, "specs", "archived", featureId, "spec.md");
-}
-function createSpecRoute(_repoRoot) {
-  const app2 = new Hono2();
-  app2.get("/:id/spec", async (c) => {
-    const repoRoot2 = c.get("repoRoot");
-    const featureId = safeId(c.req.param("id"));
-    if (!featureId) {
-      return c.json({ error: "Invalid feature id" }, 400);
-    }
-    const specMdPath = await resolveSpecPath(featureId, repoRoot2);
-    if (!specMdPath) {
-      return c.json({ error: "Feature not found" }, 404);
-    }
-    try {
-      const content = await fs9.readFile(specMdPath, "utf-8");
-      return c.json({
-        content,
-        path: `specs/active/${featureId}/spec.md`
-      });
-    } catch {
-      return c.json({ error: "spec.md not found" }, 404);
-    }
-  });
-  app2.put("/:id/spec", async (c) => {
-    const repoRoot2 = c.get("repoRoot");
-    const featureId = safeId(c.req.param("id"));
-    if (!featureId) {
-      return c.json({ error: "Invalid feature id" }, 400);
-    }
-    const specMdPath = await resolveSpecPath(featureId, repoRoot2);
-    if (!specMdPath) {
-      return c.json({ error: "Feature not found" }, 404);
-    }
-    const body = await c.req.json();
-    if (typeof body.content !== "string") {
-      return c.json({ error: "content must be a string" }, 400);
-    }
-    try {
-      await fs9.writeFile(specMdPath, body.content, "utf-8");
-      return c.json({ ok: true });
-    } catch {
-      return c.json({ error: "Feature not found" }, 404);
-    }
-  });
-  app2.get("/:id/diagrams", async (c) => {
-    const repoRoot2 = c.get("repoRoot");
-    const featureId = safeId(c.req.param("id"));
-    if (!featureId) {
-      return c.json({ error: "Invalid feature id" }, 400);
-    }
-    const wtPath = await findWorktreePath(featureId, repoRoot2);
-    if (!wtPath) {
-      return c.json({ error: "Feature worktree not found" }, 404);
-    }
-    const diagramsDir = path9.join(
-      wtPath,
-      "specs",
-      "active",
-      featureId,
-      "diagrams"
-    );
-    let diagrams = [];
-    try {
-      const entries = await fs9.readdir(diagramsDir);
-      diagrams = entries.filter((f) => f.endsWith(".drawio"));
-    } catch {
-    }
-    return c.json({ diagrams });
-  });
-  app2.get("/:id/diagrams/:name", async (c) => {
-    const featureId = safeId(c.req.param("id"));
-    if (!featureId) {
-      return c.json({ error: "Invalid feature id" }, 400);
-    }
-    const diagramName = c.req.param("name");
-    if (!diagramName?.endsWith(".drawio")) {
-      return c.json({ error: "Only .drawio files are allowed" }, 400);
-    }
-    if (diagramName.includes("/") || diagramName.includes("\\") || diagramName.includes("..")) {
-      return c.json({ error: "Invalid diagram name" }, 400);
-    }
-    const repoRoot2 = c.get("repoRoot");
-    const wtPath = await findWorktreePath(featureId, repoRoot2);
-    if (!wtPath) {
-      return c.json({ error: "Feature worktree not found" }, 404);
-    }
-    const diagramFilePath = path9.join(
-      wtPath,
-      "specs",
-      "active",
-      featureId,
-      "diagrams",
-      diagramName
-    );
-    try {
-      const content = await fs9.readFile(diagramFilePath, "utf-8");
-      return c.json({ content, name: diagramName });
-    } catch {
-      return c.json({ error: "Diagram not found" }, 404);
-    }
-  });
-  app2.get("/file", async (c) => {
-    const repoRoot2 = c.get("repoRoot");
-    const worktreeParam = c.req.query("worktree");
-    const filePath = c.req.query("path");
-    if (!filePath) {
-      return c.json({ error: "path is required" }, 400);
-    }
-    const gitState = await getOrRefreshGitState(repoRoot2);
-    let selectedPath;
-    if (worktreeParam) {
-      const match2 = gitState.worktrees.find((wt) => wt.path === worktreeParam);
-      selectedPath = match2 ? match2.path : worktreeParam;
-    } else {
-      selectedPath = gitState.worktrees.length > 0 ? gitState.worktrees[0].path : repoRoot2;
-    }
-    const absPath = path9.join(selectedPath, filePath);
-    if (!absPath.startsWith(selectedPath)) {
-      return c.json({ error: "Forbidden" }, 403);
-    }
-    try {
-      const content = await fs9.readFile(absPath, "utf-8");
-      return c.json({ content });
-    } catch {
-      return c.json({ error: "File not found" }, 404);
-    }
-  });
-  return app2;
-}
-
-// src/routes/tasks.ts
-init_cjs_shim();
-import fs10 from "node:fs/promises";
-import path10 from "node:path";
-function parseTasksMarkdown(markdown) {
-  const lines = markdown.split("\n");
-  const rawPhases = [];
-  let currentPhase = null;
-  let lastTask = null;
-  for (const line of lines) {
-    if (/^##\s+Status Legend/.test(line)) break;
-    const phaseMatch = line.match(/^##\s+(?:\[([^\]]*)\]\s+)?(.+)$/);
-    if (phaseMatch) {
-      if (currentPhase) rawPhases.push(currentPhase);
-      const phaseMarker = phaseMatch[1] ?? " ";
-      const phaseStatus = phaseMarker === "x" || phaseMarker === "~" ? "done" : phaseMarker === "\u2192" ? "in_progress" : "pending";
-      currentPhase = {
-        name: phaseMatch[2].trim(),
-        status: phaseStatus,
-        tasks: []
-      };
-      lastTask = null;
-      continue;
-    }
-    if (!currentPhase) continue;
-    const checkboxMatch = line.match(
-      /^\s*-\s+\[([^\]]*)\]\s+(T-?\d+)[:\s]\s*(.+)$/
-    );
-    if (checkboxMatch) {
-      const marker = checkboxMatch[1];
-      const status = marker === "x" || marker === "~" ? "done" : marker === "\u2192" ? "in_progress" : "pending";
-      let desc = checkboxMatch[3].trim();
-      const parallelizable = /\[P\]\s*$/.test(desc);
-      if (parallelizable) desc = desc.replace(/\s*\[P\]\s*$/, "").trim();
-      const dependencies = [];
-      const depMatch = desc.match(/\(depends:\s*([^)]+)\)/i);
-      if (depMatch) {
-        desc = desc.replace(/\s*\(depends:\s*[^)]+\)/, "").trim();
-        for (const d of depMatch[1].split(",")) {
-          const id = d.trim();
-          if (id) dependencies.push(id);
-        }
-      }
-      lastTask = {
-        id: checkboxMatch[2],
-        status,
-        description: desc,
-        dependencies,
-        parallelizable
-      };
-      currentPhase.tasks.push(lastTask);
-      continue;
-    }
-    const headingMatch = line.match(
-      /^###\s+(?:\[([^\]]*)\]\s+)?(T-?\d+):\s*(.+)$/
-    );
-    if (headingMatch) {
-      const marker = headingMatch[1] ?? " ";
-      const headingStatus = marker === "x" || marker === "~" ? "done" : marker === "\u2192" ? "in_progress" : "pending";
-      lastTask = {
-        id: headingMatch[2],
-        status: headingStatus,
-        description: headingMatch[3].trim(),
-        dependencies: [],
-        parallelizable: false
-      };
-      currentPhase.tasks.push(lastTask);
-      continue;
-    }
-    if (lastTask) {
-      const whyMatch = line.match(/^(?:\s+-\s+)?\*\*Why\*\*:\s*(.+)$/);
-      if (whyMatch) {
-        lastTask.why = whyMatch[1].trim();
-        continue;
-      }
-      const filesMatch = line.match(/^(?:\s+-\s+)?\*\*Files\*\*:\s*(.+)$/);
-      if (filesMatch) {
-        lastTask.files = filesMatch[1].trim();
-        continue;
-      }
-      const doneMatch = line.match(
-        /^(?:\s+-\s+)?\*\*(?:Done when|Verify)\*\*:\s*(.+)$/
-      );
-      if (doneMatch) {
-        lastTask.doneWhen = doneMatch[1].trim();
-        continue;
-      }
-    }
-  }
-  if (currentPhase) rawPhases.push(currentPhase);
-  const phases = rawPhases.map((p) => {
-    const done = p.tasks.filter((t) => t.status === "done").length;
-    return {
-      ...p,
-      progress: p.tasks.length > 0 ? Math.round(done / p.tasks.length * 100) : 0
-    };
-  });
-  const allTasks = phases.flatMap((p) => p.tasks);
-  return {
-    total: allTasks.length,
-    completed: allTasks.filter((t) => t.status === "done").length,
-    inProgress: allTasks.filter((t) => t.status === "in_progress").length,
-    phases
-  };
-}
-function createTasksRoute(_repoRoot) {
-  const app2 = new Hono2();
-  app2.get("/:id/tasks", async (c) => {
-    const repoRoot2 = c.get("repoRoot");
-    const rawId = c.req.param("id");
-    const featureId = safeId(rawId);
-    if (!featureId) {
-      return c.json({ error: "Invalid feature id" }, 400);
-    }
-    const wtPath = await findWorktreePath(featureId, repoRoot2);
-    let tasksFilePath = null;
-    if (wtPath) {
-      const openspecDir = await findOpenspecChangeDir(wtPath, featureId);
-      if (openspecDir) {
-        tasksFilePath = path10.join(openspecDir, "tasks.md");
-      }
-    } else {
-      const archivedPaths = [
-        path10.join(repoRoot2, "specs", "archived", featureId, "tasks.md"),
-        path10.join(
-          repoRoot2,
-          "openspec",
-          "changes",
-          "archive",
-          featureId,
-          "tasks.md"
-        )
-      ];
-      for (const p of archivedPaths) {
-        try {
-          await fs10.access(p);
-          tasksFilePath = p;
-          break;
-        } catch {
-        }
-      }
-    }
-    if (!tasksFilePath) {
-      return c.json({ error: "tasks.md not found" }, 404);
-    }
-    let tasksContent;
-    try {
-      tasksContent = await fs10.readFile(tasksFilePath, "utf-8");
-    } catch {
-      return c.json({ error: "tasks.md not found" }, 404);
-    }
-    const parsed = parseTasksMarkdown(tasksContent);
-    const overallProgress = parsed.total > 0 ? Math.round(parsed.completed / parsed.total * 100) : 0;
-    let developmentMode = "Non-TDD";
-    try {
-      const yamlContent = await fs10.readFile(
-        path10.join(path10.dirname(tasksFilePath), ".openspec.yaml"),
-        "utf-8"
-      );
-      const modeMatch = yamlContent.match(/^mode:\s*(.+)$/m);
-      if (modeMatch?.[1].trim().toLowerCase() === "tdd") {
-        developmentMode = "TDD";
-      }
-    } catch {
-    }
-    const tasks = {
-      ...parsed,
-      featureId,
-      developmentMode,
-      overallProgress
-    };
-    return c.json({ tasks });
-  });
-  app2.put("/:id/tasks", async (c) => {
-    const repoRoot2 = c.get("repoRoot");
-    const rawId = c.req.param("id");
-    const featureId = safeId(rawId);
-    if (!featureId) {
-      return c.json({ error: "Invalid feature id" }, 400);
-    }
-    const wtPath = await findWorktreePath(featureId, repoRoot2);
-    if (!wtPath) {
-      return c.json({ error: "Feature worktree not found" }, 404);
-    }
-    const body = await c.req.json();
-    if (typeof body.content !== "string") {
-      return c.json({ error: "content must be a string" }, 400);
-    }
-    const openspecDir = await findOpenspecChangeDir(wtPath, featureId);
-    if (!openspecDir) {
-      return c.json({ error: "openspec change directory not found" }, 404);
-    }
-    const tasksFilePath = path10.join(openspecDir, "tasks.md");
-    await fs10.writeFile(tasksFilePath, body.content, "utf-8");
-    return c.json({ ok: true });
-  });
-  return app2;
-}
 
 // src/watcher.ts
 init_cjs_shim();
@@ -10413,8 +9678,8 @@ function watch(paths, options = {}) {
 var esm_default = { watch, FSWatcher };
 
 // src/watcher.ts
-import fs11 from "node:fs/promises";
-import path11 from "node:path";
+import fs8 from "node:fs/promises";
+import path8 from "node:path";
 var WS_EVENTS = {
   FEATURES_UPDATED: "review:features-updated",
   SESSION_UPDATED: "review:session-updated",
@@ -10434,11 +9699,11 @@ function broadcast(event) {
 var gitWatchers = /* @__PURE__ */ new Map();
 function startGitWatcher(repoRoot2) {
   if (gitWatchers.has(repoRoot2)) return;
-  const gitDir = path11.join(repoRoot2, ".git");
+  const gitDir = path8.join(repoRoot2, ".git");
   const watchPaths = [
-    path11.join(gitDir, "HEAD"),
-    path11.join(gitDir, "refs", "heads"),
-    path11.join(gitDir, "worktrees")
+    path8.join(gitDir, "HEAD"),
+    path8.join(gitDir, "refs", "heads"),
+    path8.join(gitDir, "worktrees")
   ];
   let debounceTimer = null;
   const watcher = esm_default.watch(watchPaths, { ignoreInitial: true, depth: 2 }).on("all", () => {
@@ -10453,6 +9718,12 @@ function startGitWatcher(repoRoot2) {
   gitWatchers.set(repoRoot2, watcher);
 }
 var sessionWatchers = /* @__PURE__ */ new Map();
+var recentlyBroadcast = /* @__PURE__ */ new Set();
+function suppressWatcherBroadcast(workspaceName, fileName) {
+  const key = `${workspaceName}/${fileName}`;
+  recentlyBroadcast.add(key);
+  setTimeout(() => recentlyBroadcast.delete(key), 500);
+}
 function startSessionWatcher(workspaceName, sessionsDir) {
   if (sessionWatchers.has(workspaceName)) return;
   const watcher = esm_default.watch(sessionsDir, {
@@ -10460,11 +9731,13 @@ function startSessionWatcher(workspaceName, sessionsDir) {
     awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 }
   }).on("change", (filePath) => {
     if (!filePath.endsWith(".json")) return;
+    const fileName = path8.basename(filePath);
+    const key = `${workspaceName}/${fileName}`;
+    if (recentlyBroadcast.has(key)) return;
     void (async () => {
       try {
-        const content = await fs11.readFile(filePath, "utf-8");
+        const content = await fs8.readFile(filePath, "utf-8");
         const session = JSON.parse(content);
-        const fileName = path11.basename(filePath);
         broadcast({
           event: WS_EVENTS.SESSION_UPDATED,
           data: { workspaceName, fileName, session }
@@ -10474,6 +9747,751 @@ function startSessionWatcher(workspaceName, sessionsDir) {
     })();
   });
   sessionWatchers.set(workspaceName, watcher);
+}
+
+// src/routes/sessions.ts
+var THREAD_STATUS = {
+  Open: "open",
+  Resolved: "resolved",
+  Approved: "approved"
+};
+var SESSION_CONFIGS = {
+  code: {
+    pathSegment: "code-session",
+    fileSuffix: "-code.json"
+  },
+  spec: {
+    pathSegment: "spec-session",
+    fileSuffix: "-spec.json",
+    onPatchThread: (thread, session) => {
+      thread.lastUpdatedAt = (/* @__PURE__ */ new Date()).toISOString();
+      const metadata = session.metadata;
+      if (metadata) {
+        metadata.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+      }
+    }
+  }
+};
+function registerSessionCRUD(app2, config, _sessionType, broadcast3) {
+  const { pathSegment, fileSuffix, onPatchThread } = config;
+  app2.get(`/:id/${pathSegment}`, async (c) => {
+    const workspaceName = c.get("workspaceName");
+    const featureId = safeId(c.req.param("id"));
+    if (!featureId) {
+      return c.json({ error: "Invalid feature id" }, 400);
+    }
+    const fileName = `${featureId}${fileSuffix}`;
+    const result = await readSessionFile(workspaceName, fileName);
+    if (!result) {
+      return c.json({ session: null });
+    }
+    return c.json({ session: JSON.parse(result) });
+  });
+  app2.post(`/:id/${pathSegment}`, async (c) => {
+    const workspaceName = c.get("workspaceName");
+    const featureId = safeId(c.req.param("id"));
+    if (!featureId) {
+      return c.json({ error: "Invalid feature id" }, 400);
+    }
+    const session = await c.req.json();
+    const fileName = `${featureId}${fileSuffix}`;
+    writeSessionFile(workspaceName, fileName, JSON.stringify(session, null, 2));
+    if (broadcast3) {
+      suppressWatcherBroadcast(workspaceName, fileName);
+      broadcast3({
+        event: "review:session-updated",
+        data: { fileName, session }
+      });
+    }
+    return c.json({ ok: true });
+  });
+  app2.delete(`/:id/${pathSegment}`, async (c) => {
+    const workspaceName = c.get("workspaceName");
+    const featureId = safeId(c.req.param("id"));
+    if (!featureId) {
+      return c.json({ error: "Invalid feature id" }, 400);
+    }
+    const fileName = `${featureId}${fileSuffix}`;
+    await deleteSessionFile(workspaceName, fileName);
+    return c.json({ ok: true });
+  });
+  app2.patch(`/:id/${pathSegment}/threads/:threadId`, async (c) => {
+    const workspaceName = c.get("workspaceName");
+    const featureId = safeId(c.req.param("id"));
+    if (!featureId) {
+      return c.json({ error: "Invalid feature id" }, 400);
+    }
+    const threadId = c.req.param("threadId");
+    const fileName = `${featureId}${fileSuffix}`;
+    const result = await readSessionFile(workspaceName, fileName);
+    if (!result) {
+      return c.json({ error: "Session not found" }, 404);
+    }
+    const session = JSON.parse(result);
+    const threads = session.threads ?? [];
+    const threadIndex = threads.findIndex((t) => t.id === threadId);
+    if (threadIndex === -1) {
+      return c.json({ error: "Thread not found" }, 404);
+    }
+    const patch = await c.req.json();
+    const updatedThread = { ...threads[threadIndex] };
+    if (patch.status !== void 0) {
+      updatedThread.status = patch.status;
+    }
+    if (patch.severity !== void 0) {
+      updatedThread.severity = patch.severity;
+    }
+    if (patch.messages !== void 0) {
+      updatedThread.messages = [
+        ...updatedThread.messages ?? [],
+        ...patch.messages
+      ];
+    }
+    if (patch.labels !== void 0) {
+      updatedThread.labels = {
+        ...updatedThread.labels ?? {},
+        ...patch.labels
+      };
+    }
+    onPatchThread?.(updatedThread, session);
+    threads[threadIndex] = updatedThread;
+    session.threads = threads;
+    writeSessionFile(workspaceName, fileName, JSON.stringify(session, null, 2));
+    if (broadcast3) {
+      suppressWatcherBroadcast(workspaceName, fileName);
+      broadcast3({
+        event: "review:session-updated",
+        data: { fileName, session }
+      });
+    }
+    if (broadcast3 && updatedThread.status === THREAD_STATUS.Resolved) {
+      broadcast3({
+        event: "review:resolve-thread-done",
+        data: {
+          featureId,
+          threadId,
+          filePath: updatedThread.filePath ?? "",
+          line: updatedThread.line ?? 0,
+          outcome: "resolved"
+        }
+      });
+    }
+    return c.json({ ok: true, thread: updatedThread });
+  });
+  app2.get(`/:id/${pathSegment}/threads`, async (c) => {
+    const workspaceName = c.get("workspaceName");
+    const featureId = safeId(c.req.param("id"));
+    if (!featureId) {
+      return c.json({ error: "Invalid feature id" }, 400);
+    }
+    const fileName = `${featureId}${fileSuffix}`;
+    const content = await readSessionFile(workspaceName, fileName);
+    if (!content) {
+      return c.json({ threads: [] });
+    }
+    try {
+      const session = JSON.parse(content);
+      return c.json({ threads: session.threads ?? [] });
+    } catch {
+      return c.json({ threads: [] });
+    }
+  });
+  app2.post(`/:id/${pathSegment}/threads`, async (c) => {
+    const workspaceName = c.get("workspaceName");
+    const featureId = safeId(c.req.param("id"));
+    if (!featureId) {
+      return c.json({ error: "Invalid feature id" }, 400);
+    }
+    const thread = await c.req.json();
+    if (!thread.id || thread.anchor === void 0 || !thread.status || !thread.messages) {
+      return c.json(
+        { error: "Thread must have id, anchor, status, and messages" },
+        400
+      );
+    }
+    const fileName = `${featureId}${fileSuffix}`;
+    const content = await readSessionFile(workspaceName, fileName);
+    if (!content) {
+      return c.json({ error: "Session not found" }, 404);
+    }
+    let session;
+    try {
+      session = JSON.parse(content);
+    } catch {
+      return c.json({ error: "Session not found" }, 404);
+    }
+    const threads = session.threads ?? [];
+    threads.push(thread);
+    session.threads = threads;
+    if (session.metadata) {
+      session.metadata.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+    }
+    writeSessionFile(workspaceName, fileName, JSON.stringify(session, null, 2));
+    if (broadcast3) {
+      suppressWatcherBroadcast(workspaceName, fileName);
+      broadcast3({
+        event: "review:session-updated",
+        data: { fileName, session }
+      });
+    }
+    return c.json({ thread }, 201);
+  });
+}
+function createSessionsRoute(broadcast3) {
+  const app2 = new Hono2();
+  for (const [type, config] of Object.entries(SESSION_CONFIGS)) {
+    registerSessionCRUD(app2, config, type, broadcast3);
+  }
+  return app2;
+}
+
+// src/routes/features.ts
+var HOME = os5.homedir();
+function tildefy(p) {
+  return p.startsWith(HOME) ? "~" + p.slice(HOME.length) : p;
+}
+function deriveFeatureStatus(codeSession, hasOpenspecArtifacts) {
+  if (codeSession) {
+    const codeVerdict = codeSession.reviewVerdict;
+    if (codeVerdict === "changes_requested") return "code";
+    if (codeVerdict === "approved") return "complete";
+    return "code_review";
+  }
+  if (hasOpenspecArtifacts) return "design";
+  return "new";
+}
+function parseTaskProgress(content) {
+  const checkboxes = content.match(/- \[[x→~ ]\] T-?\d+/gi) ?? [];
+  const done = checkboxes.filter((c) => /- \[[x~]\]/i.test(c)).length;
+  return { done, total: checkboxes.length };
+}
+function countSessionThreads(session) {
+  if (!session) return { open: 0, resolved: 0 };
+  const threads = session.threads;
+  if (!Array.isArray(threads)) return { open: 0, resolved: 0 };
+  let open2 = 0;
+  let resolved = 0;
+  for (const t of threads) {
+    if (t && typeof t === "object" && "status" in t) {
+      if (t.status === THREAD_STATUS.Open) open2++;
+      else if (t.status === THREAD_STATUS.Resolved || t.status === THREAD_STATUS.Approved)
+        resolved++;
+    }
+  }
+  return { open: open2, resolved };
+}
+async function getLastActivity(paths) {
+  const stats = await Promise.all(
+    paths.map((p) => fs9.stat(p).catch(() => null))
+  );
+  let latest = null;
+  for (const stat4 of stats) {
+    if (stat4 && (!latest || stat4.mtime > latest)) latest = stat4.mtime;
+  }
+  return latest ? latest.toISOString() : null;
+}
+function countFilesChanged(codeSession) {
+  if (!codeSession) return 0;
+  const diff = codeSession.diff;
+  if (typeof diff !== "string") return 0;
+  const matches = diff.match(/^diff --git /gm);
+  return matches ? matches.length : 0;
+}
+async function readJsonSession(filePath) {
+  try {
+    const content = await fs9.readFile(filePath, "utf-8");
+    return JSON.parse(content);
+  } catch {
+    return null;
+  }
+}
+function createFeaturesRoute(_repoRoot) {
+  const app2 = new Hono2();
+  app2.get("/", async (c) => {
+    const repoRoot2 = c.get("repoRoot");
+    const workspaceName = c.get("workspaceName");
+    const sessionsDir = getSessionsDir(workspaceName);
+    try {
+      let gitState = getGitState(repoRoot2);
+      if (!gitState) {
+        gitState = await refreshGitState(repoRoot2);
+      }
+      const features = [];
+      const repoName = workspaceName;
+      await Promise.all(
+        gitState.worktrees.slice(1).map(async (wt) => {
+          const featureId = path9.basename(wt.path);
+          const codeSessionPath = path9.join(
+            sessionsDir,
+            `${featureId}-code.json`
+          );
+          const openspecDir = await findOpenspecChangeDir(wt.path, featureId);
+          let hasOpenspecArtifacts = false;
+          let tasksContent = null;
+          let lastActivity = null;
+          let codeSession = null;
+          if (openspecDir) {
+            const proposalMdPath = path9.join(openspecDir, "proposal.md");
+            const specMdPath = path9.join(openspecDir, "spec.md");
+            const designMdPath = path9.join(openspecDir, "design.md");
+            const tasksMdPath = path9.join(openspecDir, "tasks.md");
+            const results = await Promise.all([
+              readJsonSession(codeSessionPath),
+              fs9.access(proposalMdPath).then(() => true).catch(() => false),
+              fs9.access(specMdPath).then(() => true).catch(() => false),
+              fs9.access(designMdPath).then(() => true).catch(() => false),
+              fs9.readFile(tasksMdPath, "utf-8").catch(() => null),
+              getLastActivity([
+                proposalMdPath,
+                specMdPath,
+                designMdPath,
+                tasksMdPath,
+                codeSessionPath
+              ])
+            ]);
+            codeSession = results[0];
+            hasOpenspecArtifacts = results[1] || results[2] || results[3];
+            tasksContent = results[4];
+            lastActivity = results[5];
+          } else {
+            [codeSession, lastActivity] = await Promise.all([
+              readJsonSession(codeSessionPath),
+              getLastActivity([codeSessionPath])
+            ]);
+          }
+          const hasTasks = tasksContent !== null;
+          features.push({
+            id: featureId,
+            worktreePath: tildefy(wt.path),
+            branch: wt.branch,
+            status: deriveFeatureStatus(codeSession, hasOpenspecArtifacts),
+            hasSpec: hasOpenspecArtifacts,
+            hasTasks,
+            taskProgress: parseTaskProgress(tasksContent ?? ""),
+            codeThreadCounts: countSessionThreads(codeSession),
+            specThreadCounts: { open: 0, resolved: 0 },
+            lastActivity,
+            filesChanged: countFilesChanged(codeSession),
+            sourceType: "worktree",
+            repoName
+          });
+        })
+      );
+      const archivedDirs = [
+        path9.join(repoRoot2, "specs", "archived"),
+        path9.join(repoRoot2, "openspec", "changes", "archive")
+      ];
+      for (const archivedDir of archivedDirs) {
+        try {
+          const archivedEntries = await fs9.readdir(archivedDir, {
+            withFileTypes: true
+          });
+          for (const entry of archivedEntries) {
+            if (!entry.isDirectory()) continue;
+            const archivedId = entry.name;
+            if (features.some((f) => f.id === archivedId)) continue;
+            const [hasSpec, hasTasks] = await Promise.all([
+              fs9.access(path9.join(archivedDir, archivedId, "spec.md")).then(() => true).catch(() => false),
+              fs9.access(path9.join(archivedDir, archivedId, "tasks.md")).then(() => true).catch(() => false)
+            ]);
+            if (hasSpec || hasTasks) {
+              features.push({
+                id: archivedId,
+                worktreePath: tildefy(repoRoot2),
+                branch: "main",
+                status: "complete",
+                hasSpec,
+                hasTasks,
+                taskProgress: { done: 0, total: 0 },
+                codeThreadCounts: { open: 0, resolved: 0 },
+                specThreadCounts: { open: 0, resolved: 0 },
+                lastActivity: null,
+                filesChanged: 0,
+                sourceType: "worktree",
+                repoName
+              });
+            }
+          }
+        } catch {
+        }
+      }
+      const existingSlugs = new Set(features.map((f) => f.id));
+      const branchesToProcess = gitState.unmergedBranches.map((branchName) => ({
+        branchName,
+        slug: branchName.includes("/") ? branchName.slice(branchName.lastIndexOf("/") + 1) : branchName
+      })).filter(({ slug }) => !existingSlugs.has(slug));
+      const branchFeatures = await Promise.all(
+        branchesToProcess.map(async ({ branchName, slug }) => {
+          const codeSessionPath = path9.join(sessionsDir, `${slug}-code.json`);
+          const [codeSession, lastActivity] = await Promise.all([
+            readJsonSession(codeSessionPath),
+            getLastActivity([codeSessionPath])
+          ]);
+          return {
+            id: slug,
+            worktreePath: tildefy(repoRoot2),
+            branch: branchName,
+            status: deriveFeatureStatus(codeSession, false),
+            hasSpec: false,
+            hasTasks: false,
+            taskProgress: { done: 0, total: 0 },
+            codeThreadCounts: countSessionThreads(codeSession),
+            specThreadCounts: { open: 0, resolved: 0 },
+            lastActivity,
+            filesChanged: countFilesChanged(codeSession),
+            sourceType: "branch",
+            repoName
+          };
+        })
+      );
+      features.push(...branchFeatures);
+      setLastActive(repoRoot2);
+      return c.json({ features, repoName: workspaceName });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "unknown error";
+      return c.json({ features: [], error: message });
+    }
+  });
+  return app2;
+}
+
+// src/routes/spec.ts
+init_cjs_shim();
+import fs10 from "node:fs/promises";
+import path10 from "node:path";
+async function resolveSpecPath(featureId, repoRoot2) {
+  const wtPath = await findWorktreePath(featureId, repoRoot2);
+  if (wtPath) {
+    return path10.join(wtPath, "specs", "active", featureId, "spec.md");
+  }
+  return path10.join(repoRoot2, "specs", "archived", featureId, "spec.md");
+}
+function createSpecRoute(_repoRoot) {
+  const app2 = new Hono2();
+  app2.get("/:id/spec", async (c) => {
+    const repoRoot2 = c.get("repoRoot");
+    const featureId = safeId(c.req.param("id"));
+    if (!featureId) {
+      return c.json({ error: "Invalid feature id" }, 400);
+    }
+    const specMdPath = await resolveSpecPath(featureId, repoRoot2);
+    if (!specMdPath) {
+      return c.json({ error: "Feature not found" }, 404);
+    }
+    try {
+      const content = await fs10.readFile(specMdPath, "utf-8");
+      return c.json({
+        content,
+        path: `specs/active/${featureId}/spec.md`
+      });
+    } catch {
+      return c.json({ error: "spec.md not found" }, 404);
+    }
+  });
+  app2.put("/:id/spec", async (c) => {
+    const repoRoot2 = c.get("repoRoot");
+    const featureId = safeId(c.req.param("id"));
+    if (!featureId) {
+      return c.json({ error: "Invalid feature id" }, 400);
+    }
+    const specMdPath = await resolveSpecPath(featureId, repoRoot2);
+    if (!specMdPath) {
+      return c.json({ error: "Feature not found" }, 404);
+    }
+    const body = await c.req.json();
+    if (typeof body.content !== "string") {
+      return c.json({ error: "content must be a string" }, 400);
+    }
+    try {
+      await fs10.writeFile(specMdPath, body.content, "utf-8");
+      return c.json({ ok: true });
+    } catch {
+      return c.json({ error: "Feature not found" }, 404);
+    }
+  });
+  app2.get("/:id/diagrams", async (c) => {
+    const repoRoot2 = c.get("repoRoot");
+    const featureId = safeId(c.req.param("id"));
+    if (!featureId) {
+      return c.json({ error: "Invalid feature id" }, 400);
+    }
+    const wtPath = await findWorktreePath(featureId, repoRoot2);
+    if (!wtPath) {
+      return c.json({ error: "Feature worktree not found" }, 404);
+    }
+    const diagramsDir = path10.join(
+      wtPath,
+      "specs",
+      "active",
+      featureId,
+      "diagrams"
+    );
+    let diagrams = [];
+    try {
+      const entries = await fs10.readdir(diagramsDir);
+      diagrams = entries.filter((f) => f.endsWith(".drawio"));
+    } catch {
+    }
+    return c.json({ diagrams });
+  });
+  app2.get("/:id/diagrams/:name", async (c) => {
+    const featureId = safeId(c.req.param("id"));
+    if (!featureId) {
+      return c.json({ error: "Invalid feature id" }, 400);
+    }
+    const diagramName = c.req.param("name");
+    if (!diagramName?.endsWith(".drawio")) {
+      return c.json({ error: "Only .drawio files are allowed" }, 400);
+    }
+    if (diagramName.includes("/") || diagramName.includes("\\") || diagramName.includes("..")) {
+      return c.json({ error: "Invalid diagram name" }, 400);
+    }
+    const repoRoot2 = c.get("repoRoot");
+    const wtPath = await findWorktreePath(featureId, repoRoot2);
+    if (!wtPath) {
+      return c.json({ error: "Feature worktree not found" }, 404);
+    }
+    const diagramFilePath = path10.join(
+      wtPath,
+      "specs",
+      "active",
+      featureId,
+      "diagrams",
+      diagramName
+    );
+    try {
+      const content = await fs10.readFile(diagramFilePath, "utf-8");
+      return c.json({ content, name: diagramName });
+    } catch {
+      return c.json({ error: "Diagram not found" }, 404);
+    }
+  });
+  app2.get("/file", async (c) => {
+    const repoRoot2 = c.get("repoRoot");
+    const worktreeParam = c.req.query("worktree");
+    const filePath = c.req.query("path");
+    if (!filePath) {
+      return c.json({ error: "path is required" }, 400);
+    }
+    const gitState = await getOrRefreshGitState(repoRoot2);
+    let selectedPath;
+    if (worktreeParam) {
+      const match2 = gitState.worktrees.find((wt) => wt.path === worktreeParam);
+      selectedPath = match2 ? match2.path : worktreeParam;
+    } else {
+      selectedPath = gitState.worktrees.length > 0 ? gitState.worktrees[0].path : repoRoot2;
+    }
+    const absPath = path10.join(selectedPath, filePath);
+    if (!absPath.startsWith(selectedPath)) {
+      return c.json({ error: "Forbidden" }, 403);
+    }
+    try {
+      const content = await fs10.readFile(absPath, "utf-8");
+      return c.json({ content });
+    } catch {
+      return c.json({ error: "File not found" }, 404);
+    }
+  });
+  return app2;
+}
+
+// src/routes/tasks.ts
+init_cjs_shim();
+import fs11 from "node:fs/promises";
+import path11 from "node:path";
+function parseTasksMarkdown(markdown) {
+  const lines = markdown.split("\n");
+  const rawPhases = [];
+  let currentPhase = null;
+  let lastTask = null;
+  for (const line of lines) {
+    if (/^##\s+Status Legend/.test(line)) break;
+    const phaseMatch = line.match(/^##\s+(?:\[([^\]]*)\]\s+)?(.+)$/);
+    if (phaseMatch) {
+      if (currentPhase) rawPhases.push(currentPhase);
+      const phaseMarker = phaseMatch[1] ?? " ";
+      const phaseStatus = phaseMarker === "x" || phaseMarker === "~" ? "done" : phaseMarker === "\u2192" ? "in_progress" : "pending";
+      currentPhase = {
+        name: phaseMatch[2].trim(),
+        status: phaseStatus,
+        tasks: []
+      };
+      lastTask = null;
+      continue;
+    }
+    if (!currentPhase) continue;
+    const checkboxMatch = line.match(
+      /^\s*-\s+\[([^\]]*)\]\s+(T-?\d+)[:\s]\s*(.+)$/
+    );
+    if (checkboxMatch) {
+      const marker = checkboxMatch[1];
+      const status = marker === "x" || marker === "~" ? "done" : marker === "\u2192" ? "in_progress" : "pending";
+      let desc = checkboxMatch[3].trim();
+      const parallelizable = /\[P\]\s*$/.test(desc);
+      if (parallelizable) desc = desc.replace(/\s*\[P\]\s*$/, "").trim();
+      const dependencies = [];
+      const depMatch = desc.match(/\(depends:\s*([^)]+)\)/i);
+      if (depMatch) {
+        desc = desc.replace(/\s*\(depends:\s*[^)]+\)/, "").trim();
+        for (const d of depMatch[1].split(",")) {
+          const id = d.trim();
+          if (id) dependencies.push(id);
+        }
+      }
+      lastTask = {
+        id: checkboxMatch[2],
+        status,
+        description: desc,
+        dependencies,
+        parallelizable
+      };
+      currentPhase.tasks.push(lastTask);
+      continue;
+    }
+    const headingMatch = line.match(
+      /^###\s+(?:\[([^\]]*)\]\s+)?(T-?\d+):\s*(.+)$/
+    );
+    if (headingMatch) {
+      const marker = headingMatch[1] ?? " ";
+      const headingStatus = marker === "x" || marker === "~" ? "done" : marker === "\u2192" ? "in_progress" : "pending";
+      lastTask = {
+        id: headingMatch[2],
+        status: headingStatus,
+        description: headingMatch[3].trim(),
+        dependencies: [],
+        parallelizable: false
+      };
+      currentPhase.tasks.push(lastTask);
+      continue;
+    }
+    if (lastTask) {
+      const whyMatch = line.match(/^(?:\s+-\s+)?\*\*Why\*\*:\s*(.+)$/);
+      if (whyMatch) {
+        lastTask.why = whyMatch[1].trim();
+        continue;
+      }
+      const filesMatch = line.match(/^(?:\s+-\s+)?\*\*Files\*\*:\s*(.+)$/);
+      if (filesMatch) {
+        lastTask.files = filesMatch[1].trim();
+        continue;
+      }
+      const doneMatch = line.match(
+        /^(?:\s+-\s+)?\*\*(?:Done when|Verify)\*\*:\s*(.+)$/
+      );
+      if (doneMatch) {
+        lastTask.doneWhen = doneMatch[1].trim();
+        continue;
+      }
+    }
+  }
+  if (currentPhase) rawPhases.push(currentPhase);
+  const phases = rawPhases.map((p) => {
+    const done = p.tasks.filter((t) => t.status === "done").length;
+    return {
+      ...p,
+      progress: p.tasks.length > 0 ? Math.round(done / p.tasks.length * 100) : 0
+    };
+  });
+  const allTasks = phases.flatMap((p) => p.tasks);
+  return {
+    total: allTasks.length,
+    completed: allTasks.filter((t) => t.status === "done").length,
+    inProgress: allTasks.filter((t) => t.status === "in_progress").length,
+    phases
+  };
+}
+function createTasksRoute(_repoRoot) {
+  const app2 = new Hono2();
+  app2.get("/:id/tasks", async (c) => {
+    const repoRoot2 = c.get("repoRoot");
+    const rawId = c.req.param("id");
+    const featureId = safeId(rawId);
+    if (!featureId) {
+      return c.json({ error: "Invalid feature id" }, 400);
+    }
+    const wtPath = await findWorktreePath(featureId, repoRoot2);
+    let tasksFilePath = null;
+    if (wtPath) {
+      const openspecDir = await findOpenspecChangeDir(wtPath, featureId);
+      if (openspecDir) {
+        tasksFilePath = path11.join(openspecDir, "tasks.md");
+      }
+    } else {
+      const archivedPaths = [
+        path11.join(repoRoot2, "specs", "archived", featureId, "tasks.md"),
+        path11.join(
+          repoRoot2,
+          "openspec",
+          "changes",
+          "archive",
+          featureId,
+          "tasks.md"
+        )
+      ];
+      for (const p of archivedPaths) {
+        try {
+          await fs11.access(p);
+          tasksFilePath = p;
+          break;
+        } catch {
+        }
+      }
+    }
+    if (!tasksFilePath) {
+      return c.json({ error: "tasks.md not found" }, 404);
+    }
+    let tasksContent;
+    try {
+      tasksContent = await fs11.readFile(tasksFilePath, "utf-8");
+    } catch {
+      return c.json({ error: "tasks.md not found" }, 404);
+    }
+    const parsed = parseTasksMarkdown(tasksContent);
+    const overallProgress = parsed.total > 0 ? Math.round(parsed.completed / parsed.total * 100) : 0;
+    let developmentMode = "Non-TDD";
+    try {
+      const yamlContent = await fs11.readFile(
+        path11.join(path11.dirname(tasksFilePath), ".openspec.yaml"),
+        "utf-8"
+      );
+      const modeMatch = yamlContent.match(/^mode:\s*(.+)$/m);
+      if (modeMatch?.[1].trim().toLowerCase() === "tdd") {
+        developmentMode = "TDD";
+      }
+    } catch {
+    }
+    const tasks = {
+      ...parsed,
+      featureId,
+      developmentMode,
+      overallProgress
+    };
+    return c.json({ tasks });
+  });
+  app2.put("/:id/tasks", async (c) => {
+    const repoRoot2 = c.get("repoRoot");
+    const rawId = c.req.param("id");
+    const featureId = safeId(rawId);
+    if (!featureId) {
+      return c.json({ error: "Invalid feature id" }, 400);
+    }
+    const wtPath = await findWorktreePath(featureId, repoRoot2);
+    if (!wtPath) {
+      return c.json({ error: "Feature worktree not found" }, 404);
+    }
+    const body = await c.req.json();
+    if (typeof body.content !== "string") {
+      return c.json({ error: "content must be a string" }, 400);
+    }
+    const openspecDir = await findOpenspecChangeDir(wtPath, featureId);
+    if (!openspecDir) {
+      return c.json({ error: "openspec change directory not found" }, 404);
+    }
+    const tasksFilePath = path11.join(openspecDir, "tasks.md");
+    await fs11.writeFile(tasksFilePath, body.content, "utf-8");
+    return c.json({ ok: true });
+  });
+  return app2;
 }
 
 // src/index.ts

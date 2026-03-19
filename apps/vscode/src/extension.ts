@@ -1,16 +1,22 @@
 import * as vscode from "vscode";
+import { execFile } from "child_process";
+import { promisify } from "util";
+import * as path from "path";
 import { FeatureDetector } from "./featureDetector";
-import { serverClient } from "./serverClient";
+import { serverClient, setWorkspaceName, getBaseUrl } from "./serverClient";
 import type { SessionThread } from "./serverClient";
 import { StatusBar } from "./statusBar";
 import { CommentManager } from "./commentManager";
 import { WsClient } from "./wsClient";
+import {
+  BaseContentProvider,
+  EmptyContentProvider,
+  SCHEME_BASE,
+  SCHEME_EMPTY,
+} from "./baseContentProvider";
+import { DiffPanelManager } from "./diffPanelManager";
 
-function getBaseUrl(): string {
-  return vscode.workspace
-    .getConfiguration("local-review")
-    .get<string>("serverUrl", "http://localhost:37003");
-}
+const execFileAsync = promisify(execFile);
 
 export function activate(context: vscode.ExtensionContext): void {
   const outputChannel = vscode.window.createOutputChannel("Local Review");
@@ -22,16 +28,39 @@ export function activate(context: vscode.ExtensionContext): void {
     return;
   }
 
+  // CRITICAL: Register content providers BEFORE CommentManager.
+  // CommentManager._buildNewThread calls openTextDocument on virtual URIs,
+  // which requires the provider to already be registered.
+  const baseProvider = new BaseContentProvider(workspaceRoot);
+  const emptyProvider = new EmptyContentProvider();
+  context.subscriptions.push(
+    vscode.workspace.registerTextDocumentContentProvider(
+      SCHEME_BASE,
+      baseProvider,
+    ),
+    vscode.workspace.registerTextDocumentContentProvider(
+      SCHEME_EMPTY,
+      emptyProvider,
+    ),
+    baseProvider,
+  );
+
   const statusBar = new StatusBar();
   const featureDetector = new FeatureDetector(workspaceRoot);
   const commentManager = new CommentManager(workspaceRoot, outputChannel);
   const wsClient = new WsClient(getBaseUrl(), outputChannel);
+  const diffPanelManager = new DiffPanelManager(
+    workspaceRoot,
+    baseProvider,
+    outputChannel,
+  );
 
   context.subscriptions.push(
     statusBar,
     featureDetector,
     commentManager,
     wsClient,
+    diffPanelManager,
     outputChannel,
   );
 
@@ -68,6 +97,7 @@ export function activate(context: vscode.ExtensionContext): void {
       );
       commentManager.loadThreads(threads);
       statusBar.updateThreadCount(threads.length);
+      diffPanelManager.updateThreadCounts(threads);
     }),
 
     // Resolver progress events — update status bar during resolve runs
@@ -75,12 +105,6 @@ export function activate(context: vscode.ExtensionContext): void {
       const payload = data as { featureId: string; threadCount: number };
       if (payload.featureId !== currentFeatureId) return;
       statusBar.setResolving(0, payload.threadCount);
-    }),
-
-    wsClient.on("review:resolve-thread-done", (data: unknown) => {
-      const payload = data as { featureId: string };
-      if (payload.featureId !== currentFeatureId) return;
-      // The status bar's resolving state will be updated by the next session-updated event
     }),
 
     wsClient.on("review:resolve-completed", (data: unknown) => {
@@ -121,8 +145,31 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
   );
 
+  // Resolve workspace name from git repo root (handles worktrees).
+  // git-common-dir points to the main repo's .git even in a worktree.
+  const resolveWorkspace = async () => {
+    try {
+      const { stdout } = await execFileAsync(
+        "git",
+        ["rev-parse", "--git-common-dir"],
+        { cwd: workspaceRoot },
+      );
+      // git-common-dir returns e.g. "/Users/.../code/review/.git"
+      const gitCommonDir = path.resolve(workspaceRoot, stdout.trim());
+      const repoName = path.basename(path.dirname(gitCommonDir));
+      setWorkspaceName(repoName);
+      outputChannel.appendLine(`Workspace resolved: ${repoName}`);
+    } catch {
+      // Fallback to directory name
+      const fallback = path.basename(workspaceRoot);
+      setWorkspaceName(fallback);
+      outputChannel.appendLine(`Workspace fallback: ${fallback}`);
+    }
+  };
+
   // Initialize feature detection and connection
   const init = async () => {
+    await resolveWorkspace();
     const featureId = await featureDetector.initialize();
     currentFeatureId = featureId;
 
@@ -298,6 +345,51 @@ export function activate(context: vscode.ExtensionContext): void {
         statusBar.setResolveFailed(msg);
         outputChannel.appendLine(`Request Changes failed: ${msg}`);
       }
+    }),
+
+    // Diff panel commands
+    vscode.commands.registerCommand("local-review.openDiff", async () => {
+      const featureId = featureDetector.featureId;
+      if (!featureId) {
+        void vscode.window.showWarningMessage(
+          "No feature branch detected. Switch to a feature/* branch first.",
+        );
+        return;
+      }
+      const connected = await serverClient.checkConnection();
+      if (!connected) {
+        void vscode.window.showErrorMessage(
+          "Local Review server is not reachable.",
+        );
+        return;
+      }
+      await diffPanelManager.open(featureId);
+    }),
+
+    vscode.commands.registerCommand(
+      "local-review.openDiffFile",
+      async (file: unknown) => {
+        if (file && typeof file === "object" && "path" in file) {
+          await diffPanelManager.openFile(
+            file as {
+              path: string;
+              oldPath: string;
+              newPath: string;
+              status: "A" | "M" | "D" | "R";
+            },
+          );
+        }
+      },
+    ),
+
+    vscode.commands.registerCommand("local-review.refreshDiff", async () => {
+      const featureId = featureDetector.featureId;
+      if (!featureId) return;
+      await diffPanelManager.refresh(featureId);
+    }),
+
+    vscode.commands.registerCommand("local-review.closeDiff", () => {
+      diffPanelManager.close();
     }),
   );
 
