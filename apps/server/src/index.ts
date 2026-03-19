@@ -10,7 +10,12 @@ import { WebSocketServer, type WebSocket } from "ws";
 import { refreshGitState } from "./git.js";
 import { repoMiddleware } from "./middleware/repo.js";
 import type { AppEnv } from "./types.js";
-import { getWorkspaces, registerWorkspace } from "./workspaces.js";
+import {
+  ensureRegistered,
+  getDefaultRepo,
+  getWorkspaces,
+  registerWorkspace,
+} from "./workspaces.js";
 import {
   coldStart as resolverColdStart,
   getStatus as resolverStatus,
@@ -69,12 +74,13 @@ app.get("/api/workspaces", (c) => c.json({ workspaces: getWorkspaces() }));
 app.post("/api/workspaces/register", async (c) => {
   const body = await c.req.json<{ path?: string }>();
   if (!body.path) return c.json({ error: "path required" }, 400);
-  const added = registerWorkspace(body.path);
-  return c.json({ ok: true, added });
+  const result = registerWorkspace(body.path);
+  if (!result) return c.json({ ok: false, error: "not a git repository" }, 400);
+  return c.json({ ok: true, added: result.added, workspace: result.workspace });
 });
 
-// Register the default repo on startup
-registerWorkspace(repoRoot);
+// Register the plugin repo on startup WITHOUT touching lastActive
+ensureRegistered(repoRoot);
 
 // Resolver daemon management
 app.post("/api/resolver/cold-start", (c) => {
@@ -166,11 +172,13 @@ if (!isDev) {
 // Startup
 // ---------------------------------------------------------------------------
 
+const effectiveDefault = getDefaultRepo() ?? repoRoot;
+console.log(`[local-review] Default workspace: ${effectiveDefault}`);
 console.log("[local-review] Warming git state cache...");
-await refreshGitState(repoRoot);
+await refreshGitState(effectiveDefault);
 console.log("[local-review] Git state ready.");
 
-startGitWatcher(repoRoot);
+startGitWatcher(effectiveDefault);
 startSessionWatcher(sessionsDir);
 
 const port = parseInt(process.env.PORT ?? "", 10) || 37003;

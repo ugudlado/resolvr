@@ -7,7 +7,7 @@ import { findWorktreePath, safeId } from "../utils.js";
 
 /** Resolve the spec.md path: active worktree first, then archived. */
 function resolveSpecPath(featureId: string, repoRoot: string): string | null {
-  const wtPath = findWorktreePath(featureId);
+  const wtPath = findWorktreePath(featureId, repoRoot);
   if (wtPath) {
     return path.join(wtPath, "specs", "active", featureId, "spec.md");
   }
@@ -70,12 +70,13 @@ export function createSpecRoute(_repoRoot: string): Hono<AppEnv> {
 
   // GET /api/features/:id/diagrams
   app.get("/:id/diagrams", async (c) => {
+    const repoRoot = c.get("repoRoot");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
 
-    const wtPath = findWorktreePath(featureId);
+    const wtPath = findWorktreePath(featureId, repoRoot);
     if (!wtPath) {
       return c.json({ error: "Feature worktree not found" }, 404);
     }
@@ -118,7 +119,8 @@ export function createSpecRoute(_repoRoot: string): Hono<AppEnv> {
       return c.json({ error: "Invalid diagram name" }, 400);
     }
 
-    const wtPath = findWorktreePath(featureId);
+    const repoRoot = c.get("repoRoot");
+    const wtPath = findWorktreePath(featureId, repoRoot);
     if (!wtPath) {
       return c.json({ error: "Feature worktree not found" }, 404);
     }
@@ -150,7 +152,7 @@ export function createSpecRoute(_repoRoot: string): Hono<AppEnv> {
       return c.json({ error: "path is required" }, 400);
     }
 
-    const gitState = getGitState();
+    const gitState = getGitState(repoRoot);
     if (!gitState) {
       return c.json({ error: "git state not yet computed" }, 503);
     }

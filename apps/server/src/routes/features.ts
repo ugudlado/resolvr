@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { getGitState, refreshGitState } from "../git.js";
+import { setLastActive } from "../workspaces.js";
 import os from "node:os";
 import type { AppEnv } from "../types.js";
 import { findOpenspecChangeDir } from "../utils.js";
@@ -137,13 +138,10 @@ export function createFeaturesRoute(_repoRoot: string): Hono<AppEnv> {
     const repoRoot = c.get("repoRoot");
     const sessionsDir = path.join(repoRoot, ".review", "sessions");
     try {
-      // Use cached state for default repo, fresh state for overrides
-      const isOverride = repoRoot !== _repoRoot;
-      const gitState = isOverride
-        ? await refreshGitState(repoRoot)
-        : getGitState();
+      // Use cached state if available, refresh on miss
+      let gitState = getGitState(repoRoot);
       if (!gitState) {
-        return c.json({ features: [], error: "git state not yet computed" });
+        gitState = await refreshGitState(repoRoot);
       }
 
       const features: FeatureInfo[] = [];
@@ -313,6 +311,9 @@ export function createFeaturesRoute(_repoRoot: string): Hono<AppEnv> {
         }),
       );
       features.push(...branchFeatures);
+
+      // Track this workspace as last-active
+      setLastActive(repoRoot);
 
       return c.json({ features, repoName: getRepoName(repoRoot) });
     } catch (err) {

@@ -3,21 +3,22 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { AppEnv } from "../types.js";
-import { resolveWorkspace } from "../workspaces.js";
+import { getDefaultRepo, resolveWorkspace } from "../workspaces.js";
 
 /**
  * Hono middleware that resolves the repo root for each request.
  *
  * Priority: `?repo=/path` (direct) > `?workspace=name` (registry lookup) > default.
+ * Default: last-active workspace from registry, falling back to static repoRoot.
  */
 export function repoMiddleware(defaultRepoRoot: string) {
   return async (c: Context<AppEnv>, next: Next) => {
     const repoParam = c.req.query("repo");
     const workspaceParam = c.req.query("workspace");
 
-    // No override — use default
+    // No override — use last-active workspace or fallback to static default
     if (!repoParam && !workspaceParam) {
-      c.set("repoRoot", defaultRepoRoot);
+      c.set("repoRoot", getDefaultRepo() ?? defaultRepoRoot);
       return next();
     }
 

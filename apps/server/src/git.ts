@@ -22,7 +22,7 @@ export type GitState = {
   computedAt: number;
 };
 
-let cache: GitState | null = null;
+const cacheMap = new Map<string, GitState>();
 
 export async function execGit(args: string[], cwd: string): Promise<string> {
   const { stdout } = await execFileAsync("git", args, {
@@ -83,16 +83,23 @@ export async function refreshGitState(repoRoot: string): Promise<GitState> {
     // No archived directory — that's fine
   }
 
-  cache = {
+  const state: GitState = {
     worktrees,
     localBranches,
     unmergedBranches,
     archivedFeatureIds,
     computedAt: Date.now(),
   };
-  return cache;
+  cacheMap.set(repoRoot, state);
+  return state;
 }
 
-export function getGitState(): GitState | null {
-  return cache;
+/** Get cached git state for a specific repo. Returns null on cache miss. */
+export function getGitState(repoPath: string): GitState | null {
+  return cacheMap.get(repoPath) ?? null;
+}
+
+/** Clear cached git state for a specific repo (used by watcher on change). */
+export function clearGitState(repoPath: string): void {
+  cacheMap.delete(repoPath);
 }

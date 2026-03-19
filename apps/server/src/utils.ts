@@ -10,8 +10,11 @@ export function safeId(raw: string): string | null {
 }
 
 /** Find a worktree path by feature ID (basename of worktree path). */
-export function findWorktreePath(featureId: string): string | null {
-  const gitState = getGitState();
+export function findWorktreePath(
+  featureId: string,
+  repoRoot: string,
+): string | null {
+  const gitState = getGitState(repoRoot);
   if (!gitState) return null;
   const wt = gitState.worktrees.find(
     (w) => path.basename(w.path) === featureId,

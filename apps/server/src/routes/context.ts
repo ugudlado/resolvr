@@ -62,8 +62,8 @@ function chooseDefaultTarget(branches: string[]): string {
 function resolveWorktree(
   requestedPath: string | null,
   repoRoot: string,
+  state: GitState | null,
 ): { path: string; branch: string; isMain: boolean } {
-  const state = getGitState();
   const worktrees = state?.worktrees ?? [];
 
   if (!requestedPath) {
@@ -271,13 +271,13 @@ export function createContextRoute(_repoRoot: string): Hono<AppEnv> {
     const _requestedSource = c.req.query("source") ?? null;
     const requestedTarget = c.req.query("target") ?? null;
 
-    const state = getGitState();
+    const state = getGitState(repoRoot);
     const rawWorktrees = state?.worktrees ?? [];
     const localBranches = state?.localBranches ?? [];
 
     let selectedWorktree: ReturnType<typeof resolveWorktree>;
     try {
-      selectedWorktree = resolveWorktree(requestedWorktree, repoRoot);
+      selectedWorktree = resolveWorktree(requestedWorktree, repoRoot, state);
     } catch {
       return c.json({ error: "Unknown worktree path" }, 400);
     }
@@ -313,14 +313,14 @@ export function createContextRoute(_repoRoot: string): Hono<AppEnv> {
     const requestedTarget = c.req.query("target") ?? null;
     const requestedSource = c.req.query("source") ?? null;
 
+    const state = getGitState(repoRoot);
     let selectedWorktree: ReturnType<typeof resolveWorktree>;
     try {
-      selectedWorktree = resolveWorktree(requestedWorktree, repoRoot);
+      selectedWorktree = resolveWorktree(requestedWorktree, repoRoot, state);
     } catch {
       return c.json({ error: "Unknown worktree path" }, 400);
     }
 
-    const state = getGitState();
     const localBranches = state?.localBranches ?? [];
     const rawWorktrees = state?.worktrees ?? [];
 
@@ -352,14 +352,14 @@ export function createContextRoute(_repoRoot: string): Hono<AppEnv> {
     const requestedTarget = c.req.query("target") ?? null;
     const requestedSource = c.req.query("source") ?? null;
 
+    const state = getGitState(repoRoot);
     let selectedWorktree: ReturnType<typeof resolveWorktree>;
     try {
-      selectedWorktree = resolveWorktree(requestedWorktree, repoRoot);
+      selectedWorktree = resolveWorktree(requestedWorktree, repoRoot, state);
     } catch {
       return c.json({ error: "Unknown worktree path" }, 400);
     }
 
-    const state = getGitState();
     const localBranches = state?.localBranches ?? [];
     const rawWorktrees = state?.worktrees ?? [];
 
@@ -394,9 +394,10 @@ export function createContextRoute(_repoRoot: string): Hono<AppEnv> {
       return c.json({ error: "commit is required" }, 400);
     }
 
+    const state = getGitState(repoRoot);
     let selectedWorktree: ReturnType<typeof resolveWorktree>;
     try {
-      selectedWorktree = resolveWorktree(requestedWorktree, repoRoot);
+      selectedWorktree = resolveWorktree(requestedWorktree, repoRoot, state);
     } catch {
       return c.json({ error: "Unknown worktree path" }, 400);
     }
@@ -415,7 +416,8 @@ export function createContextRoute(_repoRoot: string): Hono<AppEnv> {
 
   // GET /worktrees
   app.get("/worktrees", (c) => {
-    const state = getGitState();
+    const repoRoot = c.get("repoRoot");
+    const state = getGitState(repoRoot);
     const rawWorktrees = state?.worktrees ?? [];
     const worktrees = rawWorktrees.map((wt, idx) => ({
       path: wt.path,
@@ -427,7 +429,8 @@ export function createContextRoute(_repoRoot: string): Hono<AppEnv> {
 
   // GET /branches
   app.get("/branches", (c) => {
-    const branches = filterActiveBranches(getGitState());
+    const repoRoot = c.get("repoRoot");
+    const branches = filterActiveBranches(getGitState(repoRoot));
     return c.json({ branches });
   });
 
