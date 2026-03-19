@@ -55,6 +55,10 @@ export class WsClient implements vscode.Disposable {
       this._ws.on("message", (raw: WebSocket.RawData) => {
         try {
           const event = JSON.parse(raw.toString()) as WsEvent;
+          const payload = event.data as Record<string, unknown> | undefined;
+          this._outputChannel.appendLine(
+            `[WS] ${event.event} fileName=${payload?.fileName ?? "?"} workspace=${payload?.workspaceName ?? "?"}`,
+          );
           const handlers = this._handlers.get(event.event);
           if (handlers) {
             for (const handler of handlers) {

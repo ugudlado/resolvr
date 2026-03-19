@@ -8025,6 +8025,12 @@ function registerSessionCRUD(app2, config, _sessionType, broadcast3) {
     const session = await c.req.json();
     const fileName = `${featureId}${fileSuffix}`;
     writeSessionFile(workspaceName, fileName, JSON.stringify(session, null, 2));
+    if (broadcast3) {
+      broadcast3({
+        event: "review:session-updated",
+        data: { fileName, session }
+      });
+    }
     return c.json({ ok: true });
   });
   app2.delete(`/:id/${pathSegment}`, async (c) => {

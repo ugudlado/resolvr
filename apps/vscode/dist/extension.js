@@ -4656,6 +4656,10 @@ var WsClient = class _WsClient {
       this._ws.on("message", (raw) => {
         try {
           const event = JSON.parse(raw.toString());
+          const payload = event.data;
+          this._outputChannel.appendLine(
+            `[WS] ${event.event} fileName=${payload?.fileName ?? "?"} workspace=${payload?.workspaceName ?? "?"}`
+          );
           const handlers = this._handlers.get(event.event);
           if (handlers) {
             for (const handler of handlers) {

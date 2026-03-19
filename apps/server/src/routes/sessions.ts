@@ -125,6 +125,14 @@ function registerSessionCRUD(
     const fileName = `${featureId}${fileSuffix}`;
     writeSessionFile(workspaceName, fileName, JSON.stringify(session, null, 2));
 
+    // Broadcast so other clients (VS Code extension, other browser tabs) see the update
+    if (broadcast) {
+      broadcast({
+        event: "review:session-updated",
+        data: { fileName, session },
+      });
+    }
+
     return c.json({ ok: true });
   });
 
