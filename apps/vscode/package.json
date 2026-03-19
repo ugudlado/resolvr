@@ -36,8 +36,55 @@
       {
         "command": "local-review.requestChanges",
         "title": "Local Review: Request Changes"
+      },
+      {
+        "command": "local-review.createComment",
+        "title": "Add Comment"
+      },
+      {
+        "command": "local-review.replyToComment",
+        "title": "Reply"
+      },
+      {
+        "command": "local-review.resolveThread",
+        "title": "Resolve"
+      },
+      {
+        "command": "local-review.unresolveThread",
+        "title": "Re-open"
       }
     ],
+    "menus": {
+      "comments/commentThread/context": [
+        {
+          "command": "local-review.createComment",
+          "group": "inline",
+          "when": "commentController == local-review && commentThread == new"
+        },
+        {
+          "command": "local-review.replyToComment",
+          "group": "inline",
+          "when": "commentController == local-review && commentThread != new"
+        },
+        {
+          "command": "local-review.resolveThread",
+          "group": "inline",
+          "when": "commentController == local-review && commentThread != new && commentThreadIsEmpty == false"
+        }
+      ],
+      "comments/commentThread/title": [
+        {
+          "command": "local-review.resolveThread",
+          "group": "inline@1",
+          "when": "commentController == local-review && commentThread != new && commentThreadIsEmpty == false"
+        },
+        {
+          "command": "local-review.unresolveThread",
+          "group": "inline@2",
+          "when": "commentController == local-review && commentThread != new && commentThreadIsEmpty == false"
+        }
+      ]
+    },
     "configuration": {
       "title": "Local Review",
       "properties": {
@@ -55,9 +102,13 @@
     "package": "vsce package",
     "type-check": "tsc --noEmit"
   },
+  "dependencies": {
+    "ws": "^8.19.0"
+  },
   "devDependencies": {
     "@types/node": "^25.5.0",
     "@types/vscode": "^1.85.0",
+    "@types/ws": "^8.18.1",
     "@vscode/vsce": "^3.0.0",
     "esbuild": "^0.24.0",
     "typescript": "^5.5.0"

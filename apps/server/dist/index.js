@@ -8003,6 +8003,13 @@ function registerSessionCRUD(app2, config, _sessionsDir, _ensureSessionsDir, ses
     threads[threadIndex] = updatedThread;
     session.threads = threads;
     await fs6.writeFile(filePath, JSON.stringify(session, null, 2), "utf-8");
+    if (broadcast3) {
+      const fileName = `${featureId}${fileSuffix}`;
+      broadcast3({
+        event: "review:session-updated",
+        data: { fileName, session }
+      });
+    }
     if (broadcast3 && updatedThread.status === THREAD_STATUS.Resolved) {
       broadcast3({
         event: "review:resolve-thread-done",
@@ -8016,6 +8023,62 @@ function registerSessionCRUD(app2, config, _sessionsDir, _ensureSessionsDir, ses
       });
     }
     return c.json({ ok: true, thread: updatedThread });
+  });
+  app2.get(`/:id/${pathSegment}/threads`, async (c) => {
+    const repoRoot2 = c.get("repoRoot");
+    const sessionsDir2 = path6.join(repoRoot2, ".review", "sessions");
+    const featureId = safeId(c.req.param("id"));
+    if (!featureId) {
+      return c.json({ error: "Invalid feature id" }, 400);
+    }
+    await fs6.mkdir(sessionsDir2, { recursive: true });
+    const filePath = path6.join(sessionsDir2, `${featureId}${fileSuffix}`);
+    try {
+      const content = await fs6.readFile(filePath, "utf-8");
+      const session = JSON.parse(content);
+      return c.json({ threads: session.threads ?? [] });
+    } catch {
+      return c.json({ threads: [] });
+    }
+  });
+  app2.post(`/:id/${pathSegment}/threads`, async (c) => {
+    const repoRoot2 = c.get("repoRoot");
+    const sessionsDir2 = path6.join(repoRoot2, ".review", "sessions");
+    const featureId = safeId(c.req.param("id"));
+    if (!featureId) {
+      return c.json({ error: "Invalid feature id" }, 400);
+    }
+    await fs6.mkdir(sessionsDir2, { recursive: true });
+    const filePath = path6.join(sessionsDir2, `${featureId}${fileSuffix}`);
+    const thread = await c.req.json();
+    if (!thread.id || thread.anchor === void 0 || !thread.status || !thread.messages) {
+      return c.json(
+        { error: "Thread must have id, anchor, status, and messages" },
+        400
+      );
+    }
+    let session;
+    try {
+      const content = await fs6.readFile(filePath, "utf-8");
+      session = JSON.parse(content);
+    } catch {
+      return c.json({ error: "Session not found" }, 404);
+    }
+    const threads = session.threads ?? [];
+    threads.push(thread);
+    session.threads = threads;
+    if (session.metadata) {
+      session.metadata.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+    }
+    await fs6.writeFile(filePath, JSON.stringify(session, null, 2), "utf-8");
+    if (broadcast3) {
+      const fileName = `${featureId}${fileSuffix}`;
+      broadcast3({
+        event: "review:session-updated",
+        data: { fileName, session }
+      });
+    }
+    return c.json({ thread }, 201);
   });
 }
 function createSessionsRoute(repoRoot2, broadcast3) {
