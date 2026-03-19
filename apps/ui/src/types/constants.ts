@@ -36,7 +36,6 @@ export type FeatureStatus =
 // ---------------------------------------------------------------------------
 
 export const REVIEW_VERDICT = {
-  Approved: "approved",
   ChangesRequested: "changes_requested",
 } as const;
 
