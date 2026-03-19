@@ -7,8 +7,7 @@ import { atomicWriteSync } from "./fs-utils.js";
 let configDir: string | null = null;
 
 function getConfigDir(): string {
-  if (!configDir)
-    configDir = path.join(os.homedir(), ".config", "local-review");
+  configDir ??= path.join(os.homedir(), ".config", "local-review");
   return configDir;
 }
 
