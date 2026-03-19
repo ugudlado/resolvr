@@ -20,7 +20,7 @@ Users can select a line or range in any file within the feature worktree and add
 
 ### R3: Reply to and resolve existing threads from VS Code
 
-Users can add reply messages to existing threads and change thread status to "resolved" directly from the VS Code comment widget. Status changes propagate to the server and then to the browser UI. The "approved" thread status is out of scope for MVP — it remains browser-only.
+Users can add reply messages to existing threads and change thread status to "resolved" directly from the VS Code comment widget. Status changes propagate to the server and then to the browser UI.
 
 ### R4: Real-time bidirectional sync via WebSocket
 
@@ -33,6 +33,14 @@ The extension detects the active feature ID by reading the current git branch na
 ### R6: Server endpoint for granular thread operations
 
 Add a POST endpoint for creating individual threads (currently, adding a new thread requires overwriting the entire session via POST). This avoids race conditions when both VS Code and browser create threads simultaneously.
+
+### R7: End review session from VS Code
+
+Users can set the overall review verdict ("approved" or "changes_requested") from VS Code via a command palette action or status bar button. This is equivalent to the verdict controls in the browser UI. The verdict propagates to the server and is reflected in the browser UI.
+
+### R8: Agent reply loop — continue review after resolver
+
+After the resolver agent processes threads (resolving with code changes or explanations), users can continue the conversation from VS Code: reply to agent-resolved threads, re-open them, or request further changes. The extension must detect when threads are updated by the agent (via WebSocket) and refresh the comment display so users can respond inline.
 
 ## Non-Functional Requirements
 
@@ -73,7 +81,7 @@ One reviewer uses the browser UI while another uses VS Code. Both see each other
 - **Review verdict setting**: Setting the overall review verdict (approved / changes_requested) remains browser-only. The extension handles individual threads only.
 - **Diff view integration**: The extension shows comments on the working tree file, not in a side-by-side diff view. VS Code's built-in SCM diff could be a future enhancement.
 - **Old-side anchors**: Threads anchored to `side: "old"` (deleted lines, pre-change code) are skipped in VS Code with a warning logged. These remain visible only in the browser diff view.
-- **"Approved" thread status**: Setting thread status to "approved" remains browser-only for MVP.
+- **Triggering the resolver agent from VS Code**: Users can request changes and reply, but actually invoking the `/resolve` command remains in the Claude Code CLI. The extension shows agent responses after they happen.
 - **Authentication/multi-user**: The local-review server has no auth. Single-user, localhost-only operation.
 
 ## Success Criteria

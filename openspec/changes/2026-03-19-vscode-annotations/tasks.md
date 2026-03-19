@@ -117,6 +117,44 @@
 
 ---
 
+### T-6c: End review session command + status bar button
+
+**Why**: R7 -- users need to set the overall review verdict (approved / changes_requested) from VS Code, equivalent to the browser UI verdict controls.
+
+**Files**:
+
+- `apps/vscode/src/commands/endSession.ts` -- Command handler: show QuickPick with "Approve" / "Request Changes", call serverClient.setVerdict()
+- `apps/vscode/src/serverClient.ts` -- Add `setVerdict(featureId, verdict)` method calling `PATCH /api/features/:id/code-session` with verdict field
+- `apps/vscode/src/statusBar.ts` -- Add "End Review" button alongside connection indicator; update to show verdict state after submission
+- `apps/vscode/src/extension.ts` -- Register `local-review.endSession` command
+
+**Verify**:
+
+- Click status bar "End Review" → QuickPick appears with Approve/Request Changes
+- Select "Approve" → status bar shows "✓ Approved", browser UI reflects verdict
+- Run from command palette → same behavior
+- Verdict persists across extension reload (loaded from session on activation)
+
+---
+
+### T-6d: Agent reply loop — reply and re-open after resolver
+
+**Why**: R8 -- after the resolver agent processes threads, users need to continue the conversation from VS Code: read agent responses, reply, re-open resolved threads, or request further changes.
+
+**Files**:
+
+- `apps/vscode/src/commentManager.ts` -- Ensure agent-resolved threads display agent messages with clear author attribution ("claude" / "resolver"). Add "Re-open" action to resolved threads (unresolve command). Ensure onDidCreateComment works on resolved threads to allow replies.
+- `apps/vscode/src/threadMapper.ts` -- reconcile() must preserve thread expansion state for threads with new agent messages (don't collapse a thread that just got an agent reply — user needs to read it)
+
+**Verify**:
+
+- Trigger resolver from CLI → agent-resolved threads update in VS Code with agent messages visible
+- Reply to an agent-resolved thread → message appears in browser UI
+- Re-open a resolved thread → status changes to "open" in browser UI
+- Multiple rounds: resolve → reply → re-resolve → reply works without state corruption
+
+---
+
 ## Phase 4b: Branch Switch Handling
 
 ### T-6b: Handle branch/worktree switching
