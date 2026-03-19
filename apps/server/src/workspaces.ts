@@ -191,23 +191,20 @@ export function registerWorkspace(
 /**
  * Register a workspace if not already present, WITHOUT touching lastActive.
  * Used for server startup self-registration to avoid overwriting user preference.
+ * Worktree paths are auto-resolved to the main repo root.
  */
 export function ensureRegistered(repoPath: string): void {
   const expanded = repoPath.startsWith("~")
     ? os.homedir() + repoPath.slice(1)
     : repoPath;
-  const resolved = path.resolve(expanded);
+  const absPath = path.resolve(expanded);
+
+  // Resolve worktrees to their main repo
+  const resolved = resolveWorktreePath(absPath);
+  if (!resolved) return; // not a git repo
 
   const registry = readRegistry();
   if (registry.workspaces.some((w) => w.path === resolved)) return; // already registered
-
-  // Verify it's a git repo
-  const gitPath = path.join(resolved, ".git");
-  try {
-    fs.statSync(gitPath);
-  } catch {
-    return; // not a git repo
-  }
 
   registry.workspaces.push({
     name: path.basename(resolved),
