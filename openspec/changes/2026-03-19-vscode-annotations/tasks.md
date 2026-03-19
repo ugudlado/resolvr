@@ -117,41 +117,46 @@
 
 ---
 
-### T-6c: End review session command + status bar button
+### T-6c: Request Changes + Approve commands (replicate browser UI verdict flow)
 
-**Why**: R7 -- users need to set the overall review verdict (approved / changes_requested) from VS Code, equivalent to the browser UI verdict controls.
+**Why**: R7 -- users need the same "Request Changes" / "Approve" flow as the browser UI. "Request Changes" sets verdict AND triggers the resolver agent. "Approve" sets verdict to approved.
 
 **Files**:
 
-- `apps/vscode/src/commands/endSession.ts` -- Command handler: show QuickPick with "Approve" / "Request Changes", call serverClient.setVerdict()
-- `apps/vscode/src/serverClient.ts` -- Add `setVerdict(featureId, verdict)` method calling `PATCH /api/features/:id/code-session` with verdict field
-- `apps/vscode/src/statusBar.ts` -- Add "End Review" button alongside connection indicator; update to show verdict state after submission
-- `apps/vscode/src/extension.ts` -- Register `local-review.endSession` command
+- `apps/vscode/src/commands/reviewActions.ts` -- Command handlers: `local-review.requestChanges` (set verdict + trigger resolver via POST /api/resolver/resolve), `local-review.approve` (set verdict to approved)
+- `apps/vscode/src/serverClient.ts` -- Add `setVerdict(featureId, verdict)` method calling `PATCH /api/features/:id/code-session`, add `triggerResolve(featureId, sessionType)` method calling `POST /api/resolver/resolve`
+- `apps/vscode/src/statusBar.ts` -- Add "Request Changes" and "Approve" buttons alongside connection indicator. Show resolver progress during resolution ("Resolving 3/7 threads..."). Show verdict state ("✓ Approved" / "✗ Changes Requested"). Listen for WebSocket resolve events (resolve-started, resolve-thread-done, resolve-completed, resolve-failed).
+- `apps/vscode/src/extension.ts` -- Register both commands
 
 **Verify**:
 
-- Click status bar "End Review" → QuickPick appears with Approve/Request Changes
-- Select "Approve" → status bar shows "✓ Approved", browser UI reflects verdict
-- Run from command palette → same behavior
+- Click "Request Changes" → verdict set AND resolver triggered, progress shows in status bar
+- Resolver completes → status bar shows "✓ N resolved", threads updated in editor
+- Click "Approve" → status bar shows "✓ Approved — Ready to merge", browser UI reflects
+- Run both from command palette → same behavior
 - Verdict persists across extension reload (loaded from session on activation)
+- Resolver failure → status bar shows error, no crash
 
 ---
 
-### T-6d: Agent reply loop — reply and re-open after resolver
+### T-6d: Agent reply loop — full back-and-forth from VS Code
 
-**Why**: R8 -- after the resolver agent processes threads, users need to continue the conversation from VS Code: read agent responses, reply, re-open resolved threads, or request further changes.
+**Why**: R8 -- after the resolver agent processes threads, users continue the review entirely from VS Code: read agent responses, reply, re-open threads, then re-trigger resolve for another round.
 
 **Files**:
 
 - `apps/vscode/src/commentManager.ts` -- Ensure agent-resolved threads display agent messages with clear author attribution ("claude" / "resolver"). Add "Re-open" action to resolved threads (unresolve command). Ensure onDidCreateComment works on resolved threads to allow replies.
 - `apps/vscode/src/threadMapper.ts` -- reconcile() must preserve thread expansion state for threads with new agent messages (don't collapse a thread that just got an agent reply — user needs to read it)
+- `apps/vscode/src/statusBar.ts` -- After resolver completes and user has open threads, show "Re-resolve N threads" button (like the browser UI's re-resolve button)
 
 **Verify**:
 
-- Trigger resolver from CLI → agent-resolved threads update in VS Code with agent messages visible
+- "Request Changes" → resolver runs → threads resolve → agent messages visible in VS Code
 - Reply to an agent-resolved thread → message appears in browser UI
 - Re-open a resolved thread → status changes to "open" in browser UI
-- Multiple rounds: resolve → reply → re-resolve → reply works without state corruption
+- "Request Changes" again → second resolver round runs, processes re-opened threads
+- Multiple rounds: request changes → reply → request changes → approve works end-to-end
+- Browser UI and VS Code stay in sync throughout the entire loop
 
 ---
 

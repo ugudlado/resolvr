@@ -34,13 +34,27 @@ The extension detects the active feature ID by reading the current git branch na
 
 Add a POST endpoint for creating individual threads (currently, adding a new thread requires overwriting the entire session via POST). This avoids race conditions when both VS Code and browser create threads simultaneously.
 
-### R7: End review session from VS Code
+### R7: Request Changes + Approve from VS Code (replicate browser UI flow)
 
-Users can set the overall review verdict ("approved" or "changes_requested") from VS Code via a command palette action or status bar button. This is equivalent to the verdict controls in the browser UI. The verdict propagates to the server and is reflected in the browser UI.
+The extension replicates the browser UI's review verdict flow:
 
-### R8: Agent reply loop — continue review after resolver
+1. **"Request Changes"** — sets verdict to `changes_requested` AND triggers the resolver agent via `POST /api/resolver/resolve`. The extension shows resolver progress (resolving N/M threads) in the status bar, just like the browser UI shows a progress bar + per-thread log.
+2. **"Approve"** — sets verdict to `approved`, indicating the review is complete.
+3. Both actions accessible via command palette AND status bar buttons.
 
-After the resolver agent processes threads (resolving with code changes or explanations), users can continue the conversation from VS Code: reply to agent-resolved threads, re-open them, or request further changes. The extension must detect when threads are updated by the agent (via WebSocket) and refresh the comment display so users can respond inline.
+This is the same flow as the browser UI's `ReviewVerdict` component — not a new UX, a port of the existing one.
+
+### R8: Agent reply loop — full back-and-forth from VS Code
+
+After the resolver agent processes threads, the user can continue the review entirely from VS Code:
+
+1. Agent-resolved threads update in real time via WebSocket (agent messages appear as new comments)
+2. User can **reply** to agent responses (e.g., "that fix doesn't handle the edge case")
+3. User can **re-open** resolved threads that need more work
+4. User can **re-trigger resolve** ("Request Changes" again) to start another round
+5. This back-and-forth continues until the user is satisfied and clicks "Approve"
+
+The extension does NOT need to leave VS Code for any part of this loop — it triggers the resolver via the same REST endpoint the browser uses.
 
 ## Non-Functional Requirements
 
@@ -81,7 +95,7 @@ One reviewer uses the browser UI while another uses VS Code. Both see each other
 - **Review verdict setting**: Setting the overall review verdict (approved / changes_requested) remains browser-only. The extension handles individual threads only.
 - **Diff view integration**: The extension shows comments on the working tree file, not in a side-by-side diff view. VS Code's built-in SCM diff could be a future enhancement.
 - **Old-side anchors**: Threads anchored to `side: "old"` (deleted lines, pre-change code) are skipped in VS Code with a warning logged. These remain visible only in the browser diff view.
-- **Triggering the resolver agent from VS Code**: Users can request changes and reply, but actually invoking the `/resolve` command remains in the Claude Code CLI. The extension shows agent responses after they happen.
+- **Resolver progress log in VS Code**: The browser UI shows a detailed per-thread resolve log (ResolveRunLog). For MVP, the VS Code extension shows a summary progress indicator in the status bar (e.g., "Resolving 3/7 threads") rather than a full log panel.
 - **Authentication/multi-user**: The local-review server has no auth. Single-user, localhost-only operation.
 
 ## Success Criteria

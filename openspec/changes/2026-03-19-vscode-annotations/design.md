@@ -116,36 +116,50 @@ On deactivate, dispose the CommentController, close the WebSocket connection, an
 5. Server appends message, broadcasts event
 ```
 
-### End Review Session (Verdict)
+### Request Changes (Verdict + Trigger Resolver)
+
+This replicates the browser UI's `ReviewVerdict` component flow:
 
 ```
-1. User clicks status bar "End Review" button OR runs "Local Review: End Session" from command palette
-2. VS Code shows QuickPick: "Approve" | "Request Changes"
-3. User selects verdict
-4. serverClient.setVerdict(featureId, verdict)
-   -> PATCH /api/features/{id}/code-session { verdict: "approved" | "changes_requested" }
-5. Server updates session, broadcasts WebSocket event
-6. Status bar updates to show verdict state (e.g. "✓ Approved" or "✗ Changes Requested")
-7. Browser UI reflects verdict change
+1. User clicks "Request Changes" in status bar OR command palette
+2. serverClient.setVerdict(featureId, "changes_requested")
+   -> PATCH /api/features/{id}/code-session { verdict: "changes_requested" }
+3. serverClient.triggerResolve(featureId, "code")
+   -> POST /api/resolver/resolve { featureId, sessionType: "code" }
+4. Server spawns resolver agent, begins processing open threads
+5. Extension listens for WebSocket events:
+   - "review:resolve-started" -> status bar: "Resolving 0/N threads..."
+   - "review:resolve-thread-done" (per thread) -> status bar: "Resolving M/N threads..."
+   - "review:resolve-completed" -> status bar: "✓ N resolved"
+   - "review:resolve-failed" -> status bar: "✗ Resolve failed" + error notification
+6. threadMapper.reconcile() runs on each session-updated event during resolution
+7. Browser UI reflects verdict + resolver progress simultaneously
 ```
 
-### Agent Reply Loop (Continue After Resolve)
+### Approve
 
 ```
-1. User triggers resolver agent from CLI (outside VS Code)
-2. Agent processes open threads — resolves some, adds reply messages
-3. Server writes updated session to disk
-4. chokidar detects change, broadcasts "review:session-updated" via WebSocket
-5. VS Code extension receives event, threadMapper.reconcile() runs
-6. Resolved threads collapse, new agent messages appear in thread widgets
-7. User reads agent response, can:
+1. User clicks "Approve" in status bar OR command palette
+2. serverClient.setVerdict(featureId, "approved")
+   -> PATCH /api/features/{id}/code-session { verdict: "approved" }
+3. Status bar shows "✓ Approved — Ready to merge"
+4. Browser UI reflects verdict change
+```
+
+### Agent Reply Loop (Full Back-and-Forth)
+
+```
+1. After resolver completes, resolved threads show agent messages
+2. User reads agent response in VS Code comment widget
+3. User can:
    a. Reply to agent (onDidCreateComment → PATCH with new message)
    b. Re-open resolved thread (unresolve → PATCH status: "open")
    c. Accept resolution (leave as resolved)
-8. If user re-opens threads or adds replies, they can request a new resolve round from CLI
+4. User clicks "Request Changes" again → triggers another resolve round
+5. Cycle repeats until user clicks "Approve"
 ```
 
-The key insight: the extension does NOT trigger the resolver agent — it just stays reactive to session changes. The agent writes to the same session JSON, so the existing WebSocket sync handles the round-trip transparently.
+The extension triggers the resolver via the same `POST /api/resolver/resolve` endpoint the browser uses. WebSocket events (`resolve-started`, `resolve-thread-done`, `resolve-completed`, `resolve-failed`) drive the status bar progress indicator.
 
 ### Real-Time Sync (WebSocket)
 
