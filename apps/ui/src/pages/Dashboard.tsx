@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { featureApi, type FeatureInfo } from "../services/featureApi";
-import FeatureRow from "../components/dashboard/FeatureRow";
+import FeatureRow, { workspaceHue } from "../components/dashboard/FeatureRow";
 import SkeletonRow from "../components/dashboard/SkeletonRow";
 import EmptyState from "../components/dashboard/EmptyState";
 import { APP_NAME, APP_VERSION } from "../config/app";
@@ -207,46 +207,62 @@ export default function Dashboard() {
     void fetchFeatures();
   }, [fetchFeatures]);
 
-  const { sortedFeatures, searchCount, activeFeatures, completedFeatures } =
-    useMemo(() => {
-      const q = searchQuery.toLowerCase();
-      const filtered = features
-        .filter(
-          (f) =>
-            !q ||
-            f.id.toLowerCase().includes(q) ||
-            f.branch.toLowerCase().includes(q),
-        )
-        .filter((f) => statusFilter === "all" || f.status === statusFilter);
+  const {
+    sortedFeatures,
+    searchCount,
+    activeFeatures,
+    completedFeatures,
+    completedByWorkspace,
+  } = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    const filtered = features
+      .filter(
+        (f) =>
+          !q ||
+          f.id.toLowerCase().includes(q) ||
+          f.branch.toLowerCase().includes(q),
+      )
+      .filter((f) => statusFilter === "all" || f.status === statusFilter);
 
-      // Two-group sort: active first, completed second; each group sorted by sortKey
-      const active = sortFeatures(
-        filtered.filter((f) => f.status !== FEATURE_STATUS.Complete),
-        sortKey,
-      );
-      const completed = sortFeatures(
-        filtered.filter((f) => f.status === FEATURE_STATUS.Complete),
-        sortKey,
-      );
+    // Two-group sort: active first, completed second; each group sorted by sortKey
+    const active = sortFeatures(
+      filtered.filter((f) => f.status !== FEATURE_STATUS.Complete),
+      sortKey,
+    );
+    const completed = sortFeatures(
+      filtered.filter((f) => f.status === FEATURE_STATUS.Complete),
+      sortKey,
+    );
 
-      const combined = [...active, ...completed];
+    const combined = [...active, ...completed];
 
-      let count: string;
-      if ((searchQuery || statusFilter !== "all") && features.length > 0) {
-        count = `${combined.length} of ${features.length} features`;
-      } else if (features.length > 0) {
-        count = `${features.length} features`;
-      } else {
-        count = "";
-      }
+    const plural = (n: number) => (n === 1 ? "feature" : "features");
+    let count: string;
+    if ((searchQuery || statusFilter !== "all") && features.length > 0) {
+      count = `${combined.length} of ${features.length} ${plural(features.length)}`;
+    } else if (features.length > 0) {
+      count = `${features.length} ${plural(features.length)}`;
+    } else {
+      count = "";
+    }
 
-      return {
-        sortedFeatures: combined,
-        searchCount: count,
-        activeFeatures: active,
-        completedFeatures: completed,
-      };
-    }, [features, searchQuery, sortKey, statusFilter]);
+    // Group completed features by workspace for multi-workspace display
+    const byWorkspace = new Map<string, FeatureInfo[]>();
+    for (const f of completed) {
+      const ws = f.repoName ?? "_default";
+      const list = byWorkspace.get(ws);
+      if (list) list.push(f);
+      else byWorkspace.set(ws, [f]);
+    }
+
+    return {
+      sortedFeatures: combined,
+      searchCount: count,
+      activeFeatures: active,
+      completedFeatures: completed,
+      completedByWorkspace: byWorkspace,
+    };
+  }, [features, searchQuery, sortKey, statusFilter]);
 
   // Compute summary stats across all (unfiltered) features
   const summaryStats = useMemo(() => {
@@ -281,11 +297,31 @@ export default function Dashboard() {
           </h1>
           <div className="flex items-center gap-2">
             {workspaces.length > 0 && (
-              <WorkspaceSwitcher
-                workspace={workspace}
-                workspaces={workspaces}
-                onChange={handleWorkspaceChange}
-              />
+              <>
+                <WorkspaceSwitcher
+                  workspace={workspace}
+                  workspaces={workspaces}
+                  onChange={handleWorkspaceChange}
+                />
+                {workspace && (
+                  <button
+                    onClick={() => handleWorkspaceChange("")}
+                    className="rounded px-1.5 py-1 text-[11px] text-slate-500 transition-colors hover:bg-slate-800/50 hover:text-slate-300"
+                  >
+                    <svg
+                      className="inline-block h-3 w-3"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    >
+                      <path d="M12 4L4 12M4 4l8 8" />
+                    </svg>{" "}
+                    all
+                  </button>
+                )}
+              </>
             )}
             <button
               onClick={() => {
@@ -442,7 +478,8 @@ export default function Dashboard() {
                       key={feature.id}
                       feature={feature}
                       searchQuery={searchQuery}
-                      repoName={apiRepoName}
+                      repoName={feature.repoName ?? apiRepoName}
+                      showWorkspace={!workspace}
                       compact={feature.status === FEATURE_STATUS.Complete}
                     />
                   ))
@@ -454,7 +491,8 @@ export default function Dashboard() {
                         key={feature.id}
                         feature={feature}
                         searchQuery={searchQuery}
-                        repoName={apiRepoName}
+                        repoName={feature.repoName ?? apiRepoName}
+                        showWorkspace={!workspace}
                       />
                     ))}
 
@@ -479,19 +517,68 @@ export default function Dashboard() {
                           </svg>
                           <div className="h-px flex-1 bg-[var(--border-default)]" />
                         </button>
-                        {showCompleted && (
-                          <div className="grid grid-cols-2 gap-x-2 gap-y-0">
-                            {completedFeatures.map((feature) => (
-                              <FeatureRow
-                                key={feature.id}
-                                feature={feature}
-                                searchQuery={searchQuery}
-                                repoName={apiRepoName}
-                                compact
-                              />
-                            ))}
-                          </div>
-                        )}
+                        {showCompleted &&
+                          (completedByWorkspace.size > 1 ? (
+                            <div className="flex flex-col gap-0">
+                              {[...completedByWorkspace.entries()].map(
+                                ([ws, wsFeatures], idx) => (
+                                  <div
+                                    key={ws}
+                                    className={
+                                      idx > 0
+                                        ? "mt-4 border-t border-slate-800/40 pt-3"
+                                        : ""
+                                    }
+                                  >
+                                    <div
+                                      className="mb-1 flex items-center gap-1.5 px-1 text-[10px] font-medium uppercase tracking-wider"
+                                      style={{
+                                        color: `hsl(${workspaceHue(ws)} 25% 50%)`,
+                                      }}
+                                    >
+                                      <FolderIcon />
+                                      {ws === "_default" ? "default" : ws}
+                                      <span
+                                        style={{
+                                          color: `hsl(${workspaceHue(ws)} 15% 38%)`,
+                                        }}
+                                        className="tabular-nums"
+                                      >
+                                        ({wsFeatures.length})
+                                      </span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-x-2 gap-y-0">
+                                      {wsFeatures.map((feature) => (
+                                        <FeatureRow
+                                          key={feature.id}
+                                          feature={feature}
+                                          searchQuery={searchQuery}
+                                          repoName={
+                                            feature.repoName ?? apiRepoName
+                                          }
+                                          showWorkspace={false}
+                                          compact
+                                        />
+                                      ))}
+                                    </div>
+                                  </div>
+                                ),
+                              )}
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-x-2 gap-y-0">
+                              {completedFeatures.map((feature) => (
+                                <FeatureRow
+                                  key={feature.id}
+                                  feature={feature}
+                                  searchQuery={searchQuery}
+                                  repoName={feature.repoName ?? apiRepoName}
+                                  showWorkspace={!workspace}
+                                  compact
+                                />
+                              ))}
+                            </div>
+                          ))}
                       </>
                     )}
                   </>
