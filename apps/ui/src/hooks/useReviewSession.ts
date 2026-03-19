@@ -15,7 +15,6 @@ import {
   AuthorType,
   type ReviewThread as SessionReviewThread,
 } from "../types/sessions";
-import { FLAGS } from "../config/app";
 
 import { uid } from "../utils/diffUtils";
 
@@ -80,10 +79,8 @@ interface UseReviewSessionResult {
     threadId: string,
     nextStatus: ReviewThread["status"],
   ) => void;
-  reviewVerdict: "approved" | "changes_requested" | null;
-  setReviewVerdict: Dispatch<
-    SetStateAction<"approved" | "changes_requested" | null>
-  >;
+  reviewVerdict: "changes_requested" | null;
+  setReviewVerdict: Dispatch<SetStateAction<"changes_requested" | null>>;
 }
 
 export function useReviewSession({
@@ -104,7 +101,7 @@ export function useReviewSession({
   const [summaryNotes, setSummaryNotes] = useState("");
   const [status, setStatus] = useState("Ready");
   const [reviewVerdict, setReviewVerdict] = useState<
-    "approved" | "changes_requested" | null
+    "changes_requested" | null
   >(null);
 
   // Auto-load session when featureId or sourceBranch changes.
@@ -201,18 +198,6 @@ export function useReviewSession({
     return () => clearTimeout(timer);
   }, [threads, reviewVerdict]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // When DEV_WORKFLOW is off there's no Approve button, so auto-reset verdict
-  // once all threads are resolved — lets the user start a fresh review round.
-  // In DEV_WORKFLOW mode the verdict stays sticky (user manually approves).
-  useEffect(() => {
-    if (FLAGS.DEV_WORKFLOW) return;
-    if (threads.length === 0) return;
-    const allResolved = threads.every((t) => t.status !== "open");
-    if (allResolved && reviewVerdict !== null) {
-      setReviewVerdict(null);
-    }
-  }, [threads, reviewVerdict]);
-
   // Listen for external session file changes pushed via server WebSocket
   useEffect(() => {
     if (!featureId) return;
@@ -234,8 +219,7 @@ export function useReviewSession({
       const session = data.session;
       setThreads(adaptThreads((session.threads as unknown[]) ?? []));
       setReviewVerdict(
-        (session.reviewVerdict as "approved" | "changes_requested" | null) ??
-          null,
+        (session.reviewVerdict as "changes_requested" | null) ?? null,
       );
       setStatus("Session updated externally");
     });
