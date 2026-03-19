@@ -27,7 +27,7 @@
             +------------------+    +------------------+
                     |
                     v
-            [ local-review server GET /api/context/diff ]
+            [ local-review server GET /api/diff ]
 ```
 
 The diff panel is layered on top of the existing extension. It adds three new modules (`DiffPanelManager`, `BaseContentProvider`, `ChangedFilesTreeProvider`) and extends two existing ones (`CommentManager`, `serverClient`). All real-time sync, thread lifecycle, and status bar behavior remain unchanged.
@@ -102,7 +102,7 @@ class BaseContentProvider implements vscode.TextDocumentContentProvider {
   readonly onDidChange = this._onDidChange.event;
 
   private _cache = new Map<string, string>(); // path -> content
-  private _ref: string; // git ref (e.g., "main")
+  private _ref: string; // resolved via `git merge-base HEAD main` (SHA, not branch name)
   private _workspaceRoot: string;
 
   provideTextDocumentContent(uri: vscode.Uri): Promise<string>;
@@ -122,6 +122,10 @@ class BaseContentProvider implements vscode.TextDocumentContentProvider {
 **Cache invalidation**: The `invalidate()` method clears the cache and fires `onDidChange` for all cached URIs (or a specific path). Called by `DiffPanelManager.refresh()`.
 
 **Error handling**: If `git show` fails (path not found at ref), return empty string. This handles renamed files gracefully -- the old path shows empty, the new path shows the full file.
+
+**Empty content provider**: A trivial second provider (`local-review-empty:` scheme) is registered alongside `BaseContentProvider`. It always returns an empty string. Used for the new-side URI of deleted files, avoiding reliance on error fallbacks.
+
+**Registration ordering**: Both `BaseContentProvider` and the empty content provider MUST be registered in `activate()` before `CommentManager` is initialized. This is critical because `_buildNewThread` calls `vscode.workspace.openTextDocument(uri)` on virtual URIs to compute line hashes — this requires the provider to already be registered. The activation sequence is: (1) register content providers, (2) create CommentManager, (3) wire up diff panel.
 
 ### New Module: `diffPanelManager.ts`
 
@@ -160,12 +164,14 @@ class DiffPanelManager implements vscode.Disposable {
 4. Reveal the tree view in the sidebar
 5. Auto-open the first file's diff tab
 
+**Error handling**: If `serverClient.getDiff()` throws (server unreachable, 404, etc.), show `vscode.window.showErrorMessage` with the failure reason. Same for `refresh()`. Do not leave the TreeView in a stale state — clear it on error.
+
 **`openFile()` flow**:
 
 1. Construct old-side URI: `vscode.Uri.parse(\`local-review-base:/${file.path}?ref=main\`)`
 2. Construct new-side URI: `vscode.Uri.file(\`${workspaceRoot}/${file.path}\`)`
 3. Handle special cases:
-   - **Deleted file**: old URI has content, new URI points to a non-existent file. Use `vscode.Uri.parse(\`local-review-base:/${file.path}?ref=HEAD&empty=true\`)` for the new side (empty content provider).
+   - **Deleted file**: old URI has content, new URI uses a dedicated empty-content scheme (`local-review-empty:/${file.path}`) registered alongside `BaseContentProvider` that always returns an empty string. This avoids relying on error fallbacks in the base content provider.
    - **New file**: old URI returns empty string, new URI is the working-tree file.
    - **Renamed file**: old URI uses `file.oldPath`, new URI uses `file.newPath`.
 4. Execute: `vscode.commands.executeCommand("vscode.diff", oldUri, newUri, \`${file.path} (Review Diff)\`)`
@@ -294,7 +300,7 @@ async getDiff(worktreePath: string): Promise<{
   uncommittedDiff: string;
   allDiff: string;
 }> {
-  const url = `${getBaseUrl()}/api/context/diff?worktree=${encodeURIComponent(worktreePath)}`;
+  const url = `${getBaseUrl()}/api/diff?worktree=${encodeURIComponent(worktreePath)}`;
   const res = await httpRequest(url, {});
   if (res.status >= 400) {
     throw new Error(`Diff API error: ${res.status} ${res.body}`);
@@ -311,7 +317,7 @@ async getDiff(worktreePath: string): Promise<{
 1. User runs "Local Review: Open Diff"
 2. diffPanelManager.open(featureId)
 3.   serverClient.getDiff(workspaceRoot)
-       -> GET /api/context/diff?worktree=/path/to/worktree
+       -> GET /api/diff?worktree=/path/to/worktree
        <- { allDiff, committedDiff, uncommittedDiff, sourceBranch, targetBranch, ... }
 4.   Parse allDiff headers to extract file list (includes both committed and uncommitted changes)
        -> DiffFile[] with path, oldPath, status
@@ -450,7 +456,9 @@ apps/vscode/src/
 }
 ```
 
-The `local-review.hasDiffPanel` context key is set to `true` when the diff panel is open and `false` when closed. This controls visibility of the sidebar tree view.
+The `local-review.hasDiffPanel` context key is set to `true` when the diff panel opens and `false` when the user explicitly runs "Local Review: Close Diff" or switches to a non-feature branch. VS Code has no API to detect when the last diff tab is closed, so the context key lifecycle is explicitly command-driven rather than tab-driven.
+
+The `local-review.openDiffFile` command takes a `DiffFile` argument and should not appear in the Command Palette. Mark it with `"enablement": "false"` in `package.json` menus so it is only invocable from the TreeView click handler.
 
 ## Key Design Decisions
 

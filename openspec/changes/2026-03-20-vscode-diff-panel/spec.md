@@ -14,7 +14,7 @@ A dedicated diff panel that shows all changes (committed + uncommitted) relative
 
 ### R1: Open diff panel for feature branch
 
-A command "Local Review: Open Diff" opens a multi-file diff view showing all changes (committed and uncommitted) between `main` and the current working tree. The diff data comes from the server's existing `GET /api/context/diff` endpoint, which returns both `committedDiff` and `uncommittedDiff` (combined as `allDiff`). If no feature branch is detected or no server connection exists, the command shows an appropriate error message.
+A command "Local Review: Open Diff" opens a multi-file diff view showing all changes (committed and uncommitted) between `main` and the current working tree. The diff data comes from the server's existing `GET /api/diff` endpoint, which returns both `committedDiff` and `uncommittedDiff` (combined as `allDiff`). If no feature branch is detected or no server connection exists, the command shows an appropriate error message.
 
 ### R2: Native VS Code diff editor per file
 
@@ -56,7 +56,7 @@ Diff data is fetched once per "Open Diff" invocation and cached. Individual file
 
 ### NF3: No new server dependencies
 
-The diff panel uses existing server endpoints (`GET /api/context/diff`, session CRUD, WebSocket). The only new server method is `getDiff()` in the extension's `serverClient.ts`. No server-side changes are required.
+The diff panel uses existing server endpoints (`GET /api/diff`, session CRUD, WebSocket). The only new server method is `getDiff()` in the extension's `serverClient.ts`. No server-side changes are required.
 
 ### NF4: Minimal new code surface
 
@@ -91,3 +91,13 @@ A developer deletes an entire utility file during refactoring. In the diff panel
 4. Old-side threads from the browser UI or AI resolver render correctly in the diff panel's left pane.
 5. The full AI review loop (comment, request changes, read AI response, reply, re-resolve) works entirely within the diff panel.
 6. The diff panel coexists with inline working-tree comments without conflicts or duplicate threads.
+
+## Review Summary
+
+Cross-model review identified and fixed 3 critical issues before implementation:
+
+1. **[claude-reviewer] Wrong endpoint URL** — Design used `/api/context/diff` but the actual server route is `/api/diff`. Fixed in spec and design.
+2. **[claude-reviewer] Deleted-file URI handling** — Design relied on error fallbacks in `BaseContentProvider` for deleted-file new-side content. Fixed by introducing a dedicated `local-review-empty:` scheme that explicitly returns empty strings.
+3. **[claude-reviewer] Provider registration ordering** — `_buildNewThread` calls `openTextDocument` on virtual URIs, which requires `BaseContentProvider` to be registered first. Added explicit activation ordering requirement to design.
+
+Additional suggestions incorporated: use `git merge-base` SHA instead of branch name for base ref, add error handling paths for `DiffPanelManager.open()/refresh()`, command-driven lifecycle for `hasDiffPanel` context key, hide `openDiffFile` from Command Palette.
