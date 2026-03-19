@@ -21,7 +21,6 @@ export interface DiffInlineThreadProps {
     threadId: string,
     status: "open" | "resolved" | "approved",
   ) => void;
-  onSeverityChange?: (threadId: string, severity: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -64,36 +63,6 @@ function Avatar({
     >
       {initials(author)}
     </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Severity badge
-// ---------------------------------------------------------------------------
-
-function SeverityBadge({
-  severity,
-  isResolved,
-}: {
-  severity?: ReviewThread["severity"];
-  isResolved: boolean;
-}) {
-  if (!severity || isResolved) return null;
-
-  const severityStyles: Record<string, string> = {
-    critical: "bg-[var(--accent-rose)]/15 text-[var(--accent-rose)]",
-    improvement: "bg-[var(--accent-blue)]/15 text-[var(--accent-blue)]",
-    style: "bg-[var(--bg-overlay)] text-[var(--text-secondary)]",
-    question: "bg-[var(--accent-amber)]/15 text-[var(--accent-amber)]",
-  };
-  const styles =
-    severityStyles[severity] ??
-    "bg-[var(--bg-overlay)] text-[var(--text-secondary)]";
-
-  return (
-    <span className={`rounded px-1.5 py-0.5 text-[10px] ${styles}`}>
-      {severity}
-    </span>
   );
 }
 
@@ -160,18 +129,10 @@ function ReplyRow({ message }: { message: ReviewMessage }) {
 // DiffInlineThread — main export
 // ---------------------------------------------------------------------------
 
-const SEVERITY_OPTIONS = [
-  "critical",
-  "improvement",
-  "style",
-  "question",
-] as const;
-
 export function DiffInlineThread({
   thread,
   onReply,
   onStatusChange,
-  onSeverityChange,
 }: DiffInlineThreadProps) {
   const [draft, setDraft] = useState("");
   const [showReplyBox, setShowReplyBox] = useState(false);
@@ -191,17 +152,19 @@ export function DiffInlineThread({
 
   // Background
   const bgStyle: React.CSSProperties = isCritical
-    ? { background: "linear-gradient(to right, #25221e, #222228)" }
+    ? {
+        background:
+          "linear-gradient(to right, var(--accent-rose-dim), var(--bg-elevated))",
+      }
     : {};
   let bgColor = "var(--bg-elevated)";
   if (isResolved) bgColor = "var(--bg-surface)";
   else if (isCritical) bgColor = "transparent";
 
   // Arrow color matches card background
-  let arrowColor = "#2a2a31"; // canvas-elevated
-  if (isResolved)
-    arrowColor = "#222228"; // canvas-raised
-  else if (isCritical) arrowColor = "#25221e"; // warm gradient start
+  let arrowColor = "var(--bg-elevated)";
+  if (isResolved) arrowColor = "var(--bg-surface)";
+  else if (isCritical) arrowColor = "var(--accent-rose-dim)";
 
   // Handle reply submit
   const handleReplySubmit = () => {
@@ -226,7 +189,7 @@ export function DiffInlineThread({
       {/* Card */}
       <div
         data-thread-id={thread.id}
-        className="overflow-hidden rounded-[6px] p-3 transition-opacity"
+        className="overflow-hidden rounded-[6px] p-3 transition-colors"
         style={{
           borderWidth: 1,
           borderStyle: "solid",
@@ -235,9 +198,8 @@ export function DiffInlineThread({
           borderLeftStyle: "solid",
           borderLeftColor: borderColor,
           backgroundColor: bgColor,
-          boxShadow: "0 2px 12px rgba(0,0,0,0.35)",
-          opacity: isResolved ? 0.65 : 1,
-          color: "var(--text-primary)",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+          color: isResolved ? "var(--text-secondary)" : "var(--text-primary)",
           ...bgStyle,
         }}
       >
@@ -252,16 +214,10 @@ export function DiffInlineThread({
 
           {/* Author name */}
           {firstMessage && (
-            <span
-              className="text-[13px] font-medium"
-              style={{ color: "var(--text-primary)" }}
-            >
+            <span className="text-[13px] font-medium">
               {firstMessage.author}
             </span>
           )}
-
-          {/* Severity badge */}
-          <SeverityBadge severity={severity} isResolved={isResolved} />
 
           {/* Timestamp */}
           {firstMessage && (
@@ -296,20 +252,6 @@ export function DiffInlineThread({
               >
                 {isResolved ? "Reopen" : "Resolve"}
               </button>
-            )}
-            {onSeverityChange && !isResolved && (
-              <select
-                value={severity ?? "improvement"}
-                onChange={(e) => onSeverityChange(thread.id, e.target.value)}
-                className="rounded bg-transparent px-1 py-0.5 text-[11px] outline-none transition-colors hover:bg-[var(--bg-overlay)]"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                {SEVERITY_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
             )}
           </div>
         </div>
@@ -378,7 +320,7 @@ export function DiffInlineThread({
                 disabled={!draft.trim()}
                 className="rounded px-2.5 py-1 text-[12px] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                 style={{
-                  background: "rgba(96, 165, 250, 0.15)",
+                  background: "var(--accent-blue-dim)",
                   color: "var(--accent-blue)",
                 }}
               >
