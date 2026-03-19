@@ -39,6 +39,8 @@ export type FeatureInfo = {
   lastActivity: string | null;
   filesChanged: number;
   sourceType: SourceType;
+  /** Workspace name this feature belongs to (set client-side during aggregation). */
+  repoName?: string;
 };
 
 export type ThreadPatch = {

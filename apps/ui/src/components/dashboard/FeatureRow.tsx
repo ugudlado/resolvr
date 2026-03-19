@@ -198,7 +198,10 @@ export default function FeatureRow({
   const accentClass = ROW_ACCENT[feature.status] ?? "border-l-slate-600";
 
   function handleActivate() {
-    void navigate(withRepo(`/features/${feature.id}`, repo, workspace));
+    const effectiveWorkspace = workspace ?? feature.repoName ?? null;
+    void navigate(
+      withRepo(`/features/${feature.id}`, repo, effectiveWorkspace),
+    );
   }
 
   // Compact layout for completed features — single line, no grid, no status pill
