@@ -910,7 +910,7 @@ export function ReviewPage({
         </div>
 
         {/* Diff stats */}
-        <div className="flex items-center gap-2 text-[11px] text-[var(--text-tertiary)]">
+        <div className="flex items-center gap-2 border-l border-[var(--border-default)] pl-3 text-[11px] text-[var(--text-tertiary)]">
           <span>{visibleFiles.length} files</span>
           <span className="text-[var(--accent-emerald)]">
             +{diffStats.additions}

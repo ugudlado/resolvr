@@ -203,8 +203,8 @@ export function DiffThreadNav({
   );
 
   const threadHeader = (
-    <div className="flex items-center gap-1.5 px-3 pb-1 pt-3">
-      <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
+    <div className="flex items-center gap-1.5 border-b border-[var(--border-default)] px-3 pb-2 pt-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
         Threads
       </p>
       <KeyboardHint label="j k" />

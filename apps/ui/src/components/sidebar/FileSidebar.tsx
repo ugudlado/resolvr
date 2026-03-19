@@ -352,7 +352,7 @@ export function FileSidebar({
                         {(unresolved > 0 || changeCount > 0) && (
                           <div className="flex shrink-0 items-center gap-1">
                             {unresolved > 0 && (
-                              <span className="rounded-full bg-[var(--accent-amber-dim)] px-1.5 text-[10px] text-[var(--accent-amber)]">
+                              <span className="rounded-full bg-[var(--accent-amber-dim)] px-1.5 text-[10px] font-semibold text-[var(--accent-amber)]">
                                 {unresolved}
                               </span>
                             )}
@@ -416,7 +416,7 @@ export function FileSidebar({
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
                         {unresolved > 0 && (
-                          <span className="rounded-full bg-[var(--accent-amber-dim)] px-1.5 text-[10px] text-[var(--accent-amber)]">
+                          <span className="rounded-full bg-[var(--accent-amber-dim)] px-1.5 text-[10px] font-semibold text-[var(--accent-amber)]">
                             {unresolved}
                           </span>
                         )}
