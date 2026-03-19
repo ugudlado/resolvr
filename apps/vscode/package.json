@@ -59,29 +59,29 @@
         {
           "command": "local-review.createComment",
           "group": "inline",
-          "when": "commentController == local-review && commentThread == new"
+          "when": "commentController == local-review && commentThreadIsEmpty"
         },
         {
           "command": "local-review.replyToComment",
           "group": "inline",
-          "when": "commentController == local-review && commentThread != new"
+          "when": "commentController == local-review && !commentThreadIsEmpty"
         },
         {
           "command": "local-review.resolveThread",
           "group": "inline",
-          "when": "commentController == local-review && commentThread != new && commentThreadIsEmpty == false"
+          "when": "commentController == local-review && !commentThreadIsEmpty"
         }
       ],
       "comments/commentThread/title": [
         {
           "command": "local-review.resolveThread",
           "group": "inline@1",
-          "when": "commentController == local-review && commentThread != new && commentThreadIsEmpty == false"
+          "when": "commentController == local-review && !commentThreadIsEmpty"
         },
         {
           "command": "local-review.unresolveThread",
           "group": "inline@2",
-          "when": "commentController == local-review && commentThread != new && commentThreadIsEmpty == false"
+          "when": "commentController == local-review && !commentThreadIsEmpty"
         }
       ]
     },
