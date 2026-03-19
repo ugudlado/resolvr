@@ -91,6 +91,39 @@ export function activate(context: vscode.ExtensionContext): void {
       commentManager.loadThreads(threads);
       statusBar.updateThreadCount(threads.length);
     }),
+
+    // Resolver progress events — update status bar during resolve runs
+    wsClient.on("review:resolve-started", (data: unknown) => {
+      const payload = data as { featureId: string; threadCount: number };
+      if (payload.featureId !== currentFeatureId) return;
+      statusBar.setResolving(0, payload.threadCount);
+    }),
+
+    wsClient.on("review:resolve-thread-done", (data: unknown) => {
+      const payload = data as { featureId: string };
+      if (payload.featureId !== currentFeatureId) return;
+      // The status bar's resolving state will be updated by the next session-updated event
+    }),
+
+    wsClient.on("review:resolve-completed", (data: unknown) => {
+      const payload = data as {
+        featureId: string;
+        resolved: number;
+        clarifications: number;
+      };
+      if (payload.featureId !== currentFeatureId) return;
+      statusBar.setResolveComplete(payload.resolved);
+      outputChannel.appendLine(
+        `Resolver complete (via WS): ${payload.resolved} resolved`,
+      );
+    }),
+
+    wsClient.on("review:resolve-failed", (data: unknown) => {
+      const payload = data as { featureId: string; error: string };
+      if (payload.featureId !== currentFeatureId) return;
+      statusBar.setResolveFailed(payload.error);
+      outputChannel.appendLine(`Resolver failed (via WS): ${payload.error}`);
+    }),
   );
 
   // Update status bar on connect/disconnect.
@@ -199,13 +232,94 @@ export function activate(context: vscode.ExtensionContext): void {
       wsClient.disconnect();
       statusBar.setDisconnected();
     }),
-    vscode.commands.registerCommand("local-review.startReview", () => {
-      outputChannel.appendLine("Start Review command invoked");
-      // TODO: Implement in T-4b
+    vscode.commands.registerCommand("local-review.startReview", async () => {
+      const featureId = featureDetector.featureId;
+      if (!featureId) {
+        void vscode.window.showWarningMessage(
+          "No feature branch detected. Switch to a feature/* branch first.",
+        );
+        return;
+      }
+
+      const existing = await serverClient.getSession(featureId);
+      if (existing) {
+        void vscode.window.showInformationMessage(
+          "Review session already exists for this feature.",
+        );
+        return;
+      }
+
+      outputChannel.appendLine(`Creating new review session for ${featureId}`);
+      const branch = `feature/${featureId}`;
+      const session = {
+        featureId,
+        worktreePath: workspaceRoot,
+        sourceBranch: branch,
+        targetBranch: "main",
+        verdict: null,
+        threads: [] as SessionThread[],
+        metadata: {
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      };
+
+      try {
+        await serverClient.saveSession(featureId, session);
+        commentManager.loadThreads([]);
+        statusBar.setConnected(0);
+        wsClient.connect();
+        currentFeatureId = featureId;
+        outputChannel.appendLine("Review session created");
+        void vscode.window.showInformationMessage(
+          `Review session created for ${featureId}`,
+        );
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        outputChannel.appendLine(`Failed to create session: ${msg}`);
+        void vscode.window.showErrorMessage(
+          `Failed to create review session: ${msg}`,
+        );
+      }
     }),
-    vscode.commands.registerCommand("local-review.requestChanges", () => {
-      outputChannel.appendLine("Request Changes command invoked");
-      // TODO: Implement in T-6c
+    vscode.commands.registerCommand("local-review.requestChanges", async () => {
+      const featureId = featureDetector.featureId;
+      if (!featureId) {
+        void vscode.window.showWarningMessage("No active feature.");
+        return;
+      }
+
+      outputChannel.appendLine(
+        `Request Changes: setting verdict + triggering resolver for ${featureId}`,
+      );
+
+      try {
+        // Set verdict
+        await serverClient.setVerdict(featureId, "changes_requested");
+
+        // Trigger resolver
+        statusBar.setResolving(0, 0);
+
+        const result = await serverClient.triggerResolve(featureId, "code");
+
+        if (result.ok) {
+          const resolved = result.resolved ?? 0;
+          const clarifications = result.clarifications ?? 0;
+          statusBar.setResolveComplete(resolved);
+          outputChannel.appendLine(
+            `Resolver complete: ${resolved} resolved, ${clarifications} need clarification`,
+          );
+        } else {
+          statusBar.setResolveFailed(result.error ?? "Unknown error");
+          outputChannel.appendLine(
+            `Resolver failed: ${result.error ?? "Unknown error"}`,
+          );
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        statusBar.setResolveFailed(msg);
+        outputChannel.appendLine(`Request Changes failed: ${msg}`);
+      }
     }),
   );
 

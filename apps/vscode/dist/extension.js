@@ -4415,7 +4415,9 @@ var CommentManager = class {
       comments2
     );
     thread.label = sessionThread.severity ? `[${sessionThread.severity}]` : void 0;
-    thread.collapsibleState = sessionThread.status === "open" ? vscode4.CommentThreadCollapsibleState.Expanded : vscode4.CommentThreadCollapsibleState.Collapsed;
+    const lastMsg = sessionThread.messages[sessionThread.messages.length - 1];
+    const hasAgentReply = lastMsg?.authorType === "agent" && sessionThread.status === "resolved";
+    thread.collapsibleState = sessionThread.status === "open" || hasAgentReply ? vscode4.CommentThreadCollapsibleState.Expanded : vscode4.CommentThreadCollapsibleState.Collapsed;
     thread.state = sessionThread.status === "resolved" ? 1 : 0;
     return thread;
   }
@@ -4612,6 +4614,30 @@ function activate(context) {
       );
       commentManager.loadThreads(threads);
       statusBar.updateThreadCount(threads.length);
+    }),
+    // Resolver progress events — update status bar during resolve runs
+    wsClient.on("review:resolve-started", (data) => {
+      const payload = data;
+      if (payload.featureId !== currentFeatureId) return;
+      statusBar.setResolving(0, payload.threadCount);
+    }),
+    wsClient.on("review:resolve-thread-done", (data) => {
+      const payload = data;
+      if (payload.featureId !== currentFeatureId) return;
+    }),
+    wsClient.on("review:resolve-completed", (data) => {
+      const payload = data;
+      if (payload.featureId !== currentFeatureId) return;
+      statusBar.setResolveComplete(payload.resolved);
+      outputChannel.appendLine(
+        `Resolver complete (via WS): ${payload.resolved} resolved`
+      );
+    }),
+    wsClient.on("review:resolve-failed", (data) => {
+      const payload = data;
+      if (payload.featureId !== currentFeatureId) return;
+      statusBar.setResolveFailed(payload.error);
+      outputChannel.appendLine(`Resolver failed (via WS): ${payload.error}`);
     })
   );
   context.subscriptions.push(
@@ -4701,11 +4727,84 @@ function activate(context) {
       wsClient.disconnect();
       statusBar.setDisconnected();
     }),
-    vscode6.commands.registerCommand("local-review.startReview", () => {
-      outputChannel.appendLine("Start Review command invoked");
+    vscode6.commands.registerCommand("local-review.startReview", async () => {
+      const featureId = featureDetector.featureId;
+      if (!featureId) {
+        void vscode6.window.showWarningMessage(
+          "No feature branch detected. Switch to a feature/* branch first."
+        );
+        return;
+      }
+      const existing = await serverClient.getSession(featureId);
+      if (existing) {
+        void vscode6.window.showInformationMessage(
+          "Review session already exists for this feature."
+        );
+        return;
+      }
+      outputChannel.appendLine(`Creating new review session for ${featureId}`);
+      const branch = `feature/${featureId}`;
+      const session = {
+        featureId,
+        worktreePath: workspaceRoot,
+        sourceBranch: branch,
+        targetBranch: "main",
+        verdict: null,
+        threads: [],
+        metadata: {
+          createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+          updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        }
+      };
+      try {
+        await serverClient.saveSession(featureId, session);
+        commentManager.loadThreads([]);
+        statusBar.setConnected(0);
+        wsClient.connect();
+        currentFeatureId = featureId;
+        outputChannel.appendLine("Review session created");
+        void vscode6.window.showInformationMessage(
+          `Review session created for ${featureId}`
+        );
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        outputChannel.appendLine(`Failed to create session: ${msg}`);
+        void vscode6.window.showErrorMessage(
+          `Failed to create review session: ${msg}`
+        );
+      }
     }),
-    vscode6.commands.registerCommand("local-review.requestChanges", () => {
-      outputChannel.appendLine("Request Changes command invoked");
+    vscode6.commands.registerCommand("local-review.requestChanges", async () => {
+      const featureId = featureDetector.featureId;
+      if (!featureId) {
+        void vscode6.window.showWarningMessage("No active feature.");
+        return;
+      }
+      outputChannel.appendLine(
+        `Request Changes: setting verdict + triggering resolver for ${featureId}`
+      );
+      try {
+        await serverClient.setVerdict(featureId, "changes_requested");
+        statusBar.setResolving(0, 0);
+        const result = await serverClient.triggerResolve(featureId, "code");
+        if (result.ok) {
+          const resolved = result.resolved ?? 0;
+          const clarifications = result.clarifications ?? 0;
+          statusBar.setResolveComplete(resolved);
+          outputChannel.appendLine(
+            `Resolver complete: ${resolved} resolved, ${clarifications} need clarification`
+          );
+        } else {
+          statusBar.setResolveFailed(result.error ?? "Unknown error");
+          outputChannel.appendLine(
+            `Resolver failed: ${result.error ?? "Unknown error"}`
+          );
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        statusBar.setResolveFailed(msg);
+        outputChannel.appendLine(`Request Changes failed: ${msg}`);
+      }
     })
   );
   void init();

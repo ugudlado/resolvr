@@ -297,9 +297,14 @@ export class CommentManager implements vscode.Disposable {
       ? `[${sessionThread.severity}]`
       : undefined;
 
-    // Resolved threads are collapsed, open threads expanded
+    // Resolved threads are collapsed UNLESS the last message is from an agent
+    // (user needs to read the agent's response before deciding next action)
+    const lastMsg = sessionThread.messages[sessionThread.messages.length - 1];
+    const hasAgentReply =
+      lastMsg?.authorType === "agent" && sessionThread.status === "resolved";
+
     thread.collapsibleState =
-      sessionThread.status === "open"
+      sessionThread.status === "open" || hasAgentReply
         ? vscode.CommentThreadCollapsibleState.Expanded
         : vscode.CommentThreadCollapsibleState.Collapsed;
 
