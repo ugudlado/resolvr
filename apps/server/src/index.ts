@@ -76,6 +76,10 @@ app.post("/api/workspaces/register", async (c) => {
   if (!body.path) return c.json({ error: "path required" }, 400);
   const result = registerWorkspace(body.path);
   if (!result) return c.json({ ok: false, error: "not a git repository" }, 400);
+  // Start watching the newly registered workspace for git changes
+  if (result.added) {
+    startGitWatcher(result.workspace.path);
+  }
   return c.json({ ok: true, added: result.added, workspace: result.workspace });
 });
 

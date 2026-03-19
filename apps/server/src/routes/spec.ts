@@ -1,13 +1,16 @@
 import { Hono } from "hono";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { getGitState } from "../git.js";
+import { getOrRefreshGitState } from "../git.js";
 import type { AppEnv } from "../types.js";
 import { findWorktreePath, safeId } from "../utils.js";
 
 /** Resolve the spec.md path: active worktree first, then archived. */
-function resolveSpecPath(featureId: string, repoRoot: string): string | null {
-  const wtPath = findWorktreePath(featureId, repoRoot);
+async function resolveSpecPath(
+  featureId: string,
+  repoRoot: string,
+): Promise<string | null> {
+  const wtPath = await findWorktreePath(featureId, repoRoot);
   if (wtPath) {
     return path.join(wtPath, "specs", "active", featureId, "spec.md");
   }
@@ -26,7 +29,7 @@ export function createSpecRoute(_repoRoot: string): Hono<AppEnv> {
       return c.json({ error: "Invalid feature id" }, 400);
     }
 
-    const specMdPath = resolveSpecPath(featureId, repoRoot);
+    const specMdPath = await resolveSpecPath(featureId, repoRoot);
     if (!specMdPath) {
       return c.json({ error: "Feature not found" }, 404);
     }
@@ -50,7 +53,7 @@ export function createSpecRoute(_repoRoot: string): Hono<AppEnv> {
       return c.json({ error: "Invalid feature id" }, 400);
     }
 
-    const specMdPath = resolveSpecPath(featureId, repoRoot);
+    const specMdPath = await resolveSpecPath(featureId, repoRoot);
     if (!specMdPath) {
       return c.json({ error: "Feature not found" }, 404);
     }
@@ -76,7 +79,7 @@ export function createSpecRoute(_repoRoot: string): Hono<AppEnv> {
       return c.json({ error: "Invalid feature id" }, 400);
     }
 
-    const wtPath = findWorktreePath(featureId, repoRoot);
+    const wtPath = await findWorktreePath(featureId, repoRoot);
     if (!wtPath) {
       return c.json({ error: "Feature worktree not found" }, 404);
     }
@@ -120,7 +123,7 @@ export function createSpecRoute(_repoRoot: string): Hono<AppEnv> {
     }
 
     const repoRoot = c.get("repoRoot");
-    const wtPath = findWorktreePath(featureId, repoRoot);
+    const wtPath = await findWorktreePath(featureId, repoRoot);
     if (!wtPath) {
       return c.json({ error: "Feature worktree not found" }, 404);
     }
@@ -152,10 +155,7 @@ export function createSpecRoute(_repoRoot: string): Hono<AppEnv> {
       return c.json({ error: "path is required" }, 400);
     }
 
-    const gitState = getGitState(repoRoot);
-    if (!gitState) {
-      return c.json({ error: "git state not yet computed" }, 503);
-    }
+    const gitState = await getOrRefreshGitState(repoRoot);
 
     let selectedPath: string;
     if (worktreeParam) {

@@ -20,7 +20,7 @@ const WORKSPACES_FILE = path.join(CONFIG_DIR, "workspaces.json");
 /** Atomic write: temp file + rename to prevent corruption on concurrent writes. */
 function atomicWriteSync(filePath: string, data: string): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  const tmpFile = filePath + ".tmp." + process.pid;
+  const tmpFile = filePath + ".tmp." + process.pid + "." + Date.now();
   fs.writeFileSync(tmpFile, data);
   fs.renameSync(tmpFile, filePath);
 }

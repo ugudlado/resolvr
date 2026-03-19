@@ -183,7 +183,7 @@ export function createTasksRoute(_repoRoot: string): Hono<AppEnv> {
       return c.json({ error: "Invalid feature id" }, 400);
     }
 
-    const wtPath = findWorktreePath(featureId, repoRoot);
+    const wtPath = await findWorktreePath(featureId, repoRoot);
     let tasksFilePath: string | null = null;
 
     if (wtPath) {
@@ -266,7 +266,7 @@ export function createTasksRoute(_repoRoot: string): Hono<AppEnv> {
       return c.json({ error: "Invalid feature id" }, 400);
     }
 
-    const wtPath = findWorktreePath(featureId, repoRoot);
+    const wtPath = await findWorktreePath(featureId, repoRoot);
     if (!wtPath) {
       return c.json({ error: "Feature worktree not found" }, 404);
     }

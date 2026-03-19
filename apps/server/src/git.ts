@@ -99,6 +99,13 @@ export function getGitState(repoPath: string): GitState | null {
   return cacheMap.get(repoPath) ?? null;
 }
 
+/** Get cached git state, refreshing on cache miss. Use in route handlers. */
+export async function getOrRefreshGitState(
+  repoPath: string,
+): Promise<GitState> {
+  return cacheMap.get(repoPath) ?? refreshGitState(repoPath);
+}
+
 /** Clear cached git state for a specific repo (used by watcher on change). */
 export function clearGitState(repoPath: string): void {
   cacheMap.delete(repoPath);

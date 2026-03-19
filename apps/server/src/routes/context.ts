@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import os from "node:os";
 import type { GitState } from "../git.js";
-import { execFileAsync, execGit, getGitState } from "../git.js";
+import { execFileAsync, execGit, getOrRefreshGitState } from "../git.js";
 import type { AppEnv } from "../types.js";
 
 // ---------------------------------------------------------------------------
@@ -265,13 +265,13 @@ export function createContextRoute(_repoRoot: string): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
 
   // GET /context
-  app.get("/context", (c) => {
+  app.get("/context", async (c) => {
     const repoRoot = c.get("repoRoot");
     const requestedWorktree = c.req.query("worktree") ?? null;
     const _requestedSource = c.req.query("source") ?? null;
     const requestedTarget = c.req.query("target") ?? null;
 
-    const state = getGitState(repoRoot);
+    const state = await getOrRefreshGitState(repoRoot);
     const rawWorktrees = state?.worktrees ?? [];
     const localBranches = state?.localBranches ?? [];
 
@@ -313,7 +313,7 @@ export function createContextRoute(_repoRoot: string): Hono<AppEnv> {
     const requestedTarget = c.req.query("target") ?? null;
     const requestedSource = c.req.query("source") ?? null;
 
-    const state = getGitState(repoRoot);
+    const state = await getOrRefreshGitState(repoRoot);
     let selectedWorktree: ReturnType<typeof resolveWorktree>;
     try {
       selectedWorktree = resolveWorktree(requestedWorktree, repoRoot, state);
@@ -321,8 +321,8 @@ export function createContextRoute(_repoRoot: string): Hono<AppEnv> {
       return c.json({ error: "Unknown worktree path" }, 400);
     }
 
-    const localBranches = state?.localBranches ?? [];
-    const rawWorktrees = state?.worktrees ?? [];
+    const localBranches = state.localBranches;
+    const rawWorktrees = state.worktrees;
 
     const effective = resolveEffectiveWorktree(
       selectedWorktree,
@@ -352,7 +352,7 @@ export function createContextRoute(_repoRoot: string): Hono<AppEnv> {
     const requestedTarget = c.req.query("target") ?? null;
     const requestedSource = c.req.query("source") ?? null;
 
-    const state = getGitState(repoRoot);
+    const state = await getOrRefreshGitState(repoRoot);
     let selectedWorktree: ReturnType<typeof resolveWorktree>;
     try {
       selectedWorktree = resolveWorktree(requestedWorktree, repoRoot, state);
@@ -360,8 +360,8 @@ export function createContextRoute(_repoRoot: string): Hono<AppEnv> {
       return c.json({ error: "Unknown worktree path" }, 400);
     }
 
-    const localBranches = state?.localBranches ?? [];
-    const rawWorktrees = state?.worktrees ?? [];
+    const localBranches = state.localBranches;
+    const rawWorktrees = state.worktrees;
 
     const effective = resolveEffectiveWorktree(
       selectedWorktree,
@@ -394,7 +394,7 @@ export function createContextRoute(_repoRoot: string): Hono<AppEnv> {
       return c.json({ error: "commit is required" }, 400);
     }
 
-    const state = getGitState(repoRoot);
+    const state = await getOrRefreshGitState(repoRoot);
     let selectedWorktree: ReturnType<typeof resolveWorktree>;
     try {
       selectedWorktree = resolveWorktree(requestedWorktree, repoRoot, state);
@@ -415,11 +415,10 @@ export function createContextRoute(_repoRoot: string): Hono<AppEnv> {
   });
 
   // GET /worktrees
-  app.get("/worktrees", (c) => {
+  app.get("/worktrees", async (c) => {
     const repoRoot = c.get("repoRoot");
-    const state = getGitState(repoRoot);
-    const rawWorktrees = state?.worktrees ?? [];
-    const worktrees = rawWorktrees.map((wt, idx) => ({
+    const state = await getOrRefreshGitState(repoRoot);
+    const worktrees = state.worktrees.map((wt, idx) => ({
       path: wt.path,
       branch: wt.branch,
       isMain: idx === 0,
@@ -428,9 +427,10 @@ export function createContextRoute(_repoRoot: string): Hono<AppEnv> {
   });
 
   // GET /branches
-  app.get("/branches", (c) => {
+  app.get("/branches", async (c) => {
     const repoRoot = c.get("repoRoot");
-    const branches = filterActiveBranches(getGitState(repoRoot));
+    const state = await getOrRefreshGitState(repoRoot);
+    const branches = filterActiveBranches(state);
     return c.json({ branches });
   });
 

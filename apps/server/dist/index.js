@@ -7291,6 +7291,9 @@ async function refreshGitState(repoRoot2) {
 function getGitState(repoPath) {
   return cacheMap.get(repoPath) ?? null;
 }
+async function getOrRefreshGitState(repoPath) {
+  return cacheMap.get(repoPath) ?? refreshGitState(repoPath);
+}
 function clearGitState(repoPath) {
   cacheMap.delete(repoPath);
 }
@@ -7311,7 +7314,7 @@ var CONFIG_DIR = path2.join(os.homedir(), ".config", "local-review");
 var WORKSPACES_FILE = path2.join(CONFIG_DIR, "workspaces.json");
 function atomicWriteSync(filePath, data) {
   fs2.mkdirSync(path2.dirname(filePath), { recursive: true });
-  const tmpFile = filePath + ".tmp." + process.pid;
+  const tmpFile = filePath + ".tmp." + process.pid + "." + Date.now();
   fs2.writeFileSync(tmpFile, data);
   fs2.renameSync(tmpFile, filePath);
 }
@@ -7671,12 +7674,12 @@ async function buildCommitList(worktreePath, requestedTarget, requestedSource, l
 }
 function createContextRoute(_repoRoot) {
   const app2 = new Hono2();
-  app2.get("/context", (c) => {
+  app2.get("/context", async (c) => {
     const repoRoot2 = c.get("repoRoot");
     const requestedWorktree = c.req.query("worktree") ?? null;
     const _requestedSource = c.req.query("source") ?? null;
     const requestedTarget = c.req.query("target") ?? null;
-    const state2 = getGitState(repoRoot2);
+    const state2 = await getOrRefreshGitState(repoRoot2);
     const rawWorktrees = state2?.worktrees ?? [];
     const localBranches = state2?.localBranches ?? [];
     let selectedWorktree;
@@ -7709,15 +7712,15 @@ function createContextRoute(_repoRoot) {
     const requestedWorktree = c.req.query("worktree") ?? null;
     const requestedTarget = c.req.query("target") ?? null;
     const requestedSource = c.req.query("source") ?? null;
-    const state2 = getGitState(repoRoot2);
+    const state2 = await getOrRefreshGitState(repoRoot2);
     let selectedWorktree;
     try {
       selectedWorktree = resolveWorktree(requestedWorktree, repoRoot2, state2);
     } catch {
       return c.json({ error: "Unknown worktree path" }, 400);
     }
-    const localBranches = state2?.localBranches ?? [];
-    const rawWorktrees = state2?.worktrees ?? [];
+    const localBranches = state2.localBranches;
+    const rawWorktrees = state2.worktrees;
     const effective = resolveEffectiveWorktree(
       selectedWorktree,
       requestedSource,
@@ -7742,15 +7745,15 @@ function createContextRoute(_repoRoot) {
     const requestedWorktree = c.req.query("worktree") ?? null;
     const requestedTarget = c.req.query("target") ?? null;
     const requestedSource = c.req.query("source") ?? null;
-    const state2 = getGitState(repoRoot2);
+    const state2 = await getOrRefreshGitState(repoRoot2);
     let selectedWorktree;
     try {
       selectedWorktree = resolveWorktree(requestedWorktree, repoRoot2, state2);
     } catch {
       return c.json({ error: "Unknown worktree path" }, 400);
     }
-    const localBranches = state2?.localBranches ?? [];
-    const rawWorktrees = state2?.worktrees ?? [];
+    const localBranches = state2.localBranches;
+    const rawWorktrees = state2.worktrees;
     const effective = resolveEffectiveWorktree(
       selectedWorktree,
       requestedSource,
@@ -7777,7 +7780,7 @@ function createContextRoute(_repoRoot) {
     if (!commit) {
       return c.json({ error: "commit is required" }, 400);
     }
-    const state2 = getGitState(repoRoot2);
+    const state2 = await getOrRefreshGitState(repoRoot2);
     let selectedWorktree;
     try {
       selectedWorktree = resolveWorktree(requestedWorktree, repoRoot2, state2);
@@ -7795,20 +7798,20 @@ function createContextRoute(_repoRoot) {
       return c.json({ error: message }, 500);
     }
   });
-  app2.get("/worktrees", (c) => {
+  app2.get("/worktrees", async (c) => {
     const repoRoot2 = c.get("repoRoot");
-    const state2 = getGitState(repoRoot2);
-    const rawWorktrees = state2?.worktrees ?? [];
-    const worktrees = rawWorktrees.map((wt, idx) => ({
+    const state2 = await getOrRefreshGitState(repoRoot2);
+    const worktrees = state2.worktrees.map((wt, idx) => ({
       path: wt.path,
       branch: wt.branch,
       isMain: idx === 0
     }));
     return c.json({ worktrees });
   });
-  app2.get("/branches", (c) => {
+  app2.get("/branches", async (c) => {
     const repoRoot2 = c.get("repoRoot");
-    const branches = filterActiveBranches(getGitState(repoRoot2));
+    const state2 = await getOrRefreshGitState(repoRoot2);
+    const branches = filterActiveBranches(state2);
     return c.json({ branches });
   });
   return app2;
@@ -7829,9 +7832,8 @@ var FEATURE_ID_RE = /^[a-zA-Z0-9._-]+$/;
 function safeId(raw2) {
   return FEATURE_ID_RE.test(raw2) ? raw2 : null;
 }
-function findWorktreePath(featureId, repoRoot2) {
-  const gitState = getGitState(repoRoot2);
-  if (!gitState) return null;
+async function findWorktreePath(featureId, repoRoot2) {
+  const gitState = await getOrRefreshGitState(repoRoot2);
   const wt = gitState.worktrees.find(
     (w) => path5.basename(w.path) === featureId
   );
@@ -8245,8 +8247,8 @@ function createFeaturesRoute(_repoRoot) {
 init_cjs_shim();
 import fs8 from "node:fs/promises";
 import path8 from "node:path";
-function resolveSpecPath(featureId, repoRoot2) {
-  const wtPath = findWorktreePath(featureId, repoRoot2);
+async function resolveSpecPath(featureId, repoRoot2) {
+  const wtPath = await findWorktreePath(featureId, repoRoot2);
   if (wtPath) {
     return path8.join(wtPath, "specs", "active", featureId, "spec.md");
   }
@@ -8260,7 +8262,7 @@ function createSpecRoute(_repoRoot) {
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
-    const specMdPath = resolveSpecPath(featureId, repoRoot2);
+    const specMdPath = await resolveSpecPath(featureId, repoRoot2);
     if (!specMdPath) {
       return c.json({ error: "Feature not found" }, 404);
     }
@@ -8280,7 +8282,7 @@ function createSpecRoute(_repoRoot) {
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
-    const specMdPath = resolveSpecPath(featureId, repoRoot2);
+    const specMdPath = await resolveSpecPath(featureId, repoRoot2);
     if (!specMdPath) {
       return c.json({ error: "Feature not found" }, 404);
     }
@@ -8301,7 +8303,7 @@ function createSpecRoute(_repoRoot) {
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
-    const wtPath = findWorktreePath(featureId, repoRoot2);
+    const wtPath = await findWorktreePath(featureId, repoRoot2);
     if (!wtPath) {
       return c.json({ error: "Feature worktree not found" }, 404);
     }
@@ -8333,7 +8335,7 @@ function createSpecRoute(_repoRoot) {
       return c.json({ error: "Invalid diagram name" }, 400);
     }
     const repoRoot2 = c.get("repoRoot");
-    const wtPath = findWorktreePath(featureId, repoRoot2);
+    const wtPath = await findWorktreePath(featureId, repoRoot2);
     if (!wtPath) {
       return c.json({ error: "Feature worktree not found" }, 404);
     }
@@ -8359,10 +8361,7 @@ function createSpecRoute(_repoRoot) {
     if (!filePath) {
       return c.json({ error: "path is required" }, 400);
     }
-    const gitState = getGitState(repoRoot2);
-    if (!gitState) {
-      return c.json({ error: "git state not yet computed" }, 503);
-    }
+    const gitState = await getOrRefreshGitState(repoRoot2);
     let selectedPath;
     if (worktreeParam) {
       const match2 = gitState.worktrees.find((wt) => wt.path === worktreeParam);
@@ -8498,7 +8497,7 @@ function createTasksRoute(_repoRoot) {
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
-    const wtPath = findWorktreePath(featureId, repoRoot2);
+    const wtPath = await findWorktreePath(featureId, repoRoot2);
     let tasksFilePath = null;
     if (wtPath) {
       const openspecDir = await findOpenspecChangeDir(wtPath, featureId);
@@ -8564,7 +8563,7 @@ function createTasksRoute(_repoRoot) {
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
-    const wtPath = findWorktreePath(featureId, repoRoot2);
+    const wtPath = await findWorktreePath(featureId, repoRoot2);
     if (!wtPath) {
       return c.json({ error: "Feature worktree not found" }, 404);
     }
@@ -10371,6 +10370,9 @@ app.post("/api/workspaces/register", async (c) => {
   if (!body.path) return c.json({ error: "path required" }, 400);
   const result = registerWorkspace(body.path);
   if (!result) return c.json({ ok: false, error: "not a git repository" }, 400);
+  if (result.added) {
+    startGitWatcher(result.workspace.path);
+  }
   return c.json({ ok: true, added: result.added, workspace: result.workspace });
 });
 ensureRegistered(repoRoot);
