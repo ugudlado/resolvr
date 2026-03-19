@@ -42,11 +42,11 @@ apps/vscode/
 The extension activates on three conditions (OR):
 1. `workspaceContains:.review/` -- the workspace has a review session directory
 2. `onStartupFinished` -- lightweight fallback for worktrees without `.review/` yet
-3. `onCommand:local-review.*` -- user explicitly invokes a command
+3. `onCommand:local-review.refresh`, `onCommand:local-review.connect`, `onCommand:local-review.disconnect` -- user explicitly invokes a command (each listed individually; wildcard activation events are not valid VS Code API)
 
 On activation:
 1. `featureDetector` reads `git rev-parse --abbrev-ref HEAD` and extracts the feature ID from `feature/(.+)` pattern
-2. If no feature branch detected, go dormant: no CommentController, no WebSocket, no status bar. Listen for `git.onDidChangeState` to detect future branch switches
+2. If no feature branch detected, go dormant: no CommentController, no WebSocket, no status bar. Watch `.git/HEAD` file for branch changes (more reliable than `git.onDidChangeState` which is an unstable internal API)
 3. If feature ID found, `serverClient` fetches the code session from `GET /api/features/{id}/code-session`
 4. `commentManager` creates a `CommentController` and renders all open threads
 5. `wsClient` connects to `ws://localhost:37003/ws` for real-time updates
@@ -120,9 +120,10 @@ On deactivate, dispose the CommentController, close the WebSocket connection, an
 
 ```
 1. wsClient connects to ws://localhost:37003/ws
-2. On "review:session-updated" event:
-   a. Parse new session data
-   b. Diff against current threadMapper state:
+2. On "review:session-updated" event (payload: `{ fileName: string, session: object }`):
+   a. Extract featureId from `fileName` (strip `-code.json` suffix); skip if not the active feature
+   b. Parse session data from `data.session`
+   c. Diff against current threadMapper state:
       - New threads: create VS Code CommentThread
       - Removed threads: dispose VS Code CommentThread
       - Updated threads: update comments/status in place

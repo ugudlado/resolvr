@@ -28,7 +28,7 @@
 
 **Files**:
 
-- `apps/vscode/src/featureDetector.ts` -- Parse current git branch via `git rev-parse --abbrev-ref HEAD`, extract feature ID from `feature/(.+)` pattern, expose `getFeatureId(): Promise<string | null>`, listen for branch changes
+- `apps/vscode/src/featureDetector.ts` -- Parse current git branch via `git rev-parse --abbrev-ref HEAD`, extract feature ID from `feature/(.+)` pattern, expose `getFeatureId(): Promise<string | null>`, watch `.git/HEAD` file for branch changes (more reliable than git extension internal API)
 
 **Verify**:
 
@@ -163,7 +163,7 @@
 **Files**:
 
 - `apps/vscode/src/threadMapper.ts` -- Implement `reconcile(newThreads)` method: dispose all current VS Code CommentThreads, recreate from fresh server data
-- `apps/vscode/src/commentManager.ts` -- Connect WebSocket `review:session-updated` event to reconciliation: parse event payload, call `threadMapper.reconcile()`, update status bar with thread count
+- `apps/vscode/src/commentManager.ts` -- Connect WebSocket `review:session-updated` event to reconciliation: extract featureId from `data.fileName` (strip `-code.json`), skip events for other features, call `threadMapper.reconcile()`, implement echo deduplication (500ms mute window), update status bar with thread count
 
 **Verify**:
 
@@ -182,8 +182,9 @@
 
 **Files**:
 
-- `apps/server/src/routes/sessions.ts` -- Add `POST /api/features/:id/code-session/threads` route: read session, append thread, write session, broadcast WebSocket event
+- `apps/server/src/routes/sessions.ts` -- Add `POST /api/features/:id/code-session/threads` route: read session, append thread, write session, broadcast WebSocket event. Routes go in sessions.ts (not features.ts) because broadcast function is already available here
 - `apps/server/src/routes/sessions.ts` -- Add `GET /api/features/:id/code-session/threads` route: return `{ threads: ReviewThread[] }` (lightweight payload for extension sync)
+- `apps/server/src/routes/sessions.ts` -- Fix existing PATCH handler to broadcast `SESSION_UPDATED` on ALL updates (not just resolve). Currently only broadcasts `resolve-thread-done` when status becomes "resolved", meaning VS Code replies don't trigger browser UI updates
 
 **Verify**:
 
