@@ -67,21 +67,9 @@ export function LineRangeSelector({
   const parseAddWidget = useCallback(
     (el: HTMLElement): { line: number; side: "old" | "new" } | null => {
       // Walk up to find [data-add-widget]
-      let widgetDiv: HTMLElement | null = null;
       const foundWidget = el.closest("[data-add-widget]");
-      if (foundWidget instanceof HTMLElement) widgetDiv = foundWidget;
-      if (!widgetDiv) {
-        // Also try walking up manually for older browsers
-        let cur: HTMLElement | null = el;
-        while (cur && cur !== containerRef.current) {
-          if (cur.hasAttribute?.("data-add-widget")) {
-            widgetDiv = cur;
-            break;
-          }
-          cur = cur.parentElement;
-        }
-      }
-      if (!widgetDiv) return null;
+      if (!(foundWidget instanceof HTMLElement)) return null;
+      const widgetDiv = foundWidget;
 
       const sideAttr = widgetDiv.getAttribute("data-add-widget");
       if (sideAttr !== "old" && sideAttr !== "new") return null;
@@ -187,11 +175,11 @@ export function LineRangeSelector({
     const style = document.createElement("style");
     style.textContent = `
       .line-range-highlight > td {
-        background-color: rgba(31, 111, 235, 0.12) !important;
+        background-color: var(--accent-blue-muted) !important;
       }
       .line-range-highlight > td:first-child,
       .line-range-highlight > td:nth-child(2) {
-        background-color: rgba(31, 111, 235, 0.2) !important;
+        background-color: color-mix(in srgb, var(--accent-blue) 20%, transparent) !important;
       }
     `;
     document.head.appendChild(style);
