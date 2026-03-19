@@ -111,9 +111,20 @@ function resolveWorktreePath(inputPath: string): string | null {
   }
 }
 
-/** Read all registered workspaces. Does NOT filter out stale paths. */
+/**
+ * Read all registered workspaces.
+ * Filters out worktree entries (where .git is a file) that may have been
+ * registered by older code before worktree auto-resolution was added.
+ */
 export function getWorkspaces(): Workspace[] {
-  return readRegistry().workspaces;
+  return readRegistry().workspaces.filter((w) => {
+    try {
+      const stat = fs.statSync(path.join(w.path, ".git"));
+      return stat.isDirectory(); // real repo — keep
+    } catch {
+      return true; // path doesn't exist — preserve per R8 (stale workspace)
+    }
+  });
 }
 
 /**

@@ -7370,7 +7370,14 @@ function resolveWorktreePath(inputPath) {
   }
 }
 function getWorkspaces() {
-  return readRegistry().workspaces;
+  return readRegistry().workspaces.filter((w) => {
+    try {
+      const stat4 = fs2.statSync(path2.join(w.path, ".git"));
+      return stat4.isDirectory();
+    } catch {
+      return true;
+    }
+  });
 }
 function getDefaultRepo() {
   const registry = readRegistry();
