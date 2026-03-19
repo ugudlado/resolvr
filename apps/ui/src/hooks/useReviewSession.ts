@@ -19,6 +19,42 @@ import { FLAGS } from "../config/app";
 
 import { uid } from "../utils/diffUtils";
 
+/**
+ * Adapt a session thread (canonical anchor format) to the flat ReviewThread
+ * format used by the browser UI. Threads may already be in flat format (created
+ * by the browser) or in anchor format (created by the VS Code extension).
+ */
+function adaptThread(raw: Record<string, unknown>): ReviewThread {
+  // Already in flat format — has filePath at top level
+  if (typeof raw.filePath === "string") {
+    return raw as unknown as ReviewThread;
+  }
+
+  // Canonical anchor format — map anchor fields to flat fields
+  const anchor = raw.anchor as
+    | {
+        path?: string;
+        line?: number;
+        lineEnd?: number;
+        side?: string;
+        preview?: string;
+      }
+    | undefined;
+
+  return {
+    ...(raw as unknown as ReviewThread),
+    filePath: anchor?.path ?? "",
+    line: anchor?.line ?? 0,
+    lineEnd: anchor?.lineEnd,
+    side: (anchor?.side as "old" | "new") ?? "new",
+    anchorContent: anchor?.preview,
+  };
+}
+
+function adaptThreads(raw: unknown[]): ReviewThread[] {
+  return (raw ?? []).map((t) => adaptThread(t as Record<string, unknown>));
+}
+
 interface UseReviewSessionParams {
   featureId: string;
   sourceBranch: string;
@@ -88,7 +124,7 @@ export function useReviewSession({
             !session.sourceBranch ||
             session.sourceBranch === sourceBranch;
           if (branchMatches) {
-            setThreads((session.threads as unknown as ReviewThread[]) || []);
+            setThreads(adaptThreads(session.threads ?? []));
             setReviewVerdict(session.reviewVerdict ?? null);
             const meta = session.metadata as { createdAt?: string } | undefined;
             createdAtRef.current = meta?.createdAt ?? null;
@@ -196,7 +232,7 @@ export function useReviewSession({
       }
 
       const session = data.session;
-      setThreads((session.threads as ReviewThread[]) || []);
+      setThreads(adaptThreads((session.threads as unknown[]) ?? []));
       setReviewVerdict(
         (session.reviewVerdict as "approved" | "changes_requested" | null) ??
           null,
