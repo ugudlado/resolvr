@@ -4450,17 +4450,27 @@ var CommentManager = class {
     });
   }
   _createVSCodeThread(sessionThread) {
-    if (sessionThread.anchor.side === "old") {
+    const anchor = sessionThread.anchor;
+    const flat = sessionThread;
+    const threadPath = anchor?.path ?? flat.filePath ?? "";
+    const threadLine = anchor?.line ?? flat.line ?? 1;
+    const threadLineEnd = anchor?.lineEnd ?? flat.lineEnd;
+    const threadSide = anchor?.side ?? flat.side ?? "new";
+    if (!threadPath) {
       this._outputChannel.appendLine(
-        `Skipping old-side thread ${sessionThread.id} on ${sessionThread.anchor.path}:${sessionThread.anchor.line}`
+        `Skipping thread ${sessionThread.id} \u2014 no file path`
       );
       return null;
     }
-    const filePath = vscode4.Uri.file(
-      `${this._workspaceRoot}/${sessionThread.anchor.path}`
-    );
-    const startLine = sessionThread.anchor.line - 1;
-    const endLine = (sessionThread.anchor.lineEnd ?? sessionThread.anchor.line) - 1;
+    if (threadSide === "old") {
+      this._outputChannel.appendLine(
+        `Skipping old-side thread ${sessionThread.id} on ${threadPath}:${threadLine}`
+      );
+      return null;
+    }
+    const filePath = vscode4.Uri.file(`${this._workspaceRoot}/${threadPath}`);
+    const startLine = threadLine - 1;
+    const endLine = (threadLineEnd ?? threadLine) - 1;
     const range = new vscode4.Range(startLine, 0, endLine, 0);
     const comments2 = sessionThread.messages.map(
       (msg) => this._createComment(msg)

@@ -297,22 +297,38 @@ export class CommentManager implements vscode.Disposable {
   private _createVSCodeThread(
     sessionThread: SessionThread,
   ): vscode.CommentThread | null {
-    // Skip old-side anchors — can't render in working tree
-    if (sessionThread.anchor.side === "old") {
+    // Threads may be in anchor format (from VS Code) or flat format (from browser).
+    // Normalize to get path, line, lineEnd, side.
+    const anchor = sessionThread.anchor;
+    const flat = sessionThread as unknown as Record<string, unknown>;
+    const threadPath =
+      anchor?.path ?? (flat.filePath as string | undefined) ?? "";
+    const threadLine = anchor?.line ?? (flat.line as number | undefined) ?? 1;
+    const threadLineEnd =
+      anchor?.lineEnd ?? (flat.lineEnd as number | undefined);
+    const threadSide =
+      anchor?.side ?? (flat.side as "old" | "new" | undefined) ?? "new";
+
+    if (!threadPath) {
       this._outputChannel.appendLine(
-        `Skipping old-side thread ${sessionThread.id} on ${sessionThread.anchor.path}:${sessionThread.anchor.line}`,
+        `Skipping thread ${sessionThread.id} — no file path`,
       );
       return null;
     }
 
-    const filePath = vscode.Uri.file(
-      `${this._workspaceRoot}/${sessionThread.anchor.path}`,
-    );
+    // Skip old-side anchors — can't render in working tree
+    if (threadSide === "old") {
+      this._outputChannel.appendLine(
+        `Skipping old-side thread ${sessionThread.id} on ${threadPath}:${threadLine}`,
+      );
+      return null;
+    }
+
+    const filePath = vscode.Uri.file(`${this._workspaceRoot}/${threadPath}`);
 
     // 1-based session lines → 0-based VS Code range
-    const startLine = sessionThread.anchor.line - 1;
-    const endLine =
-      (sessionThread.anchor.lineEnd ?? sessionThread.anchor.line) - 1;
+    const startLine = threadLine - 1;
+    const endLine = (threadLineEnd ?? threadLine) - 1;
     const range = new vscode.Range(startLine, 0, endLine, 0);
 
     const comments = sessionThread.messages.map((msg) =>
