@@ -39,7 +39,12 @@ if [ "$SERVER_ALREADY_RUNNING" = false ]; then
 fi
 
 # Register current workspace (non-blocking)
+# Resolve worktree paths to the main repo root
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
+if [ -n "$REPO_ROOT" ] && [ -f "$REPO_ROOT/.git" ]; then
+  # .git is a file → this is a worktree, resolve to main repo
+  REPO_ROOT=$(git -C "$REPO_ROOT" rev-parse --git-common-dir 2>/dev/null | sed 's|/\.git$||')
+fi
 if [ -n "$REPO_ROOT" ]; then
   curl -s -X POST "http://localhost:$PORT/api/workspaces/register" \
     -H "Content-Type: application/json" \

@@ -1,7 +1,8 @@
 import chokidar from "chokidar";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { refreshGitState } from "./git.js";
+import type { FSWatcher } from "chokidar";
+import { clearGitState, refreshGitState } from "./git.js";
 
 /** Well-known WebSocket event names shared between server and client. */
 export const WS_EVENTS = {
@@ -32,7 +33,17 @@ function broadcast(event: WsEvent): void {
   broadcaster(event);
 }
 
+/** Per-repo watcher instances. Keyed by absolute repo path. */
+const gitWatchers = new Map<string, FSWatcher>();
+
+/**
+ * Start watching a repo's .git/ for changes.
+ * Supports multiple repos — each gets its own watcher and debounce timer.
+ * No-ops if a watcher already exists for the given repo.
+ */
 export function startGitWatcher(repoRoot: string): void {
+  if (gitWatchers.has(repoRoot)) return; // already watching
+
   const gitDir = path.join(repoRoot, ".git");
   const watchPaths = [
     path.join(gitDir, "HEAD"),
@@ -42,16 +53,28 @@ export function startGitWatcher(repoRoot: string): void {
 
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-  chokidar
+  const watcher = chokidar
     .watch(watchPaths, { ignoreInitial: true, depth: 2 })
     .on("all", () => {
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
+        clearGitState(repoRoot);
         void refreshGitState(repoRoot).then(() => {
           broadcast({ event: WS_EVENTS.FEATURES_UPDATED, data: {} });
         });
       }, 300);
     });
+
+  gitWatchers.set(repoRoot, watcher);
+}
+
+/** Stop watching a specific repo. */
+export function stopGitWatcher(repoRoot: string): void {
+  const watcher = gitWatchers.get(repoRoot);
+  if (watcher) {
+    void watcher.close();
+    gitWatchers.delete(repoRoot);
+  }
 }
 
 export function startSessionWatcher(sessionsDir: string): void {
