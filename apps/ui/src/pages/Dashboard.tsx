@@ -167,15 +167,25 @@ export default function Dashboard() {
     setLoading(true);
     setError(null);
     try {
-      const data = await featureApi.getFeatures(repo, workspace);
-      setFeatures(data.features);
-      setApiRepoName(data.repoName ?? null);
+      // "All workspaces" mode: fetch from each workspace and merge
+      if (!workspace && !repo && workspaces.length > 0) {
+        const results = await Promise.all(
+          workspaces.map((ws) => featureApi.getFeatures(null, ws.name)),
+        );
+        const merged = results.flatMap((r) => r.features);
+        setFeatures(merged);
+        setApiRepoName(null);
+      } else {
+        const data = await featureApi.getFeatures(repo, workspace);
+        setFeatures(data.features);
+        setApiRepoName(data.repoName ?? null);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load features");
     } finally {
       setLoading(false);
     }
-  }, [repo, workspace]);
+  }, [repo, workspace, workspaces]);
 
   function handleWorkspaceChange(value: string) {
     if (!value) {
