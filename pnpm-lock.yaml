@@ -75,9 +75,6 @@ importers:
       vite:
         specifier: ^5.4.21
         version: 5.4.21(@types/node@22.19.15)(lightningcss@1.31.1)(terser@5.44.1)
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.4(@types/debug@4.1.12)(@types/node@22.19.15)(@vitest/browser@3.2.4)(@vitest/ui@3.2.4)(jsdom@26.1.0(bufferutil@4.0.9))(lightningcss@1.31.1)(msw@2.11.6(@types/node@22.19.15)(typescript@5.8.3))(terser@5.44.1)
 
   apps/ui:
     dependencies:
@@ -7320,6 +7317,7 @@ snapshots:
     optionalDependencies:
       msw: 2.11.6(@types/node@22.19.15)(typescript@5.8.3)
       vite: 5.4.21(@types/node@22.19.15)(lightningcss@1.31.1)(terser@5.44.1)
+    optional: true
 
   '@vitest/pretty-format@3.2.4':
     dependencies:
@@ -10247,6 +10245,7 @@ snapshots:
       - sugarss
       - supports-color
       - terser
+    optional: true
 
   vite@5.4.21(@types/node@20.16.11)(lightningcss@1.31.1)(terser@5.44.1):
     dependencies:
@@ -10353,6 +10352,7 @@ snapshots:
       - sugarss
       - supports-color
       - terser
+    optional: true
 
   w3c-xmlserializer@5.0.0:
     dependencies:
