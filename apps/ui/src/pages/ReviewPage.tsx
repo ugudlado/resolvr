@@ -580,19 +580,6 @@ export function ReviewPage({
     });
   }, []);
 
-  /** Called when reviewer changes thread severity via inline selector. */
-  const handleSeverityChange = useCallback(
-    (threadId: string, severity: string) => {
-      const now = new Date().toISOString();
-      setThreads((prev) =>
-        prev.map((t) =>
-          t.id === threadId ? { ...t, severity, lastUpdatedAt: now } : t,
-        ),
-      );
-    },
-    [setThreads],
-  );
-
   /** Called when the compose widget submits a new thread. */
   const handleComposeSubmit = useCallback(
     (
@@ -1021,14 +1008,7 @@ export function ReviewPage({
                 <button
                   type="button"
                   title="Copy file path"
-                  className="shrink-0 rounded p-1 transition-all hover:bg-[var(--bg-elevated)]"
-                  style={{ color: "var(--text-secondary)", opacity: 0.7 }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.opacity = "1";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.opacity = "0.7";
-                  }}
+                  className="shrink-0 rounded p-1 text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-secondary)]"
                   onClick={() =>
                     void navigator.clipboard.writeText(selectedFile.path)
                   }
@@ -1133,7 +1113,6 @@ export function ReviewPage({
                             onStatusChange={(threadId, newStatus) =>
                               updateThreadStatus(threadId, newStatus)
                             }
-                            onSeverityChange={handleSeverityChange}
                           />
                         </div>
                       ))}
