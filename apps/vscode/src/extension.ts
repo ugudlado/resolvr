@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { FeatureDetector } from "./featureDetector";
 import { serverClient } from "./serverClient";
 import { StatusBar } from "./statusBar";
+import { CommentManager } from "./commentManager";
 
 export function activate(context: vscode.ExtensionContext): void {
   const outputChannel = vscode.window.createOutputChannel("Local Review");
@@ -15,8 +16,14 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const statusBar = new StatusBar();
   const featureDetector = new FeatureDetector(workspaceRoot);
+  const commentManager = new CommentManager(workspaceRoot, outputChannel);
 
-  context.subscriptions.push(statusBar, featureDetector, outputChannel);
+  context.subscriptions.push(
+    statusBar,
+    featureDetector,
+    commentManager,
+    outputChannel,
+  );
 
   // Initialize feature detection and connection
   const init = async () => {
@@ -49,6 +56,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const openThreads = session.threads.filter(
       (t) => t.status === "open",
     ).length;
+    commentManager.loadThreads(session.threads);
     statusBar.setConnected(session.threads.length);
     outputChannel.appendLine(
       `Session loaded: ${session.threads.length} threads (${openThreads} open)`,
@@ -61,20 +69,24 @@ export function activate(context: vscode.ExtensionContext): void {
       `Branch changed — new feature: ${newFeatureId ?? "none"}`,
     );
     if (!newFeatureId) {
+      commentManager.loadThreads([]);
       statusBar.setNoFeature();
       return;
     }
     // Re-initialize with new feature
     const connected = await serverClient.checkConnection();
     if (!connected) {
+      commentManager.loadThreads([]);
       statusBar.setDisconnected();
       return;
     }
     const session = await serverClient.getSession(newFeatureId);
     if (!session) {
+      commentManager.loadThreads([]);
       statusBar.setNoSession();
       return;
     }
+    commentManager.loadThreads(session.threads);
     statusBar.setConnected(session.threads.length);
     outputChannel.appendLine(
       `Session loaded for ${newFeatureId}: ${session.threads.length} threads`,

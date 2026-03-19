@@ -34,7 +34,7 @@ __export(extension_exports, {
   deactivate: () => deactivate
 });
 module.exports = __toCommonJS(extension_exports);
-var vscode4 = __toESM(require("vscode"));
+var vscode5 = __toESM(require("vscode"));
 
 // src/featureDetector.ts
 var vscode = __toESM(require("vscode"));
@@ -288,18 +288,141 @@ var StatusBar = class {
   }
 };
 
+// src/commentManager.ts
+var vscode4 = __toESM(require("vscode"));
+
+// src/threadMapper.ts
+var ThreadMapper = class {
+  _sessionToVSCode = /* @__PURE__ */ new Map();
+  _vsCodeToSession = /* @__PURE__ */ new Map();
+  register(sessionId, thread) {
+    this._sessionToVSCode.set(sessionId, thread);
+    this._vsCodeToSession.set(thread, sessionId);
+  }
+  getVSCodeThread(sessionId) {
+    return this._sessionToVSCode.get(sessionId);
+  }
+  getSessionId(thread) {
+    return this._vsCodeToSession.get(thread);
+  }
+  disposeThread(sessionId) {
+    const thread = this._sessionToVSCode.get(sessionId);
+    if (thread) {
+      thread.dispose();
+      this._vsCodeToSession.delete(thread);
+      this._sessionToVSCode.delete(sessionId);
+    }
+  }
+  /** Dispose all tracked threads and recreate from fresh data (dispose-and-recreate pattern). */
+  reconcile(newThreads, createThread) {
+    for (const [, vsThread] of this._sessionToVSCode) {
+      vsThread.dispose();
+    }
+    this._sessionToVSCode.clear();
+    this._vsCodeToSession.clear();
+    for (const sessionThread of newThreads) {
+      const vsThread = createThread(sessionThread);
+      if (vsThread) {
+        this.register(sessionThread.id, vsThread);
+      }
+    }
+  }
+  clear() {
+    for (const [, vsThread] of this._sessionToVSCode) {
+      vsThread.dispose();
+    }
+    this._sessionToVSCode.clear();
+    this._vsCodeToSession.clear();
+  }
+  get size() {
+    return this._sessionToVSCode.size;
+  }
+  dispose() {
+    this.clear();
+  }
+};
+
+// src/commentManager.ts
+var CommentManager = class {
+  _controller;
+  _threadMapper;
+  _workspaceRoot;
+  _outputChannel;
+  get threadMapper() {
+    return this._threadMapper;
+  }
+  constructor(workspaceRoot, outputChannel) {
+    this._workspaceRoot = workspaceRoot;
+    this._outputChannel = outputChannel;
+    this._threadMapper = new ThreadMapper();
+    this._controller = vscode4.comments.createCommentController(
+      "local-review",
+      "Local Review"
+    );
+  }
+  loadThreads(threads) {
+    this._threadMapper.reconcile(threads, (t) => this._createVSCodeThread(t));
+  }
+  _createVSCodeThread(sessionThread) {
+    if (sessionThread.anchor.side === "old") {
+      this._outputChannel.appendLine(
+        `Skipping old-side thread ${sessionThread.id} on ${sessionThread.anchor.path}:${sessionThread.anchor.line}`
+      );
+      return null;
+    }
+    const filePath = vscode4.Uri.file(
+      `${this._workspaceRoot}/${sessionThread.anchor.path}`
+    );
+    const startLine = sessionThread.anchor.line - 1;
+    const endLine = (sessionThread.anchor.lineEnd ?? sessionThread.anchor.line) - 1;
+    const range = new vscode4.Range(startLine, 0, endLine, 0);
+    const comments2 = sessionThread.messages.map(
+      (msg) => this._createComment(msg)
+    );
+    const thread = this._controller.createCommentThread(
+      filePath,
+      range,
+      comments2
+    );
+    thread.label = sessionThread.severity ? `[${sessionThread.severity}]` : void 0;
+    thread.collapsibleState = sessionThread.status === "open" ? vscode4.CommentThreadCollapsibleState.Expanded : vscode4.CommentThreadCollapsibleState.Collapsed;
+    thread.state = sessionThread.status === "resolved" ? 1 : 0;
+    return thread;
+  }
+  _createComment(msg) {
+    return {
+      body: new vscode4.MarkdownString(msg.text),
+      mode: vscode4.CommentMode.Preview,
+      author: {
+        name: msg.authorType === "agent" ? `\u{1F916} ${msg.author}` : msg.author
+      },
+      timestamp: new Date(msg.createdAt)
+    };
+  }
+  dispose() {
+    this._threadMapper.dispose();
+    this._controller.dispose();
+  }
+};
+
 // src/extension.ts
 function activate(context) {
-  const outputChannel = vscode4.window.createOutputChannel("Local Review");
+  const outputChannel = vscode5.window.createOutputChannel("Local Review");
   outputChannel.appendLine("Local Review extension activated");
-  const workspaceRoot = vscode4.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  const workspaceRoot = vscode5.workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (!workspaceRoot) {
     outputChannel.appendLine("No workspace folder found \u2014 going dormant");
     return;
   }
   const statusBar = new StatusBar();
   const featureDetector = new FeatureDetector(workspaceRoot);
-  context.subscriptions.push(statusBar, featureDetector, outputChannel);
+  const commentManager = new CommentManager(workspaceRoot, outputChannel);
+  context.subscriptions.push(
+    statusBar,
+    featureDetector,
+    commentManager,
+    outputChannel
+  );
   const init = async () => {
     const featureId = await featureDetector.initialize();
     if (!featureId) {
@@ -323,6 +446,7 @@ function activate(context) {
     const openThreads = session.threads.filter(
       (t) => t.status === "open"
     ).length;
+    commentManager.loadThreads(session.threads);
     statusBar.setConnected(session.threads.length);
     outputChannel.appendLine(
       `Session loaded: ${session.threads.length} threads (${openThreads} open)`
@@ -333,41 +457,45 @@ function activate(context) {
       `Branch changed \u2014 new feature: ${newFeatureId ?? "none"}`
     );
     if (!newFeatureId) {
+      commentManager.loadThreads([]);
       statusBar.setNoFeature();
       return;
     }
     const connected = await serverClient.checkConnection();
     if (!connected) {
+      commentManager.loadThreads([]);
       statusBar.setDisconnected();
       return;
     }
     const session = await serverClient.getSession(newFeatureId);
     if (!session) {
+      commentManager.loadThreads([]);
       statusBar.setNoSession();
       return;
     }
+    commentManager.loadThreads(session.threads);
     statusBar.setConnected(session.threads.length);
     outputChannel.appendLine(
       `Session loaded for ${newFeatureId}: ${session.threads.length} threads`
     );
   });
   context.subscriptions.push(
-    vscode4.commands.registerCommand("local-review.refresh", () => {
+    vscode5.commands.registerCommand("local-review.refresh", () => {
       outputChannel.appendLine("Refresh command invoked");
       void init();
     }),
-    vscode4.commands.registerCommand("local-review.connect", () => {
+    vscode5.commands.registerCommand("local-review.connect", () => {
       outputChannel.appendLine("Connect command invoked");
       void init();
     }),
-    vscode4.commands.registerCommand("local-review.disconnect", () => {
+    vscode5.commands.registerCommand("local-review.disconnect", () => {
       outputChannel.appendLine("Disconnect command invoked");
       statusBar.setDisconnected();
     }),
-    vscode4.commands.registerCommand("local-review.startReview", () => {
+    vscode5.commands.registerCommand("local-review.startReview", () => {
       outputChannel.appendLine("Start Review command invoked");
     }),
-    vscode4.commands.registerCommand("local-review.requestChanges", () => {
+    vscode5.commands.registerCommand("local-review.requestChanges", () => {
       outputChannel.appendLine("Request Changes command invoked");
     })
   );

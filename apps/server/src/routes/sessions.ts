@@ -33,6 +33,7 @@ export type ThreadSeverity =
 
 interface ThreadRecord {
   id: string;
+  anchor?: unknown;
   status?: ThreadStatus;
   severity?: ThreadSeverity;
   messages?: unknown[];
@@ -219,7 +220,17 @@ function registerSessionCRUD(
 
     await fs.writeFile(filePath, JSON.stringify(session, null, 2), "utf-8");
 
-    // Broadcast per-thread completion for real-time sidebar progress
+    // Broadcast session-updated on every PATCH so VS Code extension sees
+    // replies and status changes in real-time
+    if (broadcast) {
+      const fileName = `${featureId}${fileSuffix}`;
+      broadcast({
+        event: "review:session-updated",
+        data: { fileName, session },
+      });
+    }
+
+    // Also broadcast per-thread completion for real-time sidebar progress
     if (broadcast && updatedThread.status === THREAD_STATUS.Resolved) {
       broadcast({
         event: "review:resolve-thread-done",
@@ -234,6 +245,87 @@ function registerSessionCRUD(
     }
 
     return c.json({ ok: true, thread: updatedThread });
+  });
+
+  // GET threads — return threads array only (lightweight, no full session envelope)
+  app.get(`/:id/${pathSegment}/threads`, async (c) => {
+    const repoRoot = c.get("repoRoot");
+    const sessionsDir = path.join(repoRoot, ".review", "sessions");
+    const featureId = safeId(c.req.param("id"));
+    if (!featureId) {
+      return c.json({ error: "Invalid feature id" }, 400);
+    }
+
+    await fs.mkdir(sessionsDir, { recursive: true });
+    const filePath = path.join(sessionsDir, `${featureId}${fileSuffix}`);
+
+    try {
+      const content = await fs.readFile(filePath, "utf-8");
+      const session = JSON.parse(content) as { threads?: ThreadRecord[] };
+      return c.json({ threads: session.threads ?? [] });
+    } catch {
+      return c.json({ threads: [] });
+    }
+  });
+
+  // POST threads — create an individual thread and append to session
+  app.post(`/:id/${pathSegment}/threads`, async (c) => {
+    const repoRoot = c.get("repoRoot");
+    const sessionsDir = path.join(repoRoot, ".review", "sessions");
+    const featureId = safeId(c.req.param("id"));
+    if (!featureId) {
+      return c.json({ error: "Invalid feature id" }, 400);
+    }
+
+    await fs.mkdir(sessionsDir, { recursive: true });
+    const filePath = path.join(sessionsDir, `${featureId}${fileSuffix}`);
+
+    const thread = await c.req.json<ThreadRecord>();
+
+    // Validate required fields
+    if (
+      !thread.id ||
+      thread.anchor === undefined ||
+      !thread.status ||
+      !thread.messages
+    ) {
+      return c.json(
+        { error: "Thread must have id, anchor, status, and messages" },
+        400,
+      );
+    }
+
+    let session: {
+      threads?: ThreadRecord[];
+      metadata?: { updatedAt?: string };
+      [key: string]: unknown;
+    };
+    try {
+      const content = await fs.readFile(filePath, "utf-8");
+      session = JSON.parse(content) as typeof session;
+    } catch {
+      return c.json({ error: "Session not found" }, 404);
+    }
+
+    const threads = session.threads ?? [];
+    threads.push(thread);
+    session.threads = threads;
+
+    if (session.metadata) {
+      session.metadata.updatedAt = new Date().toISOString();
+    }
+
+    await fs.writeFile(filePath, JSON.stringify(session, null, 2), "utf-8");
+
+    if (broadcast) {
+      const fileName = `${featureId}${fileSuffix}`;
+      broadcast({
+        event: "review:session-updated",
+        data: { fileName, session },
+      });
+    }
+
+    return c.json({ thread }, 201);
   });
 }
 
