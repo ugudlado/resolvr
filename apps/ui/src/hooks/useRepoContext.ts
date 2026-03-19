@@ -8,24 +8,18 @@ export interface Workspace {
 
 export function useRepoContext() {
   const [searchParams] = useSearchParams();
-  const repo = searchParams.get("repo");
   const workspace = searchParams.get("workspace");
-
-  return { repo, workspace };
+  return { workspace };
 }
 
-/** Append ?repo= or ?workspace= to a URL path */
-export function withRepo(
+/** Append ?workspace= to a URL path when a workspace is specified. */
+export function withWorkspace(
   url: string,
-  repo: string | null,
-  workspace?: string | null,
+  workspace: string | null | undefined,
 ): string {
-  if (!repo && !workspace) return url;
+  if (!workspace) return url;
   const sep = url.includes("?") ? "&" : "?";
-  if (workspace)
-    return `${url}${sep}workspace=${encodeURIComponent(workspace)}`;
-  if (repo) return `${url}${sep}repo=${encodeURIComponent(repo)}`;
-  return url;
+  return `${url}${sep}workspace=${encodeURIComponent(workspace)}`;
 }
 
 export function useWorkspaces(): { workspaces: Workspace[]; loaded: boolean } {

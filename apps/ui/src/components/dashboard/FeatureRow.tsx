@@ -4,7 +4,7 @@ import type { FeatureInfo } from "../../services/featureApi";
 import { relativeTime } from "../../utils/timeFormat";
 import { FLAGS } from "../../config/app";
 import { FEATURE_STATUS, type FeatureStatus } from "../../types/sessions";
-import { useRepoContext, withRepo } from "../../hooks/useRepoContext";
+import { withWorkspace } from "../../hooks/useRepoContext";
 
 export interface FeatureRowProps {
   feature: FeatureInfo;
@@ -187,7 +187,6 @@ export default function FeatureRow({
   compact = false,
 }: FeatureRowProps) {
   const navigate = useNavigate();
-  const { repo, workspace } = useRepoContext();
   const { done, total } = feature.taskProgress;
   const progressPct = total > 0 ? Math.round((done / total) * 100) : 0;
   const totalOpen =
@@ -198,7 +197,7 @@ export default function FeatureRow({
   const accentClass = ROW_ACCENT[feature.status] ?? "border-l-slate-600";
 
   function handleActivate() {
-    void navigate(withRepo(`/features/${feature.id}`, repo, feature.repoName));
+    void navigate(withWorkspace(`/features/${feature.id}`, feature.repoName));
   }
 
   // Compact layout for completed features — single line, no grid, no status pill
@@ -223,7 +222,7 @@ export default function FeatureRow({
         <span className="truncate text-xs">
           {highlightMatch(formatFeatureTitle(feature.id), searchQuery)}
         </span>
-        {!workspace && repoName && (
+        {repoName && (
           <span className="shrink-0 rounded bg-slate-700/40 px-1 py-0.5 text-[9px] text-slate-600">
             {repoName}
           </span>
@@ -249,7 +248,7 @@ export default function FeatureRow({
           <span className="truncate text-sm font-semibold text-slate-100">
             {highlightMatch(formatFeatureTitle(feature.id), searchQuery)}
           </span>
-          {!workspace && repoName && (
+          {repoName && (
             <span className="shrink-0 rounded bg-slate-700/50 px-1.5 py-0.5 text-[9px] font-medium text-slate-400">
               {repoName}
             </span>

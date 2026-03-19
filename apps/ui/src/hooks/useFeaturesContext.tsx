@@ -25,7 +25,6 @@ const FeaturesContext = createContext<FeaturesContextValue>({
 
 export function FeaturesProvider({ children }: { children: ReactNode }) {
   const [searchParams] = useSearchParams();
-  const repo = searchParams.get("repo");
   const workspace = searchParams.get("workspace");
   const [features, setFeatures] = useState<FeatureInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +33,7 @@ export function FeaturesProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(() => {
     setError(false);
     void featureApi
-      .getFeatures(repo, workspace)
+      .getFeatures(workspace)
       .then(({ features: f }) => {
         setFeatures(f);
       })
@@ -44,7 +43,7 @@ export function FeaturesProvider({ children }: { children: ReactNode }) {
       .finally(() => {
         setLoading(false);
       });
-  }, [repo, workspace]);
+  }, [workspace]);
 
   useEffect(() => {
     refresh();

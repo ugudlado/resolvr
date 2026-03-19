@@ -5,7 +5,7 @@ import { useFeatures } from "../hooks/useFeaturesContext";
 import { useFeatureHeader } from "../hooks/useFeatureHeader";
 import { formatFeatureLabel } from "../utils/formatFeatureLabel";
 import { FLAGS } from "../config/app";
-import { useRepoContext, withRepo } from "../hooks/useRepoContext";
+import { useRepoContext, withWorkspace } from "../hooks/useRepoContext";
 import {
   Popover,
   PopoverContent,
@@ -35,7 +35,7 @@ const tabs = [
 export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { repo, workspace } = useRepoContext();
+  const { workspace } = useRepoContext();
   const { headerActions } = useFeatureHeader();
 
   const basePath = `/features/${featureId}`;
@@ -99,10 +99,10 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
     (id: string) => {
       setDropdownOpen(false);
       void navigate(
-        withRepo(`/features/${id}/${activeTabPath}`, repo, workspace),
+        withWorkspace(`/features/${id}/${activeTabPath}`, workspace),
       );
     },
-    [navigate, activeTabPath, repo, workspace],
+    [navigate, activeTabPath, workspace],
   );
 
   const filtered = useMemo(
@@ -121,7 +121,7 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
       <div className="flex items-center gap-2 px-4 pb-0 pt-2.5">
         {/* ← Dashboard link */}
         <Link
-          to={withRepo("/", repo, workspace)}
+          to={withWorkspace("/", workspace)}
           className="text-ink-muted hover:text-ink flex items-center gap-1 transition-colors"
         >
           <svg
