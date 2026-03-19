@@ -2,7 +2,6 @@ import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import type { FeatureInfo } from "../../services/featureApi";
 import { relativeTime } from "../../utils/timeFormat";
-import { FLAGS } from "../../config/app";
 import { FEATURE_STATUS, type FeatureStatus } from "../../types/sessions";
 import { workspacePath } from "../../hooks/useWorkspaceContext";
 
@@ -292,7 +291,7 @@ export default function FeatureRow({
       </div>
 
       {/* Col 2: Status pill */}
-      {FLAGS.DEV_WORKFLOW ? <StatusPill status={feature.status} /> : <div />}
+      <StatusPill status={feature.status} />
 
       {/* Col 3: Metrics — threads + files (hide when both are zero) */}
       <div className="flex flex-col gap-1.5 text-[12px]">
@@ -329,7 +328,7 @@ export default function FeatureRow({
       </div>
 
       {/* Col 4: Progress bar (hidden when complete or total === 0) */}
-      {FLAGS.DEV_WORKFLOW && total > 0 && !isComplete ? (
+      {total > 0 && !isComplete ? (
         <div className="min-w-0">
           <div className="h-1 overflow-hidden rounded-full bg-[var(--ink-ghost,#2d3748)]">
             <div

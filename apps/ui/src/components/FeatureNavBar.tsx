@@ -4,7 +4,6 @@ import { getStatusConfig } from "../utils/featureStatus";
 import { useFeatures } from "../hooks/useFeaturesContext";
 import { useFeatureHeader } from "../hooks/useFeatureHeader";
 import { formatFeatureLabel } from "../utils/formatFeatureLabel";
-import { FLAGS } from "../config/app";
 import { useWorkspacePath } from "../hooks/useWorkspaceContext";
 import {
   Popover,
@@ -297,7 +296,7 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
         const hasTasks = currentFeature?.hasTasks ?? false;
         // Count visible tabs: Tasks only when hasTasks, Code always
         const visibleTabCount = (hasTasks ? 1 : 0) + 1;
-        const showTabs = FLAGS.DEV_WORKFLOW && visibleTabCount > 1;
+        const showTabs = visibleTabCount > 1;
 
         return (
           <nav

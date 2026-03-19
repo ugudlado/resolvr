@@ -1,5 +1,4 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { FLAGS } from "../../config/app";
 
 export default function SkeletonRow() {
   return (
@@ -14,13 +13,9 @@ export default function SkeletonRow() {
       </div>
 
       {/* Col 2: Status pill */}
-      {FLAGS.DEV_WORKFLOW ? (
-        <div>
-          <Skeleton className="h-5 w-20 rounded-full" />
-        </div>
-      ) : (
-        <div />
-      )}
+      <div>
+        <Skeleton className="h-5 w-20 rounded-full" />
+      </div>
 
       {/* Col 3: Metrics */}
       <div className="flex flex-col gap-1.5">
@@ -29,14 +24,10 @@ export default function SkeletonRow() {
       </div>
 
       {/* Col 4: Progress bar */}
-      {FLAGS.DEV_WORKFLOW ? (
-        <div className="flex flex-col gap-1.5">
-          <Skeleton className="h-1 w-full" />
-          <Skeleton className="h-2 w-14" />
-        </div>
-      ) : (
-        <div />
-      )}
+      <div className="flex flex-col gap-1.5">
+        <Skeleton className="h-1 w-full" />
+        <Skeleton className="h-2 w-14" />
+      </div>
 
       {/* Col 5: Time */}
       <div>
