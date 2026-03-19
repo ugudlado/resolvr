@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { atomicWriteSync } from "./fs-utils.js";
 
 export interface Workspace {
   name: string;
@@ -16,14 +17,6 @@ interface WorkspaceRegistry {
 
 const CONFIG_DIR = path.join(os.homedir(), ".config", "local-review");
 const WORKSPACES_FILE = path.join(CONFIG_DIR, "workspaces.json");
-
-/** Atomic write: temp file + rename to prevent corruption on concurrent writes. */
-function atomicWriteSync(filePath: string, data: string): void {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  const tmpFile = filePath + ".tmp." + process.pid + "." + Date.now();
-  fs.writeFileSync(tmpFile, data);
-  fs.renameSync(tmpFile, filePath);
-}
 
 /**
  * Read the workspace registry, auto-migrating from old array format if needed.

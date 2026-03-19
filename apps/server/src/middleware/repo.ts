@@ -3,13 +3,26 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { AppEnv } from "../types.js";
-import { getDefaultRepo, resolveWorkspace } from "../workspaces.js";
+import {
+  getDefaultRepo,
+  getWorkspaces,
+  resolveWorkspace,
+} from "../workspaces.js";
+
+/** Resolve workspaceName from workspace registry, falling back to path.basename(). */
+function resolveWorkspaceName(repoRoot: string): string {
+  const workspace = getWorkspaces().find((w) => w.path === repoRoot);
+  return workspace?.name ?? path.basename(repoRoot);
+}
 
 /**
  * Hono middleware that resolves the repo root for each request.
  *
  * Priority: `?repo=/path` (direct) > `?workspace=name` (registry lookup) > default.
  * Default: last-active workspace from registry, falling back to static repoRoot.
+ *
+ * Sets both `repoRoot` (absolute path) and `workspaceName` (workspace name or basename)
+ * on the context for downstream route handlers.
  */
 export function repoMiddleware(defaultRepoRoot: string) {
   return async (c: Context<AppEnv>, next: Next) => {
@@ -18,7 +31,9 @@ export function repoMiddleware(defaultRepoRoot: string) {
 
     // No override — use last-active workspace or fallback to static default
     if (!repoParam && !workspaceParam) {
-      c.set("repoRoot", getDefaultRepo() ?? defaultRepoRoot);
+      const repoRoot = getDefaultRepo() ?? defaultRepoRoot;
+      c.set("repoRoot", repoRoot);
+      c.set("workspaceName", resolveWorkspaceName(repoRoot));
       return next();
     }
 
@@ -34,6 +49,7 @@ export function repoMiddleware(defaultRepoRoot: string) {
 
     if (!targetPath) {
       c.set("repoRoot", defaultRepoRoot);
+      c.set("workspaceName", resolveWorkspaceName(defaultRepoRoot));
       return next();
     }
 
@@ -72,6 +88,7 @@ export function repoMiddleware(defaultRepoRoot: string) {
     }
 
     c.set("repoRoot", resolved);
+    c.set("workspaceName", resolveWorkspaceName(resolved));
     return next();
   };
 }

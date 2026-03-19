@@ -5,5 +5,6 @@
 export type AppEnv = {
   Variables: {
     repoRoot: string;
+    workspaceName: string;
   };
 };
