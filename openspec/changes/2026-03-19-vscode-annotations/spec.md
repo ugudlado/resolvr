@@ -34,11 +34,15 @@ The extension detects the active feature ID by reading the current git branch na
 
 Add a POST endpoint for creating individual threads (currently, adding a new thread requires overwriting the entire session via POST). This avoids race conditions when both VS Code and browser create threads simultaneously.
 
-### R7: Request Changes from VS Code (trigger resolver)
+### R7: Create new review session from VS Code
+
+When the extension activates on a feature branch with no existing code review session, it offers to create one. The user runs "Local Review: Start Review" (command palette or status bar) and the extension creates a new empty session via `POST /api/features/:id/code-session`. From that point on, the user can add threads directly in the editor without ever opening the browser UI.
+
+### R8: Request Changes from VS Code (trigger resolver)
 
 The extension provides a "Request Changes" action (status bar button + command palette) that sets verdict to `changes_requested` AND triggers the resolver agent via `POST /api/resolver/resolve`. The extension shows resolver progress (resolving N/M threads) in the status bar. Approve remains browser-only for now.
 
-### R8: Agent reply loop — full back-and-forth from VS Code
+### R9: Agent reply loop — full back-and-forth from VS Code
 
 After the resolver agent processes threads, the user can continue the review entirely from VS Code:
 

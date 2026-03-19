@@ -78,6 +78,28 @@
 
 ---
 
+## Phase 2b: Create Review Session
+
+### T-4b: Start new review session from VS Code
+
+**Why**: R7 -- review sessions aren't always created by the plugin or browser. When the extension activates on a feature branch with no existing session, it should let the user create one directly.
+
+**Files**:
+
+- `apps/vscode/src/commands/startReview.ts` -- Command handler: build empty session object (featureId, worktreePath, sourceBranch, targetBranch, empty threads), POST to server
+- `apps/vscode/src/serverClient.ts` -- Add `saveSession(featureId, session)` method calling `POST /api/features/:id/code-session`
+- `apps/vscode/src/statusBar.ts` -- When no session exists, show "No session — Start Review" with clickable action
+- `apps/vscode/src/extension.ts` -- Register `local-review.startReview` command, wire activation flow to detect missing session
+
+**Verify**:
+
+- Activate on feature branch with no existing session → status bar shows "Start Review"
+- Click "Start Review" → empty session created on server, browser UI shows the new session
+- After creation, "+" gutter icons appear for adding threads
+- If session already exists, "Start Review" is hidden
+
+---
+
 ## Phase 3: Create New Comments
 
 ### T-5: Implement comment creation from VS Code

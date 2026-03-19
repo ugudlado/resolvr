@@ -116,6 +116,26 @@ On deactivate, dispose the CommentController, close the WebSocket connection, an
 5. Server appends message, broadcasts event
 ```
 
+### Creating a New Review Session
+
+```
+1. Extension activates on feature branch, GET /api/features/{id}/code-session returns 404
+2. Status bar shows: "Local Review: No session — Start Review"
+3. User clicks status bar OR runs "Local Review: Start Review" from command palette
+4. Extension builds an empty session:
+   - featureId: from featureDetector
+   - worktreePath: vscode.workspace.workspaceFolders[0].uri.fsPath
+   - sourceBranch: current git branch
+   - targetBranch: "main"
+   - threads: []
+   - metadata: { createdAt: now, updatedAt: now }
+5. serverClient.saveSession(featureId, session)
+   -> POST /api/features/{id}/code-session
+6. commentManager initializes with empty thread list
+7. commentingRangeProvider activates — user can now click "+" to add threads
+8. Status bar updates: "Local Review: Connected · 0 threads"
+```
+
 ### Request Changes (Verdict + Trigger Resolver)
 
 This replicates the browser UI's `ReviewVerdict` component flow:
