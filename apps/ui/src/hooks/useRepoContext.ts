@@ -28,15 +28,19 @@ export function withRepo(
   return url;
 }
 
-export function useWorkspaces(): Workspace[] {
+export function useWorkspaces(): { workspaces: Workspace[]; loaded: boolean } {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     fetch("/api/workspaces")
       .then((r) => r.json())
-      .then((data: { workspaces?: Workspace[] }) =>
-        setWorkspaces(data.workspaces ?? []),
-      )
-      .catch(() => {});
+      .then((data: { workspaces?: Workspace[] }) => {
+        setWorkspaces(data.workspaces ?? []);
+        setLoaded(true);
+      })
+      .catch(() => {
+        setLoaded(true);
+      });
   }, []);
-  return workspaces;
+  return { workspaces, loaded };
 }

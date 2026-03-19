@@ -150,7 +150,7 @@ function WorkspaceSwitcher({
 
 export default function Dashboard() {
   const { repo, workspace } = useRepoContext();
-  const workspaces = useWorkspaces();
+  const { workspaces, loaded: workspacesLoaded } = useWorkspaces();
   const [, setSearchParams] = useSearchParams();
   const [features, setFeatures] = useState<FeatureInfo[]>([]);
   const [apiRepoName, setApiRepoName] = useState<string | null>(null);
@@ -164,6 +164,9 @@ export default function Dashboard() {
   const [showCompleted, setShowCompleted] = useState(false);
 
   const fetchFeatures = useCallback(async () => {
+    // Wait for workspace registry to load before fetching in "All workspaces" mode
+    if (!workspace && !repo && !workspacesLoaded) return;
+
     setLoading(true);
     setError(null);
     try {
@@ -185,7 +188,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [repo, workspace, workspaces]);
+  }, [repo, workspace, workspaces, workspacesLoaded]);
 
   function handleWorkspaceChange(value: string) {
     if (!value) {
