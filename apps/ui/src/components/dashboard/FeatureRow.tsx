@@ -198,17 +198,7 @@ export default function FeatureRow({
   const accentClass = ROW_ACCENT[feature.status] ?? "border-l-slate-600";
 
   function handleActivate() {
-    // Use feature's source workspace (tagged during All Workspaces merge) or URL workspace
-    const featureWorkspace = (feature as Record<string, unknown>)._workspace as
-      | string
-      | undefined;
-    const effectiveWorkspace = featureWorkspace ?? workspace;
-    const target = withRepo(
-      `/features/${feature.id}`,
-      repo,
-      effectiveWorkspace,
-    );
-    void navigate(target);
+    void navigate(withRepo(`/features/${feature.id}`, repo, feature.repoName));
   }
 
   // Compact layout for completed features — single line, no grid, no status pill

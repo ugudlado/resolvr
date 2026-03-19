@@ -49,6 +49,7 @@ export interface FeatureInfo {
   lastActivity: string | null;
   filesChanged: number;
   sourceType: "worktree" | "branch";
+  repoName: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -145,6 +146,7 @@ export function createFeaturesRoute(_repoRoot: string): Hono<AppEnv> {
       }
 
       const features: FeatureInfo[] = [];
+      const repoName = getRepoName(repoRoot);
 
       // ------------------------------------------------------------------
       // 1. Active worktrees (skip index 0 — main worktree)
@@ -217,6 +219,7 @@ export function createFeaturesRoute(_repoRoot: string): Hono<AppEnv> {
             lastActivity,
             filesChanged: countFilesChanged(codeSession),
             sourceType: "worktree",
+            repoName,
           });
         }),
       );
@@ -263,6 +266,7 @@ export function createFeaturesRoute(_repoRoot: string): Hono<AppEnv> {
                 lastActivity: null,
                 filesChanged: 0,
                 sourceType: "worktree",
+                repoName,
               });
             }
           }
@@ -307,6 +311,7 @@ export function createFeaturesRoute(_repoRoot: string): Hono<AppEnv> {
             lastActivity,
             filesChanged: countFilesChanged(codeSession),
             sourceType: "branch" as const,
+            repoName,
           };
         }),
       );

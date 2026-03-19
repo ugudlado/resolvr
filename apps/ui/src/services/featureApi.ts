@@ -39,6 +39,7 @@ export type FeatureInfo = {
   lastActivity: string | null;
   filesChanged: number;
   sourceType: SourceType;
+  repoName: string;
 };
 
 export type ThreadPatch = {

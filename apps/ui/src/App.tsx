@@ -29,6 +29,7 @@ function RootLayout() {
 /** Redirects /features/:featureId to the tab matching the feature's current status. */
 function FeatureDefaultRedirect() {
   const { featureId } = useParams<{ featureId: string }>();
+  const [searchParams] = useSearchParams();
   const { features, loading, error } = useFeatures();
 
   const defaultTab = useMemo(() => {
@@ -39,7 +40,9 @@ function FeatureDefaultRedirect() {
   }, [features, featureId]);
 
   if (loading || (error && features.length === 0)) return null;
-  return <Navigate to={defaultTab} replace />;
+  // Preserve search params (e.g. ?workspace=) through the redirect
+  const qs = searchParams.toString();
+  return <Navigate to={`${defaultTab}${qs ? `?${qs}` : ""}`} replace />;
 }
 
 /** Wrapper that resolves a feature's worktree path and renders ReviewPage in embedded mode. */
