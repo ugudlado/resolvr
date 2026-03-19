@@ -1,0 +1,34 @@
+sequenceDiagram
+    participant User as VS Code User
+    participant Ext as Extension
+    participant Server as local-review Server
+    participant Browser as Browser UI
+
+    Note over Ext: Activation
+    Ext->>Ext: featureDetector.getFeatureId()
+    Ext->>Server: GET /api/features/:id/code-session
+    Server-->>Ext: { threads: ReviewThread[] }
+    Ext->>Ext: commentManager.loadThreads()
+    Ext->>Server: WebSocket connect /ws
+
+    Note over User: Create new comment
+    User->>Ext: Click "+" on line 42
+    User->>Ext: Type comment, submit
+    Ext->>Server: POST /api/features/:id/code-session/threads
+    Server->>Server: Append thread, write JSON
+    Server-->>Ext: 201 Created
+    Server->>Browser: WS: review:session-updated
+    Browser->>Browser: Re-render threads
+
+    Note over Browser: Browser creates thread
+    Browser->>Server: POST /api/features/:id/code-session/threads
+    Server->>Server: Append thread, write JSON
+    Server->>Ext: WS: review:session-updated
+    Ext->>Ext: threadMapper.reconcile()
+    Ext->>Ext: Dispose all → recreate from fresh data
+
+    Note over User: Resolve thread
+    User->>Ext: Click "Resolve"
+    Ext->>Server: PATCH /:id/code-session/threads/:threadId
+    Server-->>Ext: 200 OK
+    Server->>Browser: WS: review:session-updated

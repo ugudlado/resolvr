@@ -1,0 +1,38 @@
+graph TB
+    subgraph "VS Code Extension (apps/vscode)"
+        EXT[extension.ts<br/>activate / deactivate]
+        FD[featureDetector.ts<br/>git branch → featureId]
+        CM[commentManager.ts<br/>CommentController]
+        TM[threadMapper.ts<br/>session ↔ VSCode map]
+        SC[serverClient.ts<br/>REST fetch wrapper]
+        WS[wsClient.ts<br/>WebSocket + reconnect]
+        SB[statusBar.ts<br/>connection indicator]
+    end
+
+    subgraph "Local Review Server (apps/server)"
+        API[Hono REST API<br/>:37003]
+        WSS[WebSocket Server<br/>/ws]
+        FW[chokidar File Watcher<br/>.review/sessions/]
+        FS[(Session JSON<br/>.review/sessions/)]
+    end
+
+    subgraph "Browser UI (apps/ui)"
+        UI[React App<br/>ReviewPage / Dashboard]
+        UIWS[wsClient hook<br/>auto-reconnect]
+    end
+
+    EXT --> FD
+    EXT --> CM
+    EXT --> WS
+    EXT --> SB
+    CM --> TM
+    CM --> SC
+    SC -- "GET/POST/PATCH" --> API
+    WS -- "ws://localhost:37003/ws" --> WSS
+    API -- "read/write" --> FS
+    FW -- "watches" --> FS
+    FW -- "broadcasts" --> WSS
+    WSS -- "session-updated" --> WS
+    WSS -- "session-updated" --> UIWS
+    UI --> UIWS
+    UI -- "REST" --> API
