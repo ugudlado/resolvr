@@ -49,7 +49,6 @@ function deriveFeatureStatus(
   if (codeSession) {
     const codeVerdict = codeSession.reviewVerdict;
     if (codeVerdict === "changes_requested") return "code";
-    if (codeVerdict === "approved") return "complete";
     return "code_review";
   }
 
