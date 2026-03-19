@@ -1,14 +1,8 @@
 /**
- * ReviewVerdict — approve / request-changes toggle buttons.
+ * ReviewVerdict — request-changes button with resolve status display.
  *
  * Pure presentational component. The caller owns the state machine that maps
- * verdict values to session status transitions:
- *
- *   SpecReview:  review -> approved  (verdict="approved")
- *                review -> draft     (verdict="changes_requested")
- *
- *   CodeReview:  review -> approved     (verdict="approved")
- *                review -> in-progress  (verdict="changes_requested")
+ * verdict values to session status transitions.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -86,11 +80,11 @@ function ResolveRunLog({
 }
 
 export interface ReviewVerdictProps {
-  verdict: "approved" | "changes_requested" | null;
-  onVerdictChange: (verdict: "approved" | "changes_requested") => void;
-  /** Number of unresolved threads. Shows a warning badge when approving. */
+  verdict: "changes_requested" | null;
+  onVerdictChange: (verdict: "changes_requested") => void;
+  /** Number of unresolved threads. */
   openThreadCount: number;
-  /** Disables both buttons (e.g. when session is not in "review" status). */
+  /** Disables the button (e.g. when session is not in "review" status). */
   disabled?: boolean;
   /** Feature ID used to match resolve status events to this session. */
   featureId?: string;
@@ -106,7 +100,6 @@ export function ReviewVerdict({
   featureId,
   onRetryResolve,
 }: ReviewVerdictProps) {
-  const isApproved = verdict === "approved";
   const isChangesRequested = verdict === "changes_requested";
   const resolveStatus = useResolveStatus();
   const [showLog, setShowLog] = useState(false);
@@ -149,16 +142,6 @@ export function ReviewVerdict({
         )}
         {isChangesRequested ? "Changes Requested" : "Request Changes"}
       </Button>
-
-      {/* Ready to merge hint */}
-      {isApproved && !isResolving && (
-        <span className="inline-flex items-center gap-1 text-xs text-emerald-400/70">
-          <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M5 3.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm0 2.122a2.25 2.25 0 1 0-1.5 0v.878A2.25 2.25 0 0 0 5.75 8.5h1.5v2.128a2.251 2.251 0 1 0 1.5 0V8.5h1.5a2.25 2.25 0 0 0 2.25-2.25v-.878a2.25 2.25 0 1 0-1.5 0v.878a.75.75 0 0 1-.75.75h-4.5A.75.75 0 0 1 5 6.25v-.878Zm3.75 7.378a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm3-8.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
-          </svg>
-          Ready to merge
-        </span>
-      )}
 
       {/* Resolver status indicator */}
       {isResolving && resolveStatus.state === "resolving" && (
