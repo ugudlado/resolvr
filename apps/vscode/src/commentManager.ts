@@ -4,20 +4,12 @@ import type {
   SessionData,
   SessionThread,
   SessionMessage,
-} from "./serverClient";
-import { serverClient } from "./serverClient";
+} from "./sessionStore";
+import { sessionStore } from "./sessionStore";
 import { ThreadMapper } from "./threadMapper";
 import { SCHEME_BASE } from "./baseContentProvider";
 
 export class CommentManager implements vscode.Disposable {
-  /**
-   * Number of incoming reconcile calls to skip.
-   * Each outbound action (create, reply, status change) sets this to 2
-   * to absorb the server broadcast echo AND the browser auto-save echo.
-   * Decremented on each skipped loadThreads call. Resets to 0 naturally.
-   */
-  private _pendingSkips = 0;
-
   private static readonly STATUS_LABELS: Record<string, string | undefined> = {
     open: undefined,
     resolved: "Resolved",
@@ -67,10 +59,6 @@ export class CommentManager implements vscode.Disposable {
   }
 
   loadThreads(threads: SessionThread[]): void {
-    if (this._pendingSkips > 0) {
-      this._pendingSkips--;
-      return;
-    }
     this._threadMapper.reconcile(threads, (t) => this._createVSCodeThread(t));
   }
 
@@ -79,7 +67,7 @@ export class CommentManager implements vscode.Disposable {
    * Creates one automatically if none exists (first-comment UX).
    */
   private async _ensureSession(featureId: string): Promise<void> {
-    const existing = await serverClient.getSession(featureId);
+    const existing = await sessionStore.getSession(featureId);
     if (existing) return;
 
     const session: SessionData = {
@@ -94,7 +82,7 @@ export class CommentManager implements vscode.Disposable {
         updatedAt: new Date().toISOString(),
       },
     };
-    await serverClient.saveSession(featureId, session);
+    sessionStore.saveSession(featureId, session);
     this._outputChannel.appendLine(
       `Auto-created review session for ${featureId}`,
     );
@@ -136,14 +124,15 @@ export class CommentManager implements vscode.Disposable {
               thread,
               reply.text.trim(),
             );
-            await serverClient.createThread(featureId, sessionThread);
+            const updated = await sessionStore.createThread(
+              featureId,
+              sessionThread,
+            );
 
-            // Dispose the temporary VS Code thread — the WS reconcile
-            // will recreate it from server data (single source of truth)
+            // Dispose the temporary VS Code thread, then reconcile
+            // from the updated session (single source of truth)
             thread.dispose();
-
-            // Skip only the browser auto-save echo (1), let server echo through for reconcile
-            this._pendingSkips = 1;
+            this.loadThreads(updated.threads);
 
             outputChannel.appendLine(
               `Created thread ${sessionThread.id} on ${sessionThread.anchor.path}:${sessionThread.anchor.line}`,
@@ -188,9 +177,8 @@ export class CommentManager implements vscode.Disposable {
             createdAt: now,
           };
           try {
-            // Send only the new message — server appends to existing messages
-            this._pendingSkips = 2;
-            await serverClient.updateThread(featureId, sessionId, {
+            // Send only the new message — sessionStore appends to existing messages
+            await sessionStore.updateThread(featureId, sessionId, {
               messages: [newMessage],
             });
 
@@ -257,8 +245,7 @@ export class CommentManager implements vscode.Disposable {
           if (!sessionId) return;
           const closed = status !== "open";
           try {
-            this._pendingSkips = 2;
-            await serverClient.updateThread(featureId, sessionId, { status });
+            await sessionStore.updateThread(featureId, sessionId, { status });
             thread.state = closed ? 1 : 0;
             thread.collapsibleState = closed
               ? vscode.CommentThreadCollapsibleState.Collapsed

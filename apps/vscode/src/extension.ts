@@ -3,11 +3,15 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import * as path from "path";
 import { FeatureDetector } from "./featureDetector";
-import { serverClient, setWorkspaceName, getBaseUrl } from "./serverClient";
-import type { SessionThread } from "./serverClient";
+import {
+  sessionStore,
+  setWorkspaceName,
+  getSessionFilePath,
+} from "./sessionStore";
+import type { SessionThread } from "./sessionStore";
 import { StatusBar } from "./statusBar";
 import { CommentManager } from "./commentManager";
-import { WsClient } from "./wsClient";
+import { SessionWatcher } from "./sessionWatcher";
 import {
   BaseContentProvider,
   EmptyContentProvider,
@@ -49,7 +53,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const statusBar = new StatusBar();
   const featureDetector = new FeatureDetector(workspaceRoot);
   const commentManager = new CommentManager(workspaceRoot, outputChannel);
-  const wsClient = new WsClient(getBaseUrl(), outputChannel);
+  const sessionWatcher = new SessionWatcher(outputChannel);
   const diffPanelManager = new DiffPanelManager(
     workspaceRoot,
     baseProvider,
@@ -67,96 +71,37 @@ export function activate(context: vscode.ExtensionContext): void {
     statusBar,
     featureDetector,
     commentManager,
-    wsClient,
+    sessionWatcher,
     diffPanelManager,
     threadsTreeView,
     outputChannel,
   );
 
   // Wire up comment creation/reply/resolve commands.
-  // getFeatureId() is evaluated at command invocation time so it always
-  // reflects the current branch's feature.
   commentManager.setupCommentHandlers(
     context,
     () => featureDetector.featureId,
     outputChannel,
   );
 
-  // Track current featureId so WS handler knows which session to reconcile.
-  // Uses the featureDetector as the source of truth after initialization.
   let currentFeatureId: string | null = null;
 
-  // Subscribe to session-updated events from the server.
+  // Subscribe to file watcher events (replaces WS session-updated)
   context.subscriptions.push(
-    wsClient.on("review:session-updated", (data: unknown) => {
+    sessionWatcher.onDidSessionChange((session) => {
       if (!currentFeatureId) return;
-
-      const payload = data as {
-        fileName: string;
-        session: { threads: SessionThread[] };
-      };
-
-      // Session file names are `<featureId>-code.json`
-      const match = payload.fileName.match(/^(.+)-code\.json$/);
-      if (!match || match[1] !== currentFeatureId) return;
-
-      const threads = payload.session?.threads ?? [];
+      const threads = session.threads ?? [];
       outputChannel.appendLine(
-        `WS session-updated: reconciling ${threads.length} threads for ${currentFeatureId}`,
+        `Session file changed: reconciling ${threads.length} threads for ${currentFeatureId}`,
       );
       commentManager.loadThreads(threads);
       statusBar.updateThreadCount(threads.length);
       diffPanelManager.updateThreadCounts(threads);
       threadsTree.updateThreads(threads);
     }),
-
-    // Resolver progress events — update status bar during resolve runs
-    wsClient.on("review:resolve-started", (data: unknown) => {
-      const payload = data as { featureId: string; threadCount: number };
-      if (payload.featureId !== currentFeatureId) return;
-      statusBar.setResolving(0, payload.threadCount);
-    }),
-
-    wsClient.on("review:resolve-completed", (data: unknown) => {
-      const payload = data as {
-        featureId: string;
-        resolved: number;
-        clarifications: number;
-      };
-      if (payload.featureId !== currentFeatureId) return;
-      statusBar.setResolveComplete(payload.resolved);
-      outputChannel.appendLine(
-        `Resolver complete (via WS): ${payload.resolved} resolved`,
-      );
-    }),
-
-    wsClient.on("review:resolve-failed", (data: unknown) => {
-      const payload = data as { featureId: string; error: string };
-      if (payload.featureId !== currentFeatureId) return;
-      statusBar.setResolveFailed(payload.error);
-      outputChannel.appendLine(`Resolver failed (via WS): ${payload.error}`);
-    }),
-  );
-
-  // Update status bar on connect/disconnect.
-  context.subscriptions.push(
-    wsClient.onDidConnect(() => {
-      outputChannel.appendLine("WS connected — live sync active");
-      // Only reflect connected state if we have an active session
-      if (currentFeatureId) {
-        statusBar.setConnected(commentManager.threadMapper.size);
-      }
-    }),
-    wsClient.onDidDisconnect(() => {
-      outputChannel.appendLine("WS disconnected");
-      if (currentFeatureId) {
-        statusBar.setDisconnected();
-      }
-    }),
   );
 
   // Resolve workspace name from git repo root (handles worktrees).
-  // git-common-dir points to the main repo's .git even in a worktree.
   const resolveWorkspace = async () => {
     try {
       const { stdout } = await execFileAsync(
@@ -164,20 +109,48 @@ export function activate(context: vscode.ExtensionContext): void {
         ["rev-parse", "--git-common-dir"],
         { cwd: workspaceRoot },
       );
-      // git-common-dir returns e.g. "/Users/.../code/review/.git"
       const gitCommonDir = path.resolve(workspaceRoot, stdout.trim());
       const repoName = path.basename(path.dirname(gitCommonDir));
       setWorkspaceName(repoName);
       outputChannel.appendLine(`Workspace resolved: ${repoName}`);
     } catch {
-      // Fallback to directory name
       const fallback = path.basename(workspaceRoot);
       setWorkspaceName(fallback);
       outputChannel.appendLine(`Workspace fallback: ${fallback}`);
     }
   };
 
-  // Initialize feature detection and connection
+  const loadSession = async (featureId: string) => {
+    const session = await sessionStore.getSession(featureId);
+    if (!session) {
+      commentManager.loadThreads([]);
+      threadsTree.updateThreads([]);
+      diffPanelManager.close();
+      statusBar.setNoSession();
+      outputChannel.appendLine("No review session found");
+      return;
+    }
+
+    const threads = session.threads ?? [];
+    const openThreads = threads.filter(
+      (t: SessionThread) => t.status === "open",
+    ).length;
+    commentManager.loadThreads(threads);
+    statusBar.setReady(threads.length);
+    threadsTree.updateThreads(threads);
+    outputChannel.appendLine(
+      `Session loaded: ${threads.length} threads (${openThreads} open)`,
+    );
+
+    // Start watching the session file for external changes
+    sessionWatcher.watch(getSessionFilePath(featureId));
+
+    // Populate sidebar tree with changed files
+    await diffPanelManager.populate(featureId);
+    diffPanelManager.updateThreadCounts(threads);
+  };
+
+  // Initialize feature detection
   const init = async () => {
     await resolveWorkspace();
     const featureId = await featureDetector.initialize();
@@ -190,38 +163,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }
 
     outputChannel.appendLine(`Feature detected: ${featureId}`);
-
-    // Check server connection
-    const connected = await serverClient.checkConnection();
-    if (!connected) {
-      statusBar.setDisconnected();
-      outputChannel.appendLine("Server not reachable");
-      return;
-    }
-
-    // Load session
-    const session = await serverClient.getSession(featureId);
-    if (!session) {
-      statusBar.setNoSession();
-      outputChannel.appendLine("No review session found");
-      return;
-    }
-
-    const threads = session.threads ?? [];
-    const openThreads = threads.filter((t) => t.status === "open").length;
-    commentManager.loadThreads(threads);
-    statusBar.setConnected(threads.length);
-    threadsTree.updateThreads(threads);
-    outputChannel.appendLine(
-      `Session loaded: ${session.threads.length} threads (${openThreads} open)`,
-    );
-
-    // Populate sidebar tree with changed files (without opening a diff tab)
-    await diffPanelManager.populate(featureId);
-    diffPanelManager.updateThreadCounts(threads);
-
-    // Connect WebSocket for live updates (idempotent — reconnects if dropped)
-    wsClient.connect();
+    await loadSession(featureId);
   };
 
   // Listen for branch changes
@@ -230,6 +172,7 @@ export function activate(context: vscode.ExtensionContext): void {
       `Branch changed — new feature: ${newFeatureId ?? "none"}`,
     );
     currentFeatureId = newFeatureId;
+    sessionWatcher.unwatch();
 
     if (!newFeatureId) {
       commentManager.loadThreads([]);
@@ -238,35 +181,8 @@ export function activate(context: vscode.ExtensionContext): void {
       statusBar.setNoFeature();
       return;
     }
-    // Re-initialize with new feature
-    const connected = await serverClient.checkConnection();
-    if (!connected) {
-      commentManager.loadThreads([]);
-      threadsTree.updateThreads([]);
-      diffPanelManager.close();
-      statusBar.setDisconnected();
-      return;
-    }
-    const session = await serverClient.getSession(newFeatureId);
-    if (!session) {
-      commentManager.loadThreads([]);
-      threadsTree.updateThreads([]);
-      diffPanelManager.close();
-      statusBar.setNoSession();
-      return;
-    }
-    const threads = session.threads ?? [];
-    commentManager.loadThreads(threads);
-    threadsTree.updateThreads(threads);
-    statusBar.setConnected(threads.length);
 
-    // Populate sidebar tree for new feature
-    await diffPanelManager.populate(newFeatureId);
-    diffPanelManager.updateThreadCounts(threads);
-
-    outputChannel.appendLine(
-      `Session loaded for ${newFeatureId}: ${session.threads.length} threads`,
-    );
+    await loadSession(newFeatureId);
   });
 
   // Register commands
@@ -274,15 +190,6 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("local-review.refresh", () => {
       outputChannel.appendLine("Refresh command invoked");
       void init();
-    }),
-    vscode.commands.registerCommand("local-review.connect", () => {
-      outputChannel.appendLine("Connect command invoked");
-      void init();
-    }),
-    vscode.commands.registerCommand("local-review.disconnect", () => {
-      outputChannel.appendLine("Disconnect command invoked");
-      wsClient.disconnect();
-      statusBar.setDisconnected();
     }),
     vscode.commands.registerCommand("local-review.startReview", async () => {
       const featureId = featureDetector.featureId;
@@ -293,7 +200,7 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
 
-      const existing = await serverClient.getSession(featureId);
+      const existing = await sessionStore.getSession(featureId);
       if (existing) {
         void vscode.window.showInformationMessage(
           "Review session already exists for this feature.",
@@ -308,7 +215,7 @@ export function activate(context: vscode.ExtensionContext): void {
         worktreePath: workspaceRoot,
         sourceBranch: branch,
         targetBranch: "main",
-        verdict: null,
+        verdict: null as "approved" | "changes_requested" | null,
         threads: [] as SessionThread[],
         metadata: {
           createdAt: new Date().toISOString(),
@@ -317,10 +224,10 @@ export function activate(context: vscode.ExtensionContext): void {
       };
 
       try {
-        await serverClient.saveSession(featureId, session);
+        sessionStore.saveSession(featureId, session);
         commentManager.loadThreads([]);
-        statusBar.setConnected(0);
-        wsClient.connect();
+        statusBar.setReady(0);
+        sessionWatcher.watch(getSessionFilePath(featureId));
         currentFeatureId = featureId;
         outputChannel.appendLine("Review session created");
         void vscode.window.showInformationMessage(
@@ -342,35 +249,19 @@ export function activate(context: vscode.ExtensionContext): void {
       }
 
       outputChannel.appendLine(
-        `Request Changes: setting verdict + triggering resolver for ${featureId}`,
+        `Request Changes: setting verdict for ${featureId}`,
       );
 
       try {
-        // Set verdict
-        await serverClient.setVerdict(featureId, "changes_requested");
-
-        // Trigger resolver
-        statusBar.setResolving(0, 0);
-
-        const result = await serverClient.triggerResolve(featureId, "code");
-
-        if (result.ok) {
-          const resolved = result.resolved ?? 0;
-          const clarifications = result.clarifications ?? 0;
-          statusBar.setResolveComplete(resolved);
-          outputChannel.appendLine(
-            `Resolver complete: ${resolved} resolved, ${clarifications} need clarification`,
-          );
-        } else {
-          statusBar.setResolveFailed(result.error ?? "Unknown error");
-          outputChannel.appendLine(
-            `Resolver failed: ${result.error ?? "Unknown error"}`,
-          );
-        }
+        await sessionStore.setVerdict(featureId, "changes_requested");
+        void vscode.window.showInformationMessage(
+          "Verdict saved. Run /resolve in your Claude session to process threads.",
+        );
+        outputChannel.appendLine("Verdict set to changes_requested");
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        statusBar.setResolveFailed(msg);
         outputChannel.appendLine(`Request Changes failed: ${msg}`);
+        void vscode.window.showErrorMessage(`Failed to set verdict: ${msg}`);
       }
     }),
 
@@ -380,13 +271,6 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!featureId) {
         void vscode.window.showWarningMessage(
           "No feature branch detected. Switch to a feature/* branch first.",
-        );
-        return;
-      }
-      const connected = await serverClient.checkConnection();
-      if (!connected) {
-        void vscode.window.showErrorMessage(
-          "Local Review server is not reachable.",
         );
         return;
       }
@@ -412,14 +296,12 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand(
       "local-review.goToThread",
       async (filePath: string, line: number) => {
-        // Open the diff for this file
         await diffPanelManager.openFile({
           path: filePath,
           oldPath: filePath,
           newPath: filePath,
           status: "M",
         });
-        // After diff opens, scroll to the thread's line
         setTimeout(() => {
           const editor = vscode.window.activeTextEditor;
           if (editor) {
