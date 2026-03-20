@@ -47,8 +47,8 @@ interface FileSidebarProps {
   visibleFiles: DiffFile[];
   selectedFilePath: string;
   onFileSelect: (path: string) => void;
-  showFolderTree: boolean;
-  onFolderTreeChange: (v: boolean) => void;
+  fileViewMode: "flat" | "tree" | "compact-tree";
+  onFileViewModeChange: (mode: "flat" | "tree" | "compact-tree") => void;
   unresolvedThreadCountByFile: Map<string, number>;
   changeCountByFile: Map<string, number>;
   threads?: ReviewThread[];
@@ -76,8 +76,8 @@ export function FileSidebar({
   visibleFiles,
   selectedFilePath,
   onFileSelect,
-  showFolderTree,
-  onFolderTreeChange,
+  fileViewMode,
+  onFileViewModeChange,
   unresolvedThreadCountByFile,
   changeCountByFile,
   threads,
@@ -130,8 +130,32 @@ export function FileSidebar({
       }
     }
 
+    // Compact-tree: merge single-child folder chains (bottom-up DFS)
+    // Compact-tree: merge single-child folder chains bottom-up
+    if (fileViewMode === "compact-tree") {
+      const compact = (id: string): void => {
+        const node = items[id];
+        if (!node || node.kind !== "folder") return;
+        // Recurse children first (post-order)
+        for (const cid of [...node.children]) compact(cid);
+        // Absorb single-child folder chains
+        while (
+          node.children.length === 1 &&
+          items[node.children[0]]?.kind === "folder"
+        ) {
+          const childId = node.children[0];
+          const child = items[childId] as Extract<TreeItem, { kind: "folder" }>;
+          node.name = node.name + "/" + child.name;
+          node.children = child.children;
+          delete items[childId];
+        }
+      };
+      const root = items["root"] as Extract<TreeItem, { kind: "folder" }>;
+      for (const cid of [...root.children]) compact(cid);
+    }
+
     return items;
-  }, [visibleFiles]);
+  }, [visibleFiles, fileViewMode]);
 
   // O(1) lookup from file path → index in visibleFiles (avoids O(n) indexOf per tree item)
   const fileIndexMap = useMemo(
@@ -257,15 +281,40 @@ export function FileSidebar({
               </span>
               <KeyboardHint label="↑↓" />
             </div>
-            <label className="flex items-center gap-1 text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
-              <input
-                type="checkbox"
-                checked={showFolderTree}
-                onChange={(e) => onFolderTreeChange(e.target.checked)}
-                className="accent-indigo-500"
-              />
-              tree
-            </label>
+            <div
+              role="radiogroup"
+              aria-label="File view mode"
+              className="flex items-center gap-0.5"
+            >
+              {(
+                [
+                  { mode: "flat" as const, label: "Flat list", icon: "≡" },
+                  { mode: "tree" as const, label: "Tree", icon: "⊞" },
+                  {
+                    mode: "compact-tree" as const,
+                    label: "Compact tree",
+                    icon: "⊟",
+                  },
+                ] as const
+              ).map(({ mode, label, icon }) => (
+                <button
+                  key={mode}
+                  role="radio"
+                  type="button"
+                  aria-checked={fileViewMode === mode}
+                  aria-label={label}
+                  title={label}
+                  onClick={() => onFileViewModeChange(mode)}
+                  className={`rounded px-1 py-0.5 text-[10px] leading-none transition-colors ${
+                    fileViewMode === mode
+                      ? "bg-[var(--bg-elevated)] text-[var(--text-primary)]"
+                      : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                  }`}
+                >
+                  {icon}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div ref={fileListRef} className="flex-1 overflow-auto py-1">
@@ -274,7 +323,7 @@ export function FileSidebar({
                 No changed files
               </p>
             )}
-            {visibleFiles.length > 0 && showFolderTree && (
+            {visibleFiles.length > 0 && fileViewMode !== "flat" && (
               <div
                 {...tree.getContainerProps()}
                 tabIndex={0}
@@ -370,7 +419,7 @@ export function FileSidebar({
               </div>
             )}
             {visibleFiles.length > 0 &&
-              !showFolderTree &&
+              fileViewMode === "flat" &&
               visibleFiles.map((file, index) => {
                 const active = file.path === selectedFilePath;
                 const keyboardActive = keyboardSelectedIndex === index;

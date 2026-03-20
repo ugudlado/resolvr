@@ -250,7 +250,14 @@ export function ReviewPage({
   const [selectedCommit, setSelectedCommit] = useState("");
   const [selectedCommitDiff, setSelectedCommitDiff] = useState("");
 
-  const [showFolderTree, setShowFolderTree] = useState(false);
+  const [fileViewMode, setFileViewMode] = useState<
+    "flat" | "tree" | "compact-tree"
+  >(() => {
+    const stored = localStorage.getItem("localReview.fileViewMode");
+    if (stored === "flat" || stored === "tree" || stored === "compact-tree")
+      return stored;
+    return "flat";
+  });
 
   /** Line where the compose widget is open, or null if closed. */
   const [composingAt, setComposingAt] = useState<{
@@ -686,7 +693,7 @@ export function ReviewPage({
       selectedFile: selectedFilePath ?? null,
       sidebarRef,
       diffPanelRef,
-      treeViewActive: showFolderTree,
+      treeViewActive: fileViewMode !== "flat",
       onFileSelect: setSelectedFilePath,
       onThreadFocus: (thread) => {
         const panel = reviewPanelRef.current;
@@ -948,8 +955,11 @@ export function ReviewPage({
               requestAnimationFrame(() => diffPanelRef.current?.focus());
             }
           }}
-          showFolderTree={showFolderTree}
-          onFolderTreeChange={setShowFolderTree}
+          fileViewMode={fileViewMode}
+          onFileViewModeChange={(mode) => {
+            setFileViewMode(mode);
+            localStorage.setItem("localReview.fileViewMode", mode);
+          }}
           unresolvedThreadCountByFile={unresolvedThreadCountByFile}
           changeCountByFile={changeCountByFile}
           keyboardSelectedIndex={selectedFileIndex}
