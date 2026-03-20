@@ -19,12 +19,13 @@ pnpm -C apps/ui dev    # Start Vite dev server (for UI development with HMR)
 
 ```
 .claude-plugin/     — Plugin metadata
-commands/           — Slash commands (open, resolve)
+commands/           — Plugin slash commands (open, resolve)
 agents/             — Subagent definitions (review-resolver)
 hooks/              — Session hooks (auto-start dev server)
 scripts/            — Shell scripts (context extraction)
 openspec/changes/   — Active and archived feature specifications
-skills/             — Auto-triggered skill guides (vscode-ext, github)
+.claude/commands/   — Project-level slash commands (release-prep)
+.claude/skills/     — Project-level skill guides (vscode-ext, github)
 apps/server/        — Standalone Hono server (REST API + WebSocket + static UI)
   src/middleware/    — Request middleware (repo context resolution)
   src/workspaces.ts — Workspace registry (multi-repo support)
