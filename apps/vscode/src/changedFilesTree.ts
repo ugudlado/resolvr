@@ -7,6 +7,33 @@ export interface DiffFileItem extends DiffFileEntry {
   openThreads: number;
 }
 
+/** Map file extensions to VS Code codicon IDs for file-type icons */
+const EXT_ICON_MAP: Record<string, string> = {
+  ts: "symbol-file",
+  tsx: "symbol-file",
+  js: "symbol-file",
+  jsx: "symbol-file",
+  json: "json",
+  md: "markdown",
+  css: "symbol-color",
+  scss: "symbol-color",
+  html: "code",
+  svg: "symbol-misc",
+  png: "file-media",
+  jpg: "file-media",
+  gif: "file-media",
+  yaml: "list-tree",
+  yml: "list-tree",
+  sh: "terminal",
+  bash: "terminal",
+  lock: "lock",
+};
+
+function getFileIcon(filePath: string): string {
+  const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
+  return EXT_ICON_MAP[ext] ?? "file";
+}
+
 export class ChangedFilesTreeProvider
   implements vscode.TreeDataProvider<DiffFileItem>
 {
@@ -50,52 +77,33 @@ export class ChangedFilesTreeProvider
   }
 
   getTreeItem(element: DiffFileItem): vscode.TreeItem {
-    const label = element.path.split("/").pop() ?? element.path;
+    // Show relative path as label for full context
     const item = new vscode.TreeItem(
-      label,
+      element.path,
       vscode.TreeItemCollapsibleState.None,
     );
 
     // Resource URI enables FileDecorationProvider to apply colored status badges
     item.resourceUri = makeReviewFileUri(element.path);
 
-    // Build description: dir path + diff stats + thread count
+    // Build description: diff stats + thread count
     const parts: string[] = [];
 
-    // Directory path
-    if (element.path.includes("/")) {
-      parts.push(element.path.slice(0, element.path.lastIndexOf("/")));
-    }
-
     // Diff stats (omit when zero changes — pure renames, mode changes, binary diffs)
-    const hasStats = element.additions + element.deletions > 0;
-    if (hasStats) {
+    if (element.additions + element.deletions > 0) {
       parts.push(`+${element.additions}/\u2212${element.deletions}`);
     }
 
     // Thread count
     if (element.openThreads > 0) {
       const suffix = `${element.openThreads} comment${element.openThreads > 1 ? "s" : ""}`;
-      // Use · separator if there's preceding content
       parts.push(parts.length > 0 ? `\u00b7 ${suffix}` : suffix);
     }
 
     item.description = parts.length > 0 ? parts.join(" ") : undefined;
 
-    // Status icons (kept alongside FileDecoration badges)
-    switch (element.status) {
-      case "A":
-        item.iconPath = new vscode.ThemeIcon("diff-added");
-        break;
-      case "D":
-        item.iconPath = new vscode.ThemeIcon("diff-removed");
-        break;
-      case "R":
-        item.iconPath = new vscode.ThemeIcon("file-renamed");
-        break;
-      default:
-        item.iconPath = new vscode.ThemeIcon("diff-modified");
-    }
+    // File-type icon based on extension
+    item.iconPath = new vscode.ThemeIcon(getFileIcon(element.path));
 
     item.command = {
       command: "local-review.openDiffFile",
@@ -103,7 +111,18 @@ export class ChangedFilesTreeProvider
       arguments: [element],
     };
 
-    item.tooltip = `${element.status === "R" ? `Renamed: ${element.oldPath} → ${element.newPath}` : element.path}`;
+    // Rich tooltip with full path and stats
+    const tooltipLines = [
+      element.status === "R"
+        ? `Renamed: ${element.oldPath} → ${element.newPath}`
+        : element.path,
+    ];
+    if (element.additions + element.deletions > 0) {
+      tooltipLines.push(
+        `+${element.additions} additions, ${element.deletions} deletions`,
+      );
+    }
+    item.tooltip = tooltipLines.join("\n");
 
     return item;
   }

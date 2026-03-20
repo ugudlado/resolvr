@@ -4802,6 +4802,30 @@ var ReviewFileDecorationProvider = class {
 };
 
 // src/changedFilesTree.ts
+var EXT_ICON_MAP = {
+  ts: "symbol-file",
+  tsx: "symbol-file",
+  js: "symbol-file",
+  jsx: "symbol-file",
+  json: "json",
+  md: "markdown",
+  css: "symbol-color",
+  scss: "symbol-color",
+  html: "code",
+  svg: "symbol-misc",
+  png: "file-media",
+  jpg: "file-media",
+  gif: "file-media",
+  yaml: "list-tree",
+  yml: "list-tree",
+  sh: "terminal",
+  bash: "terminal",
+  lock: "lock"
+};
+function getFileIcon(filePath) {
+  const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
+  return EXT_ICON_MAP[ext] ?? "file";
+}
 var ChangedFilesTreeProvider = class {
   _onDidChangeTreeData = new vscode8.EventEmitter();
   onDidChangeTreeData = this._onDidChangeTreeData.event;
@@ -4834,18 +4858,13 @@ var ChangedFilesTreeProvider = class {
     return this._files[0];
   }
   getTreeItem(element) {
-    const label = element.path.split("/").pop() ?? element.path;
     const item = new vscode8.TreeItem(
-      label,
+      element.path,
       vscode8.TreeItemCollapsibleState.None
     );
     item.resourceUri = makeReviewFileUri(element.path);
     const parts = [];
-    if (element.path.includes("/")) {
-      parts.push(element.path.slice(0, element.path.lastIndexOf("/")));
-    }
-    const hasStats = element.additions + element.deletions > 0;
-    if (hasStats) {
+    if (element.additions + element.deletions > 0) {
       parts.push(`+${element.additions}/\u2212${element.deletions}`);
     }
     if (element.openThreads > 0) {
@@ -4853,25 +4872,21 @@ var ChangedFilesTreeProvider = class {
       parts.push(parts.length > 0 ? `\xB7 ${suffix}` : suffix);
     }
     item.description = parts.length > 0 ? parts.join(" ") : void 0;
-    switch (element.status) {
-      case "A":
-        item.iconPath = new vscode8.ThemeIcon("diff-added");
-        break;
-      case "D":
-        item.iconPath = new vscode8.ThemeIcon("diff-removed");
-        break;
-      case "R":
-        item.iconPath = new vscode8.ThemeIcon("file-renamed");
-        break;
-      default:
-        item.iconPath = new vscode8.ThemeIcon("diff-modified");
-    }
+    item.iconPath = new vscode8.ThemeIcon(getFileIcon(element.path));
     item.command = {
       command: "local-review.openDiffFile",
       title: "Open Diff",
       arguments: [element]
     };
-    item.tooltip = `${element.status === "R" ? `Renamed: ${element.oldPath} \u2192 ${element.newPath}` : element.path}`;
+    const tooltipLines = [
+      element.status === "R" ? `Renamed: ${element.oldPath} \u2192 ${element.newPath}` : element.path
+    ];
+    if (element.additions + element.deletions > 0) {
+      tooltipLines.push(
+        `+${element.additions} additions, ${element.deletions} deletions`
+      );
+    }
+    item.tooltip = tooltipLines.join("\n");
     return item;
   }
   getParent(_element) {
@@ -4925,6 +4940,7 @@ function makeSchemeUri(scheme, relativePath) {
 }
 var DiffPanelManager = class {
   _files = [];
+  _viewedFiles = /* @__PURE__ */ new Set();
   _baseProvider;
   _treeProvider;
   _decorationProvider;
@@ -4959,7 +4975,7 @@ var DiffPanelManager = class {
       this._files = parseDiffFileList(diff.allDiff);
       this._treeProvider.setFiles(this._files);
       this._decorationProvider.setFiles(this._files);
-      this._treeView.title = `Changed Files (${this._files.length})`;
+      this._updateTitle();
       void vscode9.commands.executeCommand(
         "setContext",
         "local-review.hasDiffPanel",
@@ -5010,6 +5026,14 @@ var DiffPanelManager = class {
     }
     const title = file.status === "R" ? `${file.oldPath} \u2192 ${file.newPath} (Review Diff)` : `${file.path} (Review Diff)`;
     await vscode9.commands.executeCommand("vscode.diff", oldUri, newUri, title);
+    this._viewedFiles.add(file.path);
+    this._updateTitle();
+  }
+  _updateTitle() {
+    if (this._files.length === 0) return;
+    const viewed = this._viewedFiles.size;
+    const total = this._files.length;
+    this._treeView.title = viewed > 0 ? `Changed Files (${viewed}/${total} viewed)` : `Changed Files (${total})`;
   }
   async refresh(featureId) {
     this._baseProvider.invalidate();
@@ -5020,6 +5044,7 @@ var DiffPanelManager = class {
     this._treeProvider.setFiles([]);
     this._decorationProvider.clear();
     this._files = [];
+    this._viewedFiles.clear();
     void vscode9.commands.executeCommand(
       "setContext",
       "local-review.hasDiffPanel",

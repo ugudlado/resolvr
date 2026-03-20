@@ -24,6 +24,7 @@ function makeSchemeUri(scheme: string, relativePath: string): vscode.Uri {
 
 export class DiffPanelManager implements vscode.Disposable {
   private _files: DiffFileEntry[] = [];
+  private _viewedFiles = new Set<string>();
   private _baseProvider: BaseContentProvider;
   private _treeProvider: ChangedFilesTreeProvider;
   private _decorationProvider: ReviewFileDecorationProvider;
@@ -69,7 +70,7 @@ export class DiffPanelManager implements vscode.Disposable {
 
       this._treeProvider.setFiles(this._files);
       this._decorationProvider.setFiles(this._files);
-      this._treeView.title = `Changed Files (${this._files.length})`;
+      this._updateTitle();
 
       void vscode.commands.executeCommand(
         "setContext",
@@ -137,6 +138,20 @@ export class DiffPanelManager implements vscode.Disposable {
         : `${file.path} (Review Diff)`;
 
     await vscode.commands.executeCommand("vscode.diff", oldUri, newUri, title);
+
+    // Track viewed files for progress indicator
+    this._viewedFiles.add(file.path);
+    this._updateTitle();
+  }
+
+  private _updateTitle(): void {
+    if (this._files.length === 0) return;
+    const viewed = this._viewedFiles.size;
+    const total = this._files.length;
+    this._treeView.title =
+      viewed > 0
+        ? `Changed Files (${viewed}/${total} viewed)`
+        : `Changed Files (${total})`;
   }
 
   async refresh(featureId: string): Promise<void> {
@@ -149,6 +164,7 @@ export class DiffPanelManager implements vscode.Disposable {
     this._treeProvider.setFiles([]);
     this._decorationProvider.clear();
     this._files = [];
+    this._viewedFiles.clear();
     void vscode.commands.executeCommand(
       "setContext",
       "local-review.hasDiffPanel",
