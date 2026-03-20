@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ChevronRightIcon, MessageSquareIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ReviewThread } from "../../services/localReviewApi";
@@ -6,8 +6,10 @@ import { THREAD_SEVERITY } from "../../types/sessions";
 import { relativeTime } from "../../utils/timeFormat";
 import { shortPath, lineLabel } from "../../utils/diffUtils";
 import { useResolveStatus } from "../../hooks/useResolveStatus";
+import { normalizeStatus, isClosed } from "../../utils/threadStatus";
 import { KeyboardHint } from "../shared/KeyboardHint";
 import { SectionLabel } from "../shared/SectionLabel";
+import { ThreadStatusBadge } from "../shared/ThreadStatusBadge";
 
 /** Extended thread with optional severity (may come from adapted threads or legacy API). */
 type ThreadWithSeverity = Omit<ReviewThread, "severity"> & {
@@ -22,6 +24,7 @@ export interface DiffThreadNavProps {
   threads: ReviewThread[];
   activeThreadId?: string;
   onThreadClick: (thread: ReviewThread) => void;
+  outdatedThreadIds?: Set<string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -40,6 +43,17 @@ function formatModelLabel(model: string): string {
   if (model.includes("opus")) return "Opus";
   if (model.includes("haiku")) return "Haiku";
   return model;
+}
+
+// ---------------------------------------------------------------------------
+// Sort helper
+// ---------------------------------------------------------------------------
+
+function sortByUpdated(threads: ReviewThread[]): ReviewThread[] {
+  return [...threads].sort(
+    (a, b) =>
+      new Date(b.lastUpdatedAt).getTime() - new Date(a.lastUpdatedAt).getTime(),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -63,24 +77,11 @@ function ThreadNavCard({
   const previewText = firstMessage?.text ?? "";
   const author = firstMessage?.author ?? "";
   const time = relativeTime(thread.lastUpdatedAt);
+  const closed = isClosed(thread.status);
 
-  // Status dot color
-  let dotColor: string;
-  if (isResolving) {
-    dotColor =
-      "text-[var(--accent-blue)] animate-[breathe_2s_ease-in-out_infinite]";
-  } else if (thread.status === "resolved" || thread.status === "approved") {
-    dotColor = "text-[var(--accent-emerald)]";
-  } else if (thread.severity === THREAD_SEVERITY.Critical) {
-    dotColor = "text-[var(--accent-rose)]";
-  } else {
-    dotColor = "text-[var(--accent-blue)]";
-  }
-
-  // Severity badge — show for all severities except default (improvement)
+  // Severity badge — show for open threads with non-default severity
   const showBadge =
-    thread.status !== "resolved" &&
-    thread.status !== "approved" &&
+    !closed &&
     thread.severity !== undefined &&
     thread.severity !== null &&
     thread.severity !== THREAD_SEVERITY.Improvement;
@@ -106,11 +107,15 @@ function ThreadNavCard({
           "-ml-0.5 border-l-2 border-[var(--accent-blue)] bg-[var(--accent-blue-dim)] pl-2.5",
       )}
     >
-      {/* Row 1: dot + file:line + badge */}
+      {/* Row 1: status badge + file:line + severity badge */}
       <div className="flex min-w-0 items-center gap-1.5">
-        <span className={`shrink-0 text-[8px] leading-none ${dotColor}`}>
-          ●
-        </span>
+        {isResolving ? (
+          <span className="shrink-0 animate-[breathe_2s_ease-in-out_infinite] text-[8px] leading-none text-[var(--accent-blue)]">
+            ●
+          </span>
+        ) : (
+          <ThreadStatusBadge status={thread.status} size="sm" />
+        )}
         <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-[var(--accent-blue)]">
           {shortPath(thread.filePath)}:{lineLabel(thread.line, thread.lineEnd)}
         </span>
@@ -148,23 +153,21 @@ function ThreadNavCard({
         />
       </div>
 
-      {/* Row 4: analytics labels for resolved threads */}
-      {(thread.status === "resolved" || thread.status === "approved") &&
-        thread.labels &&
-        Object.keys(thread.labels).length > 0 && (
-          <div className="mt-1 flex flex-wrap gap-1">
-            {thread.labels.severity && (
-              <span className="rounded bg-[var(--accent-blue-dim)] px-2 py-0.5 text-[8px] font-medium text-[var(--accent-blue)]">
-                {formatSeverityLabel(thread.labels.severity)}
-              </span>
-            )}
-            {thread.labels.model && (
-              <span className="rounded bg-[var(--bg-overlay)] px-2 py-0.5 text-[8px] font-medium text-[var(--text-secondary)]">
-                {formatModelLabel(thread.labels.model)}
-              </span>
-            )}
-          </div>
-        )}
+      {/* Row 4: analytics labels for closed threads */}
+      {closed && thread.labels && Object.keys(thread.labels).length > 0 && (
+        <div className="mt-1 flex flex-wrap gap-1">
+          {thread.labels.severity && (
+            <span className="rounded bg-[var(--accent-blue-dim)] px-2 py-0.5 text-[8px] font-medium text-[var(--accent-blue)]">
+              {formatSeverityLabel(thread.labels.severity)}
+            </span>
+          )}
+          {thread.labels.model && (
+            <span className="rounded bg-[var(--bg-overlay)] px-2 py-0.5 text-[8px] font-medium text-[var(--text-secondary)]">
+              {formatModelLabel(thread.labels.model)}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -177,6 +180,7 @@ export function DiffThreadNav({
   threads,
   activeThreadId,
   onThreadClick,
+  outdatedThreadIds,
 }: DiffThreadNavProps) {
   const resolveStatus = useResolveStatus();
   const resolvingIds = useMemo(() => {
@@ -187,28 +191,39 @@ export function DiffThreadNav({
     );
   }, [resolveStatus]);
 
+  // Section collapse state for non-open sections
+  const [resolvedCollapsed, setResolvedCollapsed] = useState(false);
+  const [wontfixCollapsed, setWontfixCollapsed] = useState(false);
+  const [outdatedCollapsed, setOutdatedCollapsed] = useState(false);
+
   const openThreads = useMemo(
-    () =>
-      [...threads.filter((t) => t.status === "open")].sort(
-        (a, b) =>
-          new Date(b.lastUpdatedAt).getTime() -
-          new Date(a.lastUpdatedAt).getTime(),
-      ),
+    () => sortByUpdated(threads.filter((t) => t.status === "open")),
     [threads],
   );
 
   const resolvedThreads = useMemo(
     () =>
-      [
-        ...threads.filter(
-          (t) => t.status === "resolved" || t.status === "approved",
-        ),
-      ].sort(
-        (a, b) =>
-          new Date(b.lastUpdatedAt).getTime() -
-          new Date(a.lastUpdatedAt).getTime(),
+      sortByUpdated(
+        threads.filter((t) => normalizeStatus(t.status) === "resolved"),
       ),
     [threads],
+  );
+
+  const wontfixThreads = useMemo(
+    () => sortByUpdated(threads.filter((t) => t.status === "wontfix")),
+    [threads],
+  );
+
+  const outdatedThreads = useMemo(
+    () =>
+      sortByUpdated(
+        threads.filter(
+          (t) =>
+            t.status === "outdated" ||
+            (outdatedThreadIds?.has(t.id) && t.status === "open"),
+        ),
+      ),
+    [threads, outdatedThreadIds],
   );
 
   const threadHeader = (
@@ -233,9 +248,8 @@ export function DiffThreadNav({
     <div className="flex w-60 shrink-0 flex-col overflow-hidden border-l border-[var(--border-default)] bg-[var(--bg-surface)]">
       {threadHeader}
 
-      {/* Single scrollable list with Open / Resolved sections */}
       <div className="flex-1 overflow-y-auto">
-        {/* Open section */}
+        {/* Open section — always visible */}
         <SectionLabel
           label="Open"
           count={openThreads.length}
@@ -266,16 +280,67 @@ export function DiffThreadNav({
               count={resolvedThreads.length}
               variant="resolved"
               sticky={false}
+              onClick={() => setResolvedCollapsed((v) => !v)}
+              collapsed={resolvedCollapsed}
             />
-            {resolvedThreads.map((thread) => (
-              <ThreadNavCard
-                key={thread.id}
-                thread={thread}
-                isActive={thread.id === activeThreadId}
-                isResolving={false}
-                onClick={() => onThreadClick(thread)}
-              />
-            ))}
+            {!resolvedCollapsed &&
+              resolvedThreads.map((thread) => (
+                <ThreadNavCard
+                  key={thread.id}
+                  thread={thread}
+                  isActive={thread.id === activeThreadId}
+                  isResolving={false}
+                  onClick={() => onThreadClick(thread)}
+                />
+              ))}
+          </>
+        )}
+
+        {/* Won't Fix section */}
+        {wontfixThreads.length > 0 && (
+          <>
+            <SectionLabel
+              label="Won't Fix"
+              count={wontfixThreads.length}
+              variant="wontfix"
+              sticky={false}
+              onClick={() => setWontfixCollapsed((v) => !v)}
+              collapsed={wontfixCollapsed}
+            />
+            {!wontfixCollapsed &&
+              wontfixThreads.map((thread) => (
+                <ThreadNavCard
+                  key={thread.id}
+                  thread={thread}
+                  isActive={thread.id === activeThreadId}
+                  isResolving={false}
+                  onClick={() => onThreadClick(thread)}
+                />
+              ))}
+          </>
+        )}
+
+        {/* Outdated section */}
+        {outdatedThreads.length > 0 && (
+          <>
+            <SectionLabel
+              label="Outdated"
+              count={outdatedThreads.length}
+              variant="outdated"
+              sticky={false}
+              onClick={() => setOutdatedCollapsed((v) => !v)}
+              collapsed={outdatedCollapsed}
+            />
+            {!outdatedCollapsed &&
+              outdatedThreads.map((thread) => (
+                <ThreadNavCard
+                  key={thread.id}
+                  thread={thread}
+                  isActive={thread.id === activeThreadId}
+                  isResolving={false}
+                  onClick={() => onThreadClick(thread)}
+                />
+              ))}
           </>
         )}
       </div>
