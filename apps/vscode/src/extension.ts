@@ -6,6 +6,7 @@ import { FeatureDetector } from "./featureDetector";
 import {
   sessionStore,
   setWorkspaceName,
+  setOnBeforeWrite,
   getSessionFilePath,
 } from "./sessionStore";
 import type { SessionThread } from "./sessionStore";
@@ -54,6 +55,10 @@ export function activate(context: vscode.ExtensionContext): void {
   const featureDetector = new FeatureDetector(workspaceRoot);
   const commentManager = new CommentManager(workspaceRoot, outputChannel);
   const sessionWatcher = new SessionWatcher(outputChannel);
+
+  // Wire file watcher suppression into sessionStore — every write suppresses the echo
+  setOnBeforeWrite(() => sessionWatcher.suppressNextChange());
+
   const diffPanelManager = new DiffPanelManager(
     workspaceRoot,
     baseProvider,
@@ -229,6 +234,7 @@ export function activate(context: vscode.ExtensionContext): void {
         statusBar.setReady(0);
         sessionWatcher.watch(getSessionFilePath(featureId));
         currentFeatureId = featureId;
+        await diffPanelManager.populate(featureId);
         outputChannel.appendLine("Review session created");
         void vscode.window.showInformationMessage(
           `Review session created for ${featureId}`,

@@ -139,15 +139,23 @@ function getSessionFilePath(featureId) {
   return path2.join(getSessionsDir(), `${featureId}-code.json`);
 }
 function atomicWrite(filePath, data) {
+  _onBeforeWrite?.();
   fs.mkdirSync(path2.dirname(filePath), { recursive: true });
   const tmpFile = `${filePath}.tmp.${process.pid}.${Date.now()}`;
   fs.writeFileSync(tmpFile, data);
   fs.renameSync(tmpFile, filePath);
 }
+var _onBeforeWrite = null;
+function setOnBeforeWrite(callback) {
+  _onBeforeWrite = callback;
+}
 function stampAndSerialize(session) {
-  session.workspaceName = _workspaceName ?? void 0;
-  session.metadata.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
-  return JSON.stringify(session, null, 2);
+  const stamped = {
+    ...session,
+    workspaceName: _workspaceName ?? void 0,
+    metadata: { ...session.metadata, updatedAt: (/* @__PURE__ */ new Date()).toISOString() }
+  };
+  return JSON.stringify(stamped, null, 2);
 }
 var sessionStore = {
   async getSession(featureId) {
@@ -1313,6 +1321,7 @@ function activate(context) {
   const featureDetector = new FeatureDetector(workspaceRoot);
   const commentManager = new CommentManager(workspaceRoot, outputChannel);
   const sessionWatcher = new SessionWatcher(outputChannel);
+  setOnBeforeWrite(() => sessionWatcher.suppressNextChange());
   const diffPanelManager = new DiffPanelManager(
     workspaceRoot,
     baseProvider,
@@ -1459,6 +1468,7 @@ function activate(context) {
         statusBar.setReady(0);
         sessionWatcher.watch(getSessionFilePath(featureId));
         currentFeatureId = featureId;
+        await diffPanelManager.populate(featureId);
         outputChannel.appendLine("Review session created");
         void vscode10.window.showInformationMessage(
           `Review session created for ${featureId}`

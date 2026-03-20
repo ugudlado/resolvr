@@ -71,16 +71,27 @@ export function getSessionFilePath(featureId: string): string {
 
 /** Atomic write: temp file + rename to prevent corruption on concurrent writes. */
 function atomicWrite(filePath: string, data: string): void {
+  _onBeforeWrite?.();
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const tmpFile = `${filePath}.tmp.${process.pid}.${Date.now()}`;
   fs.writeFileSync(tmpFile, data);
   fs.renameSync(tmpFile, filePath);
 }
 
+/** Callback invoked before every file write — used to suppress file watcher echo. */
+let _onBeforeWrite: (() => void) | null = null;
+
+export function setOnBeforeWrite(callback: () => void): void {
+  _onBeforeWrite = callback;
+}
+
 function stampAndSerialize(session: SessionData): string {
-  session.workspaceName = _workspaceName ?? undefined;
-  session.metadata.updatedAt = new Date().toISOString();
-  return JSON.stringify(session, null, 2);
+  const stamped = {
+    ...session,
+    workspaceName: _workspaceName ?? undefined,
+    metadata: { ...session.metadata, updatedAt: new Date().toISOString() },
+  };
+  return JSON.stringify(stamped, null, 2);
 }
 
 export const sessionStore = {
