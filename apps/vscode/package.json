@@ -94,16 +94,14 @@
       ]
     },
     "views": {
-      "local-review": [
-        {
-          "id": "localReview.changedFiles",
-          "name": "Changed Files"
-        }
-      ],
       "scm": [
         {
+          "id": "localReview.changedFiles",
+          "name": "Review: Changed Files"
+        },
+        {
           "id": "localReview.threads",
-          "name": "Review Threads"
+          "name": "Review: Threads"
         }
       ]
     },
