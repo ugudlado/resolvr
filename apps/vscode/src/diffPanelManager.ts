@@ -67,47 +67,21 @@ export class DiffPanelManager implements vscode.Disposable {
   }
 
   async open(featureId: string): Promise<void> {
-    try {
-      const diff = await serverClient.getDiff(this._workspaceRoot);
-      this._files = parseDiffFileList(diff.allDiff);
+    await this.populate(featureId);
 
-      if (this._files.length === 0) {
-        void vscode.window.showInformationMessage(
-          "No changes found between main and working tree.",
-        );
-        return;
-      }
-
-      this._treeProvider.setFiles(this._files);
-      this._treeView.title = `Changed Files (${this._files.length})`;
-
-      // Set context key to show the tree view
-      void vscode.commands.executeCommand(
-        "setContext",
-        "local-review.hasDiffPanel",
-        true,
+    if (this._files.length === 0) {
+      void vscode.window.showInformationMessage(
+        "No changes found between main and working tree.",
       );
-
-      // Reveal the tree view using actual item reference
-      const firstItem = this._treeProvider.getFirstFile();
-      if (firstItem) {
-        void this._treeView.reveal(firstItem, { focus: true });
-      }
-
-      // Open the first file's diff
-      await this.openFile(this._files[0]);
-
-      this._outputChannel.appendLine(
-        `Diff panel opened for ${featureId}: ${this._files.length} files changed`,
-      );
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this._outputChannel.appendLine(`Failed to open diff panel: ${msg}`);
-      void vscode.window.showErrorMessage(
-        `Local Review: Failed to load diff — ${msg}`,
-      );
-      this._treeProvider.setFiles([]);
+      return;
     }
+
+    const firstItem = this._treeProvider.getFirstFile();
+    if (firstItem) {
+      void this._treeView.reveal(firstItem, { focus: true });
+    }
+
+    await this.openFile(this._files[0]);
   }
 
   async openFile(file: DiffFileEntry): Promise<void> {
@@ -146,10 +120,11 @@ export class DiffPanelManager implements vscode.Disposable {
 
   async refresh(featureId: string): Promise<void> {
     this._baseProvider.invalidate();
-    await this.open(featureId);
+    await this.populate(featureId);
   }
 
   close(): void {
+    if (this._files.length === 0) return;
     this._treeProvider.setFiles([]);
     this._files = [];
     void vscode.commands.executeCommand(

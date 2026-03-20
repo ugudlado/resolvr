@@ -4869,38 +4869,18 @@ var DiffPanelManager = class {
     }
   }
   async open(featureId) {
-    try {
-      const diff = await serverClient.getDiff(this._workspaceRoot);
-      this._files = parseDiffFileList(diff.allDiff);
-      if (this._files.length === 0) {
-        void vscode8.window.showInformationMessage(
-          "No changes found between main and working tree."
-        );
-        return;
-      }
-      this._treeProvider.setFiles(this._files);
-      this._treeView.title = `Changed Files (${this._files.length})`;
-      void vscode8.commands.executeCommand(
-        "setContext",
-        "local-review.hasDiffPanel",
-        true
+    await this.populate(featureId);
+    if (this._files.length === 0) {
+      void vscode8.window.showInformationMessage(
+        "No changes found between main and working tree."
       );
-      const firstItem = this._treeProvider.getFirstFile();
-      if (firstItem) {
-        void this._treeView.reveal(firstItem, { focus: true });
-      }
-      await this.openFile(this._files[0]);
-      this._outputChannel.appendLine(
-        `Diff panel opened for ${featureId}: ${this._files.length} files changed`
-      );
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this._outputChannel.appendLine(`Failed to open diff panel: ${msg}`);
-      void vscode8.window.showErrorMessage(
-        `Local Review: Failed to load diff \u2014 ${msg}`
-      );
-      this._treeProvider.setFiles([]);
+      return;
     }
+    const firstItem = this._treeProvider.getFirstFile();
+    if (firstItem) {
+      void this._treeView.reveal(firstItem, { focus: true });
+    }
+    await this.openFile(this._files[0]);
   }
   async openFile(file) {
     let oldUri;
@@ -4927,9 +4907,10 @@ var DiffPanelManager = class {
   }
   async refresh(featureId) {
     this._baseProvider.invalidate();
-    await this.open(featureId);
+    await this.populate(featureId);
   }
   close() {
+    if (this._files.length === 0) return;
     this._treeProvider.setFiles([]);
     this._files = [];
     void vscode8.commands.executeCommand(
