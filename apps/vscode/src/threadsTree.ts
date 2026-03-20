@@ -93,11 +93,18 @@ export class ThreadsTreeProvider implements vscode.TreeDataProvider<TreeNode> {
       return item;
     }
 
-    // Thread item
+    // Thread item — handle both anchor.path and flat filePath formats
     const t = element.thread;
-    const filePath = t.anchor?.path ?? "";
-    const fileName = filePath.split("/").pop() ?? filePath;
-    const line = t.anchor?.line ?? 0;
+    const raw = t as unknown as Record<string, unknown>;
+    const filePath =
+      t.anchor?.path ??
+      (typeof raw.filePath === "string" ? raw.filePath : "") ??
+      "";
+    const fileName = filePath
+      ? (filePath.split("/").pop() ?? filePath)
+      : "unknown";
+    const line =
+      t.anchor?.line ?? (typeof raw.line === "number" ? raw.line : 0);
     const preview = t.messages[0]?.text.slice(0, 60).replace(/\n/g, " ") ?? "";
 
     const item = new vscode.TreeItem(
