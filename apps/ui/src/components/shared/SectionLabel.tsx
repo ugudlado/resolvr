@@ -3,6 +3,7 @@
  * Used in thread navigation and thread panel views
  */
 
+import { memo } from "react";
 import { ChevronRightIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -25,7 +26,7 @@ const BADGE_COLORS: Record<string, string> = {
     "bg-[var(--accent-purple-dim)] text-[var(--accent-purple)] hover:bg-[var(--accent-purple-dim)]",
 };
 
-export function SectionLabel({
+export const SectionLabel = memo(function SectionLabel({
   label,
   count,
   variant,
@@ -74,4 +75,4 @@ export function SectionLabel({
       )}
     </div>
   );
-}
+});

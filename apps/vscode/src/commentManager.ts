@@ -183,101 +183,65 @@ export class CommentManager implements vscode.Disposable {
         },
       ),
 
-      // Resolve a thread
-      vscode.commands.registerCommand(
-        "local-review.resolveThread",
-        async (thread: vscode.CommentThread) => {
-          const featureId = getFeatureId();
-          if (!featureId) return;
-          const sessionId = this._threadMapper.getSessionId(thread);
-          if (!sessionId) return;
-          try {
-            await serverClient.updateThread(featureId, sessionId, {
-              status: "resolved",
-            });
-            thread.state = 1; // CommentThreadState.Resolved
-            thread.collapsibleState =
-              vscode.CommentThreadCollapsibleState.Collapsed;
-            outputChannel.appendLine(`Resolved thread ${sessionId}`);
-          } catch (err) {
-            outputChannel.appendLine(`Failed to resolve: ${String(err)}`);
-            void vscode.window.showErrorMessage(
-              `Local Review: Failed to resolve thread — ${String(err)}`,
-            );
-          }
-        },
-      ),
+      // Thread status commands — consolidated handler
+      ...this._registerStatusCommands(getFeatureId, outputChannel),
+    );
+  }
 
-      // Re-open a resolved thread
-      vscode.commands.registerCommand(
-        "local-review.unresolveThread",
-        async (thread: vscode.CommentThread) => {
-          const featureId = getFeatureId();
-          if (!featureId) return;
-          const sessionId = this._threadMapper.getSessionId(thread);
-          if (!sessionId) return;
-          try {
-            await serverClient.updateThread(featureId, sessionId, {
-              status: "open",
-            });
-            thread.state = 0; // CommentThreadState.Unresolved
-            thread.collapsibleState =
-              vscode.CommentThreadCollapsibleState.Expanded;
-            outputChannel.appendLine(`Re-opened thread ${sessionId}`);
-          } catch (err) {
-            outputChannel.appendLine(`Failed to re-open: ${String(err)}`);
-            void vscode.window.showErrorMessage(
-              `Local Review: Failed to re-open thread — ${String(err)}`,
-            );
-          }
-        },
-      ),
+  /** Register all thread status change commands (resolve, reopen, wontfix, outdated). */
+  private _registerStatusCommands(
+    getFeatureId: () => string | null,
+    outputChannel: vscode.OutputChannel,
+  ): vscode.Disposable[] {
+    const statusCommands: Array<{
+      command: string;
+      status: SessionThread["status"];
+      label: string;
+    }> = [
+      {
+        command: "local-review.resolveThread",
+        status: "resolved",
+        label: "Resolved",
+      },
+      {
+        command: "local-review.unresolveThread",
+        status: "open",
+        label: "Re-opened",
+      },
+      {
+        command: "local-review.wontfixThread",
+        status: "wontfix",
+        label: "Won't fix",
+      },
+      {
+        command: "local-review.outdatedThread",
+        status: "outdated",
+        label: "Outdated",
+      },
+    ];
 
-      // Mark thread as Won't Fix
+    return statusCommands.map(({ command, status, label }) =>
       vscode.commands.registerCommand(
-        "local-review.wontfixThread",
+        command,
         async (thread: vscode.CommentThread) => {
           const featureId = getFeatureId();
           if (!featureId) return;
           const sessionId = this._threadMapper.getSessionId(thread);
           if (!sessionId) return;
+          const closed = status !== "open";
           try {
-            await serverClient.updateThread(featureId, sessionId, {
-              status: "wontfix",
-            });
-            thread.state = 1; // CommentThreadState.Resolved
-            thread.collapsibleState =
-              vscode.CommentThreadCollapsibleState.Collapsed;
-            outputChannel.appendLine(`Marked thread ${sessionId} as won't fix`);
+            await serverClient.updateThread(featureId, sessionId, { status });
+            thread.state = closed ? 1 : 0;
+            thread.collapsibleState = closed
+              ? vscode.CommentThreadCollapsibleState.Collapsed
+              : vscode.CommentThreadCollapsibleState.Expanded;
+            outputChannel.appendLine(`${label} thread ${sessionId}`);
           } catch (err) {
-            outputChannel.appendLine(`Failed to set won't fix: ${String(err)}`);
-            void vscode.window.showErrorMessage(
-              `Local Review: Failed to mark as won't fix — ${String(err)}`,
+            outputChannel.appendLine(
+              `Failed to set ${label.toLowerCase()}: ${String(err)}`,
             );
-          }
-        },
-      ),
-
-      // Mark thread as Outdated
-      vscode.commands.registerCommand(
-        "local-review.outdatedThread",
-        async (thread: vscode.CommentThread) => {
-          const featureId = getFeatureId();
-          if (!featureId) return;
-          const sessionId = this._threadMapper.getSessionId(thread);
-          if (!sessionId) return;
-          try {
-            await serverClient.updateThread(featureId, sessionId, {
-              status: "outdated",
-            });
-            thread.state = 1; // CommentThreadState.Resolved
-            thread.collapsibleState =
-              vscode.CommentThreadCollapsibleState.Collapsed;
-            outputChannel.appendLine(`Marked thread ${sessionId} as outdated`);
-          } catch (err) {
-            outputChannel.appendLine(`Failed to mark outdated: ${String(err)}`);
             void vscode.window.showErrorMessage(
-              `Local Review: Failed to mark as outdated — ${String(err)}`,
+              `Local Review: Failed to set ${label.toLowerCase()} — ${String(err)}`,
             );
           }
         },

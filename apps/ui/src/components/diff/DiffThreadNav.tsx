@@ -196,35 +196,35 @@ export function DiffThreadNav({
   const [wontfixCollapsed, setWontfixCollapsed] = useState(false);
   const [outdatedCollapsed, setOutdatedCollapsed] = useState(false);
 
-  const openThreads = useMemo(
-    () => sortByUpdated(threads.filter((t) => t.status === "open")),
-    [threads],
-  );
+  const { openThreads, resolvedThreads, wontfixThreads, outdatedThreads } =
+    useMemo(() => {
+      const open: ReviewThread[] = [];
+      const resolved: ReviewThread[] = [];
+      const wontfix: ReviewThread[] = [];
+      const outdated: ReviewThread[] = [];
 
-  const resolvedThreads = useMemo(
-    () =>
-      sortByUpdated(
-        threads.filter((t) => normalizeStatus(t.status) === "resolved"),
-      ),
-    [threads],
-  );
+      for (const t of threads) {
+        if (
+          t.status === "outdated" ||
+          (outdatedThreadIds?.has(t.id) && t.status === "open")
+        ) {
+          outdated.push(t);
+        } else if (t.status === "open") {
+          open.push(t);
+        } else if (normalizeStatus(t.status) === "resolved") {
+          resolved.push(t);
+        } else if (t.status === "wontfix") {
+          wontfix.push(t);
+        }
+      }
 
-  const wontfixThreads = useMemo(
-    () => sortByUpdated(threads.filter((t) => t.status === "wontfix")),
-    [threads],
-  );
-
-  const outdatedThreads = useMemo(
-    () =>
-      sortByUpdated(
-        threads.filter(
-          (t) =>
-            t.status === "outdated" ||
-            (outdatedThreadIds?.has(t.id) && t.status === "open"),
-        ),
-      ),
-    [threads, outdatedThreadIds],
-  );
+      return {
+        openThreads: sortByUpdated(open),
+        resolvedThreads: sortByUpdated(resolved),
+        wontfixThreads: sortByUpdated(wontfix),
+        outdatedThreads: sortByUpdated(outdated),
+      };
+    }, [threads, outdatedThreadIds]);
 
   const threadHeader = (
     <div className="flex items-center gap-1.5 border-b border-[var(--border-default)] px-3 pb-2 pt-3">

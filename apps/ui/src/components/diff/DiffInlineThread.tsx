@@ -8,7 +8,11 @@ import {
 } from "../../types/sessions";
 import type { ThreadStatus } from "../../types/constants";
 import { relativeTime } from "../../utils/timeFormat";
-import { isClosed, normalizeStatus } from "../../utils/threadStatus";
+import {
+  isClosed,
+  normalizeStatus,
+  STATUS_COLORS,
+} from "../../utils/threadStatus";
 import { ThreadStatusBadge } from "../shared/ThreadStatusBadge";
 import { ThreadStatusDropdown } from "../shared/ThreadStatusDropdown";
 
@@ -65,17 +69,8 @@ function getStatusStyles(thread: ReviewThread) {
     bgColor = "var(--bg-surface)";
     arrowColor = "var(--bg-surface)";
 
-    switch (status) {
-      case "wontfix":
-        borderColor = "var(--text-muted)";
-        break;
-      case "outdated":
-        borderColor = "var(--accent-purple)";
-        break;
-      default:
-        borderColor = "var(--text-muted)";
-        break;
-    }
+    // Use shared color map for border; fall back to muted for resolved
+    borderColor = STATUS_COLORS[status]?.dot ?? "var(--text-muted)";
   } else if (isCritical) {
     borderColor = "var(--accent-rose)";
     bgColor = "transparent";

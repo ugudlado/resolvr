@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { ChevronDownIcon } from "lucide-react";
 import { THREAD_STATUS, type ThreadStatus } from "../../types/constants";
-import { normalizeStatus, statusLabel } from "../../utils/threadStatus";
+import {
+  normalizeStatus,
+  statusLabel,
+  STATUS_COLORS,
+} from "../../utils/threadStatus";
 import {
   Popover,
   PopoverContent,
@@ -22,13 +26,6 @@ const TRANSITIONS: Record<string, ThreadStatus[]> = {
   [THREAD_STATUS.Resolved]: [THREAD_STATUS.Open],
   [THREAD_STATUS.WontFix]: [THREAD_STATUS.Open, THREAD_STATUS.Resolved],
   [THREAD_STATUS.Outdated]: [THREAD_STATUS.Open, THREAD_STATUS.Resolved],
-};
-
-const STATUS_DOT_COLORS: Record<string, string> = {
-  [THREAD_STATUS.Open]: "var(--accent-amber)",
-  [THREAD_STATUS.Resolved]: "var(--accent-emerald)",
-  [THREAD_STATUS.WontFix]: "var(--text-muted)",
-  [THREAD_STATUS.Outdated]: "var(--accent-purple)",
 };
 
 export function ThreadStatusDropdown({
@@ -115,7 +112,7 @@ export function ThreadStatusDropdown({
                   width: 6,
                   height: 6,
                   backgroundColor:
-                    STATUS_DOT_COLORS[status] ?? "var(--text-muted)",
+                    STATUS_COLORS[status]?.dot ?? "var(--text-muted)",
                 }}
               />
               {statusLabel(status)}

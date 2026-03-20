@@ -1,34 +1,14 @@
 import { THREAD_STATUS, type ThreadStatus } from "../../types/constants";
-import { normalizeStatus, statusLabel } from "../../utils/threadStatus";
+import {
+  normalizeStatus,
+  statusLabel,
+  STATUS_COLORS,
+} from "../../utils/threadStatus";
 
 interface ThreadStatusBadgeProps {
   status: ThreadStatus;
   size?: "sm" | "md";
 }
-
-const STATUS_COLORS: Record<string, { dot: string; bg: string; text: string }> =
-  {
-    [THREAD_STATUS.Open]: {
-      dot: "var(--accent-amber)",
-      bg: "var(--accent-amber-dim)",
-      text: "var(--accent-amber)",
-    },
-    [THREAD_STATUS.Resolved]: {
-      dot: "var(--accent-emerald)",
-      bg: "var(--accent-emerald-dim)",
-      text: "var(--accent-emerald)",
-    },
-    [THREAD_STATUS.WontFix]: {
-      dot: "var(--text-muted)",
-      bg: "var(--bg-overlay)",
-      text: "var(--text-secondary)",
-    },
-    [THREAD_STATUS.Outdated]: {
-      dot: "var(--accent-purple)",
-      bg: "var(--accent-purple-dim)",
-      text: "var(--accent-purple)",
-    },
-  };
 
 export function ThreadStatusBadge({
   status,

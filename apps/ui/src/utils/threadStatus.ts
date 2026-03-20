@@ -12,6 +12,33 @@ export function isClosed(status: ThreadStatus): boolean {
   return s !== THREAD_STATUS.Open;
 }
 
+/** CSS variable color tokens per status — single source of truth for all status styling. */
+export const STATUS_COLORS: Record<
+  string,
+  { dot: string; bg: string; text: string }
+> = {
+  [THREAD_STATUS.Open]: {
+    dot: "var(--accent-amber)",
+    bg: "var(--accent-amber-dim)",
+    text: "var(--accent-amber)",
+  },
+  [THREAD_STATUS.Resolved]: {
+    dot: "var(--accent-emerald)",
+    bg: "var(--accent-emerald-dim)",
+    text: "var(--accent-emerald)",
+  },
+  [THREAD_STATUS.WontFix]: {
+    dot: "var(--text-muted)",
+    bg: "var(--bg-overlay)",
+    text: "var(--text-secondary)",
+  },
+  [THREAD_STATUS.Outdated]: {
+    dot: "var(--accent-purple)",
+    bg: "var(--accent-purple-dim)",
+    text: "var(--accent-purple)",
+  },
+};
+
 /** Human-readable label for a thread status. */
 export function statusLabel(status: ThreadStatus): string {
   const s = normalizeStatus(status);
