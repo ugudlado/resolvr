@@ -1,7 +1,6 @@
 /**
- * Lightweight diff header parser.
- * Extracts file paths and statuses from unified diff output.
- * Does NOT parse hunks — only file-level metadata.
+ * Lightweight diff parser.
+ * Extracts file paths, statuses, and per-file diff stats from unified diff output.
  */
 
 export interface DiffFileEntry {
@@ -9,6 +8,8 @@ export interface DiffFileEntry {
   oldPath: string; // path in base ref
   newPath: string; // path in HEAD / working tree
   status: "A" | "M" | "D" | "R";
+  additions: number; // lines added (from hunk content)
+  deletions: number; // lines removed (from hunk content)
 }
 
 export function parseDiffFileList(unifiedDiff: string): DiffFileEntry[] {
@@ -35,11 +36,22 @@ export function parseDiffFileList(unifiedDiff: string): DiffFileEntry[] {
       status = "R";
     }
 
+    // Count insertions/deletions from hunk content lines
+    let additions = 0;
+    let deletions = 0;
+    const lines = block.split("\n");
+    for (const line of lines) {
+      if (line.startsWith("+") && !line.startsWith("+++")) additions++;
+      else if (line.startsWith("-") && !line.startsWith("---")) deletions++;
+    }
+
     entries.push({
       path: status === "D" ? oldPath : newPath,
       oldPath,
       newPath,
       status,
+      additions,
+      deletions,
     });
   }
 

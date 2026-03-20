@@ -4755,7 +4755,7 @@ var STATUS_DECORATIONS = {
 function makeReviewFileUri(relativePath) {
   return vscode7.Uri.from({
     scheme: SCHEME_REVIEW_FILE,
-    path: "/" + relativePath
+    path: "/" + relativePath.replace(/^\/+/, "")
   });
 }
 var ReviewFileDecorationProvider = class {
@@ -4793,6 +4793,11 @@ var ReviewFileDecorationProvider = class {
   provideFileDecoration(uri) {
     if (uri.scheme !== SCHEME_REVIEW_FILE) return void 0;
     return this._decorations.get(uri.path);
+  }
+  dispose() {
+    this._decorations.clear();
+    this._uris = [];
+    this._onDidChange.dispose();
   }
 };
 
@@ -5027,6 +5032,7 @@ var DiffPanelManager = class {
   }
   dispose() {
     this._treeView.dispose();
+    this._decorationProvider.dispose();
     this._decorationDisposable.dispose();
   }
 };

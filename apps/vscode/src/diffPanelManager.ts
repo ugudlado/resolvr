@@ -163,6 +163,7 @@ export class DiffPanelManager implements vscode.Disposable {
 
   dispose(): void {
     this._treeView.dispose();
+    this._decorationProvider.dispose();
     this._decorationDisposable.dispose();
   }
 }

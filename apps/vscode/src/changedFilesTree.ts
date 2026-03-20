@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import type { DiffFileEntry } from "./diffParser";
+import { makeReviewFileUri } from "./fileDecorationProvider";
 import type { SessionThread } from "./serverClient";
 
 export interface DiffFileItem extends DiffFileEntry {
@@ -55,16 +56,33 @@ export class ChangedFilesTreeProvider
       vscode.TreeItemCollapsibleState.None,
     );
 
-    item.description = element.path.includes("/")
-      ? element.path.slice(0, element.path.lastIndexOf("/"))
-      : undefined;
+    // Resource URI enables FileDecorationProvider to apply colored status badges
+    item.resourceUri = makeReviewFileUri(element.path);
 
-    // Thread count suffix
-    if (element.openThreads > 0) {
-      item.description = `${item.description ? item.description + " " : ""}· ${element.openThreads} comment${element.openThreads > 1 ? "s" : ""}`;
+    // Build description: dir path + diff stats + thread count
+    const parts: string[] = [];
+
+    // Directory path
+    if (element.path.includes("/")) {
+      parts.push(element.path.slice(0, element.path.lastIndexOf("/")));
     }
 
-    // Status icons
+    // Diff stats (omit when zero changes — pure renames, mode changes, binary diffs)
+    const hasStats = element.additions + element.deletions > 0;
+    if (hasStats) {
+      parts.push(`+${element.additions}/\u2212${element.deletions}`);
+    }
+
+    // Thread count
+    if (element.openThreads > 0) {
+      const suffix = `${element.openThreads} comment${element.openThreads > 1 ? "s" : ""}`;
+      // Use · separator if there's preceding content
+      parts.push(parts.length > 0 ? `\u00b7 ${suffix}` : suffix);
+    }
+
+    item.description = parts.length > 0 ? parts.join(" ") : undefined;
+
+    // Status icons (kept alongside FileDecoration badges)
     switch (element.status) {
       case "A":
         item.iconPath = new vscode.ThemeIcon("diff-added");
