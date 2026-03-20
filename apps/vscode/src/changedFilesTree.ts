@@ -7,9 +7,9 @@ import type { SessionThread } from "./sessionStore";
 // Types
 // ---------------------------------------------------------------------------
 
-export type FileViewMode = "flat" | "tree" | "compact-tree";
+export type FileViewMode = "flat" | "compact-tree";
 
-const VALID_MODES: FileViewMode[] = ["flat", "tree", "compact-tree"];
+const VALID_MODES: FileViewMode[] = ["flat", "compact-tree"];
 
 export function parseFileViewMode(raw: unknown): FileViewMode {
   return typeof raw === "string" && VALID_MODES.includes(raw as FileViewMode)
@@ -17,14 +17,8 @@ export function parseFileViewMode(raw: unknown): FileViewMode {
     : "flat";
 }
 
-const NEXT_MODE: Record<FileViewMode, FileViewMode> = {
-  flat: "tree",
-  tree: "compact-tree",
-  "compact-tree": "flat",
-};
-
 export function cycleMode(current: FileViewMode): FileViewMode {
-  return NEXT_MODE[current];
+  return current === "flat" ? "compact-tree" : "flat";
 }
 
 export interface DiffFileItem extends DiffFileEntry {
@@ -282,18 +276,11 @@ export class ChangedFilesTreeProvider
   // -----------------------------------------------------------------------
 
   private _rebuild(): void {
-    switch (this._mode) {
-      case "flat":
-        this._rootChildren = this._files;
-        break;
-      case "tree":
-        this._rootChildren = buildFolderTree(this._files);
-        aggregateThreadCounts(this._rootChildren);
-        break;
-      case "compact-tree":
-        this._rootChildren = compactFolders(buildFolderTree(this._files));
-        aggregateThreadCounts(this._rootChildren);
-        break;
+    if (this._mode === "flat") {
+      this._rootChildren = this._files;
+    } else {
+      this._rootChildren = compactFolders(buildFolderTree(this._files));
+      aggregateThreadCounts(this._rootChildren);
     }
 
     this._parentMap.clear();

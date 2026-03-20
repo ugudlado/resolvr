@@ -250,14 +250,12 @@ export function ReviewPage({
   const [selectedCommit, setSelectedCommit] = useState("");
   const [selectedCommitDiff, setSelectedCommitDiff] = useState("");
 
-  const [fileViewMode, setFileViewMode] = useState<
-    "flat" | "tree" | "compact-tree"
-  >(() => {
-    const stored = localStorage.getItem("localReview.fileViewMode");
-    if (stored === "flat" || stored === "tree" || stored === "compact-tree")
-      return stored;
-    return "flat";
-  });
+  const [fileViewMode, setFileViewMode] = useState<"flat" | "compact-tree">(
+    () => {
+      const stored = localStorage.getItem("localReview.fileViewMode");
+      return stored === "compact-tree" ? "compact-tree" : "flat";
+    },
+  );
 
   /** Line where the compose widget is open, or null if closed. */
   const [composingAt, setComposingAt] = useState<{

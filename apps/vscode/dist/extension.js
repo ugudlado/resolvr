@@ -888,17 +888,12 @@ var ReviewFileDecorationProvider = class {
 };
 
 // src/changedFilesTree.ts
-var VALID_MODES = ["flat", "tree", "compact-tree"];
+var VALID_MODES = ["flat", "compact-tree"];
 function parseFileViewMode(raw) {
   return typeof raw === "string" && VALID_MODES.includes(raw) ? raw : "flat";
 }
-var NEXT_MODE = {
-  flat: "tree",
-  tree: "compact-tree",
-  "compact-tree": "flat"
-};
 function cycleMode(current) {
-  return NEXT_MODE[current];
+  return current === "flat" ? "compact-tree" : "flat";
 }
 var EXT_ICON_MAP = {
   ts: "symbol-file",
@@ -1078,18 +1073,11 @@ var ChangedFilesTreeProvider = class {
   // Private
   // -----------------------------------------------------------------------
   _rebuild() {
-    switch (this._mode) {
-      case "flat":
-        this._rootChildren = this._files;
-        break;
-      case "tree":
-        this._rootChildren = buildFolderTree(this._files);
-        aggregateThreadCounts(this._rootChildren);
-        break;
-      case "compact-tree":
-        this._rootChildren = compactFolders(buildFolderTree(this._files));
-        aggregateThreadCounts(this._rootChildren);
-        break;
+    if (this._mode === "flat") {
+      this._rootChildren = this._files;
+    } else {
+      this._rootChildren = compactFolders(buildFolderTree(this._files));
+      aggregateThreadCounts(this._rootChildren);
     }
     this._parentMap.clear();
     buildParentMap(this._rootChildren, void 0, this._parentMap);
@@ -1788,14 +1776,8 @@ function activate(context) {
     vscode10.commands.registerCommand("local-review.closeDiff", () => {
       diffPanelManager.close();
     }),
-    // View mode toggle commands — all cycle to the next mode
-    vscode10.commands.registerCommand("local-review.viewAsTree", () => {
-      diffPanelManager.toggleViewMode();
-    }),
-    vscode10.commands.registerCommand("local-review.viewAsFlat", () => {
-      diffPanelManager.toggleViewMode();
-    }),
-    vscode10.commands.registerCommand("local-review.viewAsCompactTree", () => {
+    // View mode toggle: flat ↔ compact-tree
+    vscode10.commands.registerCommand("local-review.toggleFileViewMode", () => {
       diffPanelManager.toggleViewMode();
     })
   );

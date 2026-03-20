@@ -47,8 +47,8 @@ interface FileSidebarProps {
   visibleFiles: DiffFile[];
   selectedFilePath: string;
   onFileSelect: (path: string) => void;
-  fileViewMode: "flat" | "tree" | "compact-tree";
-  onFileViewModeChange: (mode: "flat" | "tree" | "compact-tree") => void;
+  fileViewMode: "flat" | "compact-tree";
+  onFileViewModeChange: (mode: "flat" | "compact-tree") => void;
   unresolvedThreadCountByFile: Map<string, number>;
   changeCountByFile: Map<string, number>;
   threads?: ReviewThread[];
@@ -281,40 +281,23 @@ export function FileSidebar({
               </span>
               <KeyboardHint label="↑↓" />
             </div>
-            <div
-              role="radiogroup"
-              aria-label="File view mode"
-              className="flex items-center gap-0.5"
+            <button
+              type="button"
+              aria-label={
+                fileViewMode === "flat"
+                  ? "Switch to tree view"
+                  : "Switch to flat list"
+              }
+              title={fileViewMode === "flat" ? "Tree view" : "Flat list"}
+              onClick={() =>
+                onFileViewModeChange(
+                  fileViewMode === "flat" ? "compact-tree" : "flat",
+                )
+              }
+              className="rounded px-1 py-0.5 text-[10px] leading-none text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
             >
-              {(
-                [
-                  { mode: "flat" as const, label: "Flat list", icon: "≡" },
-                  { mode: "tree" as const, label: "Tree", icon: "⊞" },
-                  {
-                    mode: "compact-tree" as const,
-                    label: "Compact tree",
-                    icon: "⊟",
-                  },
-                ] as const
-              ).map(({ mode, label, icon }) => (
-                <button
-                  key={mode}
-                  role="radio"
-                  type="button"
-                  aria-checked={fileViewMode === mode}
-                  aria-label={label}
-                  title={label}
-                  onClick={() => onFileViewModeChange(mode)}
-                  className={`rounded px-1 py-0.5 text-[10px] leading-none transition-colors ${
-                    fileViewMode === mode
-                      ? "bg-[var(--bg-elevated)] text-[var(--text-primary)]"
-                      : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                  }`}
-                >
-                  {icon}
-                </button>
-              ))}
-            </div>
+              {fileViewMode === "flat" ? "⊞" : "≡"}
+            </button>
           </div>
 
           <div ref={fileListRef} className="flex-1 overflow-auto py-1">

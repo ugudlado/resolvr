@@ -368,14 +368,8 @@ export function activate(context: vscode.ExtensionContext): void {
       diffPanelManager.close();
     }),
 
-    // View mode toggle commands — all cycle to the next mode
-    vscode.commands.registerCommand("local-review.viewAsTree", () => {
-      diffPanelManager.toggleViewMode();
-    }),
-    vscode.commands.registerCommand("local-review.viewAsFlat", () => {
-      diffPanelManager.toggleViewMode();
-    }),
-    vscode.commands.registerCommand("local-review.viewAsCompactTree", () => {
+    // View mode toggle: flat ↔ compact-tree
+    vscode.commands.registerCommand("local-review.toggleFileViewMode", () => {
       diffPanelManager.toggleViewMode();
     }),
   );
