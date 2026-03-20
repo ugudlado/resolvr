@@ -115,21 +115,6 @@
           "command": "local-review.replyToComment",
           "group": "inline",
           "when": "commentController == local-review && !commentThreadIsEmpty"
-        },
-        {
-          "command": "local-review.resolveThread",
-          "group": "inline",
-          "when": "commentController == local-review && !commentThreadIsEmpty"
-        },
-        {
-          "command": "local-review.wontfixThread",
-          "group": "2_status",
-          "when": "commentController == local-review && !commentThreadIsEmpty"
-        },
-        {
-          "command": "local-review.outdatedThread",
-          "group": "2_status",
-          "when": "commentController == local-review && !commentThreadIsEmpty"
         }
       ],
       "commandPalette": [
