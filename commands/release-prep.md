@@ -70,14 +70,27 @@ After approval, update all version files:
 
 **f) `$HOME/code/claude-marketplace/.claude-plugin/marketplace.json`** — Bump the `"version"` for the `local-review` plugin entry to x.y.z.
 
+**g) `apps/vscode/package.json`** — Bump the `"version"` field to x.y.z.
+
 Read each file before editing. Use Edit to update version fields in-place.
 
-### 5. Commit and Tag
+### 5. Build VS Code Extension
+
+After version bumps, build and package the VS Code extension `.vsix`:
+
+```bash
+cd apps/vscode
+pnpm exec vsce package --no-dependencies
+```
+
+This produces `apps/vscode/local-review-vscode-x.y.z.vsix`. Verify the file was created and the version in the filename matches.
+
+### 6. Commit and Tag
 
 Stage all changed files and commit:
 
 ```bash
-git add CHANGELOG.md package.json apps/ui/src/config/app.ts .claude-plugin/plugin.json .claude-plugin/marketplace.json
+git add CHANGELOG.md package.json apps/ui/src/config/app.ts .claude-plugin/plugin.json .claude-plugin/marketplace.json apps/vscode/package.json apps/vscode/local-review-vscode-*.vsix
 git commit -m "chore: release vx.y.z"
 ```
 
@@ -96,12 +109,16 @@ cd $HOME/code/review
 git tag vx.y.z
 ```
 
-### 6. Report
+### 7. Report
 
 Output:
 
 - Release version
 - Number of changelog entries
-- Files updated (CHANGELOG.md, package.json, app.ts, plugin.json, marketplace.json x2)
+- Files updated (CHANGELOG.md, package.json, app.ts, plugin.json, marketplace.json x2, vscode/package.json)
+- VS Code extension `.vsix` path and size
 - Tag name created
-- Remind user to run `git push origin main --tags` in this repo and `git push` in the marketplace repo
+- Remind user to:
+  - Run `git push origin main --tags` in this repo
+  - Run `git push` in the marketplace repo
+  - Install the `.vsix` via `code --install-extension apps/vscode/local-review-vscode-x.y.z.vsix`
