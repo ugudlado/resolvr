@@ -58,7 +58,6 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Threads tree view — grouped by status (below Changed Files)
   const threadsTree = new ThreadsTreeProvider();
-  threadsTree.setWorkspaceRoot(workspaceRoot);
   const threadsTreeView = vscode.window.createTreeView("localReview.threads", {
     treeDataProvider: threadsTree,
     showCollapseAll: true,

@@ -5145,10 +5145,6 @@ var ThreadsTreeProvider = class {
   _onDidChangeTreeData = new vscode10.EventEmitter();
   onDidChangeTreeData = this._onDidChangeTreeData.event;
   _threads = [];
-  _workspaceRoot = "";
-  setWorkspaceRoot(root) {
-    this._workspaceRoot = root;
-  }
   updateThreads(threads) {
     this._threads = threads;
     this._onDidChangeTreeData.fire();
@@ -5180,21 +5176,12 @@ var ThreadsTreeProvider = class {
     item.tooltip = `${filePath}:${line}
 ${preview}`;
     item.iconPath = new vscode10.ThemeIcon("comment");
-    if (filePath && this._workspaceRoot) {
-      const uri = vscode10.Uri.file(`${this._workspaceRoot}/${filePath}`);
+    if (filePath) {
       item.command = {
-        command: "vscode.open",
-        title: "Go to Thread",
+        command: "local-review.openDiffFile",
+        title: "Open Diff",
         arguments: [
-          uri,
-          {
-            selection: new vscode10.Range(
-              Math.max(0, line - 1),
-              0,
-              Math.max(0, line - 1),
-              0
-            )
-          }
+          { path: filePath, oldPath: filePath, newPath: filePath, status: "M" }
         ]
       };
     }
@@ -5258,7 +5245,6 @@ function activate(context) {
     outputChannel
   );
   const threadsTree = new ThreadsTreeProvider();
-  threadsTree.setWorkspaceRoot(workspaceRoot);
   const threadsTreeView = vscode11.window.createTreeView("localReview.threads", {
     treeDataProvider: threadsTree,
     showCollapseAll: true

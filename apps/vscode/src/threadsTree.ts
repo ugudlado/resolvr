@@ -66,11 +66,6 @@ export class ThreadsTreeProvider implements vscode.TreeDataProvider<TreeNode> {
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   private _threads: SessionThread[] = [];
-  private _workspaceRoot = "";
-
-  setWorkspaceRoot(root: string): void {
-    this._workspaceRoot = root;
-  }
 
   updateThreads(threads: SessionThread[]): void {
     this._threads = threads;
@@ -115,22 +110,13 @@ export class ThreadsTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     item.tooltip = `${filePath}:${line}\n${preview}`;
     item.iconPath = new vscode.ThemeIcon("comment");
 
-    // Click navigates to the file and line
-    if (filePath && this._workspaceRoot) {
-      const uri = vscode.Uri.file(`${this._workspaceRoot}/${filePath}`);
+    // Click opens the diff view for this file
+    if (filePath) {
       item.command = {
-        command: "vscode.open",
-        title: "Go to Thread",
+        command: "local-review.openDiffFile",
+        title: "Open Diff",
         arguments: [
-          uri,
-          {
-            selection: new vscode.Range(
-              Math.max(0, line - 1),
-              0,
-              Math.max(0, line - 1),
-              0,
-            ),
-          },
+          { path: filePath, oldPath: filePath, newPath: filePath, status: "M" },
         ],
       };
     }
