@@ -67,7 +67,15 @@ export class CommentManager implements vscode.Disposable {
    * Creates one automatically if none exists (first-comment UX).
    */
   private async _ensureSession(featureId: string): Promise<void> {
-    const existing = await sessionStore.getSession(featureId);
+    let existing: SessionData | null;
+    try {
+      existing = await sessionStore.getSession(featureId);
+    } catch (err) {
+      // Session file exists but is unreadable — do not overwrite
+      throw new Error(
+        `Cannot auto-create session: existing file is unreadable — ${String(err)}`,
+      );
+    }
     if (existing) return;
 
     const session: SessionData = {

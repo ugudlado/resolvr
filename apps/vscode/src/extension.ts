@@ -126,33 +126,43 @@ export function activate(context: vscode.ExtensionContext): void {
   };
 
   const loadSession = async (featureId: string) => {
-    const session = await sessionStore.getSession(featureId);
-    if (!session) {
-      commentManager.loadThreads([]);
-      threadsTree.updateThreads([]);
-      diffPanelManager.close();
-      statusBar.setNoSession();
-      outputChannel.appendLine("No review session found");
-      return;
+    try {
+      const session = await sessionStore.getSession(featureId);
+      if (!session) {
+        commentManager.loadThreads([]);
+        threadsTree.updateThreads([]);
+        diffPanelManager.close();
+        statusBar.setNoSession();
+        outputChannel.appendLine("No review session found");
+        return;
+      }
+
+      const threads = session.threads ?? [];
+      const openThreads = threads.filter(
+        (t: SessionThread) => t.status === "open",
+      ).length;
+      commentManager.loadThreads(threads);
+      statusBar.setReady(threads.length);
+      threadsTree.updateThreads(threads);
+      outputChannel.appendLine(
+        `Session loaded: ${threads.length} threads (${openThreads} open)`,
+      );
+
+      // Start watching the session file for external changes
+      sessionWatcher.watch(getSessionFilePath(featureId));
+
+      // Populate sidebar tree with changed files
+      await diffPanelManager.populate(featureId);
+      diffPanelManager.updateThreadCounts(threads);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      outputChannel.appendLine(
+        `Failed to load session for ${featureId}: ${msg}`,
+      );
+      void vscode.window.showErrorMessage(
+        `Local Review: Failed to load review session — ${msg}`,
+      );
     }
-
-    const threads = session.threads ?? [];
-    const openThreads = threads.filter(
-      (t: SessionThread) => t.status === "open",
-    ).length;
-    commentManager.loadThreads(threads);
-    statusBar.setReady(threads.length);
-    threadsTree.updateThreads(threads);
-    outputChannel.appendLine(
-      `Session loaded: ${threads.length} threads (${openThreads} open)`,
-    );
-
-    // Start watching the session file for external changes
-    sessionWatcher.watch(getSessionFilePath(featureId));
-
-    // Populate sidebar tree with changed files
-    await diffPanelManager.populate(featureId);
-    diffPanelManager.updateThreadCounts(threads);
   };
 
   // Initialize feature detection
@@ -280,7 +290,15 @@ export function activate(context: vscode.ExtensionContext): void {
         );
         return;
       }
-      await diffPanelManager.open(featureId);
+      try {
+        await diffPanelManager.open(featureId);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        outputChannel.appendLine(`openDiff failed: ${msg}`);
+        void vscode.window.showErrorMessage(
+          `Local Review: Failed to open diff — ${msg}`,
+        );
+      }
     }),
 
     vscode.commands.registerCommand(
@@ -324,7 +342,12 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("local-review.refreshDiff", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) return;
-      await diffPanelManager.refresh(featureId);
+      try {
+        await diffPanelManager.refresh(featureId);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        outputChannel.appendLine(`refreshDiff failed: ${msg}`);
+      }
     }),
 
     vscode.commands.registerCommand("local-review.closeDiff", () => {

@@ -76,6 +76,12 @@ export class SessionWatcher implements vscode.Disposable {
     try {
       const raw = fs.readFileSync(this._currentPath, "utf-8");
       const session = JSON.parse(raw) as SessionData;
+      if (!Array.isArray(session.threads)) {
+        this._outputChannel.appendLine(
+          "Session watcher: parsed session has no threads array — ignoring",
+        );
+        return;
+      }
       this._outputChannel.appendLine(
         `Session watcher: external change detected — ${session.threads.length} threads`,
       );
@@ -83,6 +89,9 @@ export class SessionWatcher implements vscode.Disposable {
     } catch (err) {
       this._outputChannel.appendLine(
         `Session watcher: failed to read — ${String(err)}`,
+      );
+      void vscode.window.showWarningMessage(
+        "Local Review: Session file could not be read. Your view may be out of date. Try refreshing.",
       );
     }
   }

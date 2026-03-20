@@ -21,12 +21,18 @@ async function gitExec(args: string[], cwd: string): Promise<string> {
     });
     return stdout;
   } catch (err) {
-    // Git diff returns exit code 1 when there are differences — that's normal
-    const execErr = err as { stdout?: string; code?: number };
-    if (execErr.stdout !== undefined) {
+    // git diff exits with code 1 when there ARE differences — that's normal
+    const execErr = err as {
+      stdout?: string;
+      code?: number;
+      stderr?: string;
+    };
+    if (execErr.code === 1 && execErr.stdout !== undefined) {
       return execErr.stdout;
     }
-    throw err;
+    throw new Error(
+      `git ${args[0]} failed (exit ${execErr.code ?? "unknown"}): ${execErr.stderr ?? String(err)}`,
+    );
   }
 }
 

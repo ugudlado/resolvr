@@ -100,8 +100,14 @@ export const sessionStore = {
     try {
       const raw = await fs.promises.readFile(filePath, "utf-8");
       return JSON.parse(raw) as SessionData;
-    } catch {
-      return null;
+    } catch (err) {
+      // File not found is the only case that means "no session"
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+        return null;
+      }
+      throw new Error(
+        `Failed to read session for ${featureId}: ${String(err)}`,
+      );
     }
   },
 

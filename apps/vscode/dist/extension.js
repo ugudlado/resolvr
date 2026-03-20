@@ -163,8 +163,13 @@ var sessionStore = {
     try {
       const raw = await fs.promises.readFile(filePath, "utf-8");
       return JSON.parse(raw);
-    } catch {
-      return null;
+    } catch (err) {
+      if (err.code === "ENOENT") {
+        return null;
+      }
+      throw new Error(
+        `Failed to read session for ${featureId}: ${String(err)}`
+      );
     }
   },
   saveSession(featureId, session) {
@@ -445,7 +450,14 @@ var CommentManager = class _CommentManager {
    * Creates one automatically if none exists (first-comment UX).
    */
   async _ensureSession(featureId) {
-    const existing = await sessionStore.getSession(featureId);
+    let existing;
+    try {
+      existing = await sessionStore.getSession(featureId);
+    } catch (err) {
+      throw new Error(
+        `Cannot auto-create session: existing file is unreadable \u2014 ${String(err)}`
+      );
+    }
     if (existing) return;
     const session = {
       featureId,
@@ -770,6 +782,12 @@ var SessionWatcher = class {
     try {
       const raw = fs2.readFileSync(this._currentPath, "utf-8");
       const session = JSON.parse(raw);
+      if (!Array.isArray(session.threads)) {
+        this._outputChannel.appendLine(
+          "Session watcher: parsed session has no threads array \u2014 ignoring"
+        );
+        return;
+      }
       this._outputChannel.appendLine(
         `Session watcher: external change detected \u2014 ${session.threads.length} threads`
       );
@@ -777,6 +795,9 @@ var SessionWatcher = class {
     } catch (err) {
       this._outputChannel.appendLine(
         `Session watcher: failed to read \u2014 ${String(err)}`
+      );
+      void vscode5.window.showWarningMessage(
+        "Local Review: Session file could not be read. Your view may be out of date. Try refreshing."
       );
     }
   }
@@ -1038,10 +1059,12 @@ async function gitExec(args, cwd) {
     return stdout;
   } catch (err) {
     const execErr = err;
-    if (execErr.stdout !== void 0) {
+    if (execErr.code === 1 && execErr.stdout !== void 0) {
       return execErr.stdout;
     }
-    throw err;
+    throw new Error(
+      `git ${args[0]} failed (exit ${execErr.code ?? "unknown"}): ${execErr.stderr ?? String(err)}`
+    );
   }
 }
 async function getLocalDiff(workspaceRoot, featureId) {
@@ -1378,28 +1401,38 @@ function activate(context) {
     }
   };
   const loadSession = async (featureId) => {
-    const session = await sessionStore.getSession(featureId);
-    if (!session) {
-      commentManager.loadThreads([]);
-      threadsTree.updateThreads([]);
-      diffPanelManager.close();
-      statusBar.setNoSession();
-      outputChannel.appendLine("No review session found");
-      return;
+    try {
+      const session = await sessionStore.getSession(featureId);
+      if (!session) {
+        commentManager.loadThreads([]);
+        threadsTree.updateThreads([]);
+        diffPanelManager.close();
+        statusBar.setNoSession();
+        outputChannel.appendLine("No review session found");
+        return;
+      }
+      const threads = session.threads ?? [];
+      const openThreads = threads.filter(
+        (t) => t.status === "open"
+      ).length;
+      commentManager.loadThreads(threads);
+      statusBar.setReady(threads.length);
+      threadsTree.updateThreads(threads);
+      outputChannel.appendLine(
+        `Session loaded: ${threads.length} threads (${openThreads} open)`
+      );
+      sessionWatcher.watch(getSessionFilePath(featureId));
+      await diffPanelManager.populate(featureId);
+      diffPanelManager.updateThreadCounts(threads);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      outputChannel.appendLine(
+        `Failed to load session for ${featureId}: ${msg}`
+      );
+      void vscode10.window.showErrorMessage(
+        `Local Review: Failed to load review session \u2014 ${msg}`
+      );
     }
-    const threads = session.threads ?? [];
-    const openThreads = threads.filter(
-      (t) => t.status === "open"
-    ).length;
-    commentManager.loadThreads(threads);
-    statusBar.setReady(threads.length);
-    threadsTree.updateThreads(threads);
-    outputChannel.appendLine(
-      `Session loaded: ${threads.length} threads (${openThreads} open)`
-    );
-    sessionWatcher.watch(getSessionFilePath(featureId));
-    await diffPanelManager.populate(featureId);
-    diffPanelManager.updateThreadCounts(threads);
   };
   const init = async () => {
     await resolveWorkspace();
@@ -1511,7 +1544,15 @@ function activate(context) {
         );
         return;
       }
-      await diffPanelManager.open(featureId);
+      try {
+        await diffPanelManager.open(featureId);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        outputChannel.appendLine(`openDiff failed: ${msg}`);
+        void vscode10.window.showErrorMessage(
+          `Local Review: Failed to open diff \u2014 ${msg}`
+        );
+      }
     }),
     vscode10.commands.registerCommand(
       "local-review.openDiffFile",
@@ -1547,7 +1588,12 @@ function activate(context) {
     vscode10.commands.registerCommand("local-review.refreshDiff", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) return;
-      await diffPanelManager.refresh(featureId);
+      try {
+        await diffPanelManager.refresh(featureId);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        outputChannel.appendLine(`refreshDiff failed: ${msg}`);
+      }
     }),
     vscode10.commands.registerCommand("local-review.closeDiff", () => {
       diffPanelManager.close();
