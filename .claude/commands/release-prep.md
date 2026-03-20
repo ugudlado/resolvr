@@ -90,7 +90,7 @@ This produces `apps/vscode/local-review-vscode-x.y.z.vsix`. Verify the file was 
 Stage all changed files and commit:
 
 ```bash
-git add CHANGELOG.md package.json apps/ui/src/config/app.ts .claude-plugin/plugin.json .claude-plugin/marketplace.json apps/vscode/package.json apps/vscode/local-review-vscode-*.vsix
+git add CHANGELOG.md package.json apps/ui/src/config/app.ts .claude-plugin/plugin.json .claude-plugin/marketplace.json apps/vscode/package.json pnpm-lock.yaml
 git commit -m "chore: release vx.y.z"
 ```
 
