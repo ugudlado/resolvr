@@ -345,23 +345,20 @@ export class CommentManager implements vscode.Disposable {
 
     thread.label = undefined;
 
-    // Resolved threads are collapsed UNLESS the last message is from an agent
+    // Non-open threads are collapsed UNLESS the last message is from an agent
     // (user needs to read the agent's response before deciding next action)
+    const isNonOpen = sessionThread.status !== "open";
     const lastMsg = sessionThread.messages[sessionThread.messages.length - 1];
-    const hasAgentReply =
-      lastMsg?.authorType === "agent" && sessionThread.status === "resolved";
+    const hasAgentReply = lastMsg?.authorType === "agent" && isNonOpen;
 
     thread.collapsibleState =
-      sessionThread.status === "open" || hasAgentReply
+      !isNonOpen || hasAgentReply
         ? vscode.CommentThreadCollapsibleState.Expanded
         : vscode.CommentThreadCollapsibleState.Collapsed;
 
-    // Mark resolved threads as resolved in VS Code
+    // Map all non-open statuses to Resolved in VS Code
     // 0 = Unresolved, 1 = Resolved (CommentThreadState available since VS Code 1.88)
-    thread.state =
-      sessionThread.status === "resolved"
-        ? 1 // CommentThreadState.Resolved
-        : 0; // CommentThreadState.Unresolved
+    thread.state = isNonOpen ? 1 : 0;
 
     return thread;
   }

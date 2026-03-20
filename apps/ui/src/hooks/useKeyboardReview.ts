@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReviewThread } from "../services/localReviewApi";
-import { THREAD_STATUS } from "../types/constants";
+import { THREAD_STATUS, type ThreadStatus } from "../types/constants";
+import { isClosed } from "../utils/threadStatus";
 import { isInputFocused } from "../utils/keyboardUtils";
 
 export interface UseKeyboardReviewOptions {
@@ -13,8 +14,7 @@ export interface UseKeyboardReviewOptions {
   treeViewActive: boolean;
   onFileSelect: (path: string) => void;
   onThreadFocus: (thread: ReviewThread) => void;
-  onThreadResolve: (threadId: string) => void;
-  onThreadReopen: (threadId: string) => void;
+  onThreadStatusChange: (threadId: string, status: ThreadStatus) => void;
   onOpenPalette: () => void;
 }
 
@@ -36,8 +36,7 @@ export function useKeyboardReview({
   treeViewActive,
   onFileSelect,
   onThreadFocus,
-  onThreadResolve,
-  onThreadReopen,
+  onThreadStatusChange,
   onOpenPalette,
 }: UseKeyboardReviewOptions): UseKeyboardReviewReturn {
   const [selectedFileIndex, setSelectedFileIndex] = useState(0);
@@ -103,16 +102,14 @@ export function useKeyboardReview({
   const callbacksRef = useRef({
     onFileSelect,
     onThreadFocus,
-    onThreadResolve,
-    onThreadReopen,
+    onThreadStatusChange,
     onOpenPalette,
   });
   // eslint-disable-next-line react-hooks/refs
   callbacksRef.current = {
     onFileSelect,
     onThreadFocus,
-    onThreadResolve,
-    onThreadReopen,
+    onThreadStatusChange,
     onOpenPalette,
   };
 
@@ -191,18 +188,29 @@ export function useKeyboardReview({
         case "r": {
           const t =
             threads.length > 0 ? (threads[threadIdxRef.current] ?? null) : null;
-          if (t?.status === THREAD_STATUS.Open) cbs.onThreadResolve(t.id);
+          if (t?.status === THREAD_STATUS.Open)
+            cbs.onThreadStatusChange(t.id, THREAD_STATUS.Resolved);
           break;
         }
         case "o": {
           const t =
             threads.length > 0 ? (threads[threadIdxRef.current] ?? null) : null;
-          if (
-            t &&
-            (t.status === THREAD_STATUS.Resolved ||
-              t.status === THREAD_STATUS.Approved)
-          )
-            cbs.onThreadReopen(t.id);
+          if (t && isClosed(t.status))
+            cbs.onThreadStatusChange(t.id, THREAD_STATUS.Open);
+          break;
+        }
+        case "w": {
+          const t =
+            threads.length > 0 ? (threads[threadIdxRef.current] ?? null) : null;
+          if (t?.status === THREAD_STATUS.Open)
+            cbs.onThreadStatusChange(t.id, THREAD_STATUS.WontFix);
+          break;
+        }
+        case "d": {
+          const t =
+            threads.length > 0 ? (threads[threadIdxRef.current] ?? null) : null;
+          if (t?.status === THREAD_STATUS.Open)
+            cbs.onThreadStatusChange(t.id, THREAD_STATUS.Outdated);
           break;
         }
         case "h": {
