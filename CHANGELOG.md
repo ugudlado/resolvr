@@ -2,6 +2,53 @@
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-03-21
+
+### VS Code Extension
+
+- Serverless architecture — eliminate server dependency, direct file I/O for sessions
+- Auto-create session files on feature branch activation
+- File-type icons and review progress indicators in sidebar
+- Threads tree view grouped by status in SCM sidebar
+- Status badges and contextual action buttons for thread states
+- Won't Fix and Mark Outdated thread actions
+- Thread collapse/expand with keyboard shortcuts
+- Scroll to thread line when clicking in sidebar
+- Clickable threads open diff view directly
+
+* Rename SCM panels to "Local Review: Changed Files" / "Local Review: Threads"
+* Move Changed Files and Threads views to Source Control sidebar
+* Simplify to 2 view modes: flat + compact-tree toggle (removed tree mode)
+* Address UX critique with filename labels and tinted file icons
+
+! Force standard a/b diff prefixes to handle mnemonic prefix config
+! Harden error handling — distinguish ENOENT, tighten git execution
+! Wire file watcher suppression and fix mutation bug
+! Handle missing anchor.path in threads tree view
+! Replace timer-based cooldown with skip-count for reconciliation
+! Remove duplicate status buttons from context menu
+! Prevent reconciliation loop with cooldown after status change
+! Migrate tsconfig from deprecated node10 moduleResolution
+! Defensive URI path normalization
+
+### UI
+
+- Add thread collapse/expand with four-section navigation
+- Expand thread status system with helpers and components
+- Improve split-button visibility in dark theme
+
+! Remove useEffect auto-collapse to prevent re-render loop
+
+### Plugin
+
+- Reorganize project-level commands and skills into .claude/ directory
+- Update release-prep to include VS Code extension versioning and .vsix build
+
+### Documentation
+
+- Add VS Code extension screenshot to docs
+- Update project structure documentation for VS Code extension
+
 ## [1.3.0] - 2026-03-19
 
 ### Server

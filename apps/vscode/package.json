@@ -2,7 +2,7 @@
   "name": "local-review-vscode",
   "displayName": "Local Review",
   "description": "Inline code review annotations synced with the local-review browser UI",
-  "version": "1.3.0",
+  "version": "2.0.0",
   "publisher": "local-review",
   "engines": {
     "vscode": "^1.85.0"
@@ -178,6 +178,7 @@
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^3.0.0",
     "esbuild": "^0.24.0",
+    "iconv-lite": "^0.7.2",
     "typescript": "^5.5.0"
   }
 }
