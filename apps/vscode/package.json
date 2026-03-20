@@ -22,14 +22,6 @@
         "title": "Local Review: Refresh"
       },
       {
-        "command": "local-review.connect",
-        "title": "Local Review: Connect"
-      },
-      {
-        "command": "local-review.disconnect",
-        "title": "Local Review: Disconnect"
-      },
-      {
         "command": "local-review.startReview",
         "title": "Local Review: Start Review"
       },
@@ -167,13 +159,7 @@
     },
     "configuration": {
       "title": "Local Review",
-      "properties": {
-        "local-review.serverUrl": {
-          "type": "string",
-          "default": "http://localhost:37003",
-          "description": "URL of the local-review server"
-        }
-      }
+      "properties": {}
     }
   },
   "scripts": {
@@ -182,13 +168,9 @@
     "package": "vsce package",
     "type-check": "tsc --noEmit"
   },
-  "dependencies": {
-    "ws": "^8.19.0"
-  },
   "devDependencies": {
     "@types/node": "^25.5.0",
     "@types/vscode": "^1.85.0",
-    "@types/ws": "^8.18.1",
     "@vscode/vsce": "^3.0.0",
     "esbuild": "^0.24.0",
     "typescript": "^5.5.0"

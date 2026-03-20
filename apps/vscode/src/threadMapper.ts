@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import type { SessionThread } from "./serverClient";
+import type { SessionThread } from "./sessionStore";
 
 export class ThreadMapper implements vscode.Disposable {
   private _sessionToVSCode = new Map<string, vscode.CommentThread>();

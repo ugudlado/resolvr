@@ -9,8 +9,8 @@ import type { DiffFileItem } from "./changedFilesTree";
 import { parseDiffFileList } from "./diffParser";
 import type { DiffFileEntry } from "./diffParser";
 import { ReviewFileDecorationProvider } from "./fileDecorationProvider";
-import { serverClient } from "./serverClient";
-import type { SessionThread } from "./serverClient";
+import { getLocalDiff } from "./gitDiff";
+import type { SessionThread } from "./sessionStore";
 
 /** Minimal file identity needed for opening a diff — no stats required */
 type DiffFileRef = Pick<
@@ -65,7 +65,7 @@ export class DiffPanelManager implements vscode.Disposable {
     this._decorationProvider.clear();
 
     try {
-      const diff = await serverClient.getDiff(this._workspaceRoot);
+      const diff = await getLocalDiff(this._workspaceRoot, featureId);
       this._files = parseDiffFileList(diff.allDiff);
 
       this._treeProvider.setFiles(this._files);

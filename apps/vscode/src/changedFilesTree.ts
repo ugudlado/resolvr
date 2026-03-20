@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import type { DiffFileEntry } from "./diffParser";
 import { makeReviewFileUri } from "./fileDecorationProvider";
-import type { SessionThread } from "./serverClient";
+import type { SessionThread } from "./sessionStore";
 
 export interface DiffFileItem extends DiffFileEntry {
   openThreads: number;
