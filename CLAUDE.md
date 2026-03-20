@@ -3,7 +3,7 @@
 ## Project Overview
 
 **Project**: local-review
-**Repository**: Claude Code plugin for local code review with browser UI
+**Repository**: Claude Code plugin for local code review with browser UI and VS Code extension
 
 ## Quick Start
 
@@ -24,6 +24,7 @@ agents/             — Subagent definitions (review-resolver)
 hooks/              — Session hooks (auto-start dev server)
 scripts/            — Shell scripts (context extraction)
 openspec/changes/   — Active and archived feature specifications
+skills/             — Auto-triggered skill guides (vscode-ext, github)
 apps/server/        — Standalone Hono server (REST API + WebSocket + static UI)
   src/middleware/    — Request middleware (repo context resolution)
   src/workspaces.ts — Workspace registry (multi-repo support)
@@ -48,6 +49,15 @@ apps/ui/            — React review app (Vite + Tailwind + TypeScript)
   src/utils/        — Diff parsing, spec anchoring, task parsing
   eslint.config.js  — ESLint 9 flat config (TypeScript + React)
   dist/             — Built output (committed for zero-build install)
+apps/vscode/        — VS Code extension (esbuild + vscode API)
+  src/extension.ts  — Extension entry point (activate/deactivate)
+  src/SessionStore.ts    — File-based session CRUD
+  src/SessionWatcher.ts  — FileSystemWatcher for live updates
+  src/ChangedFilesProvider.ts — TreeDataProvider for SCM sidebar
+  src/ThreadsProvider.ts — TreeDataProvider for review threads
+  src/DiffPanelManager.ts — Webview panel for diff rendering
+  src/CommentManager.ts  — VS Code CommentController integration
+  dist/             — esbuild bundle output (NOT committed, gitignored)
 docs/plans/         — Design documents (local only, gitignored)
 .review/sessions/   — Runtime session storage (gitignored)
 ```
@@ -61,6 +71,12 @@ Run all commands from the repository root. App-specific commands use `pnpm -C ap
 pnpm dev                      # Start standalone server (tsx watch mode)
 pnpm start                    # Start server from bundled dist/
 pnpm -C apps/server build     # Rebuild server bundle (esbuild → dist/index.js)
+
+# VS Code Extension (run from repo root)
+pnpm -C apps/vscode build         # Build extension bundle (esbuild → dist/extension.js)
+pnpm -C apps/vscode watch         # Watch mode for development
+pnpm -C apps/vscode type-check    # TypeScript type checking
+pnpm -C apps/vscode exec vsce package --no-dependencies  # Package .vsix
 
 # UI Development (run from repo root)
 pnpm -C apps/ui dev           # Start Vite dev server at http://localhost:37003
@@ -107,6 +123,14 @@ PORT=3000 pnpm -C apps/ui dev   # Vite dev server on port 3000
 - **Styling**: Tailwind CSS
 - **API**: All REST endpoints live in `apps/server/src/routes/` (Hono). In dev mode, Hono serves API routes and embeds Vite as HMR middleware — no API logic in `vite.config.ts`
 
+### VS Code Extension (apps/vscode)
+
+- **Serverless**: Reads/writes session files directly — no HTTP server dependency
+- **Build**: esbuild bundles into single CJS `dist/extension.js`; `vscode` module externalized
+- **Sidebar**: TreeDataProviders for changed files and threads in SCM panel
+- **Comments**: Native VS Code CommentController API for inline annotations
+- **File watching**: `vscode.workspace.createFileSystemWatcher` for live session updates
+
 ### Plugin
 
 - **Commands**: Markdown-based slash commands for Claude Code
@@ -144,7 +168,7 @@ PORT=3000           # Change server/UI dev port (default: 37003)
 2. **Package manager**: Use `pnpm` (not npm); dependencies locked via pnpm-lock.yaml
 3. **API routes**: All routes live exclusively in `apps/server/src/routes/` — no duplication in `vite.config.ts`
 4. **Session files**: Live in `.review/sessions/` (gitignored); created when user saves review sessions
-5. **Built dist**: Both `apps/ui/dist/` and `apps/server/dist/` are committed to git for zero-build plugin installation
+5. **Built dist**: `apps/ui/dist/` and `apps/server/dist/` are committed to git for zero-build plugin installation; `apps/vscode/dist/` is NOT committed (gitignored — build before packaging)
 6. **Server bundle**: Run `pnpm -C apps/server build` after changing server code; bundles all deps via esbuild
 7. **Plugin layout**: Source files live at repo root (`.claude-plugin/`, `commands/`, `agents/`, `hooks/`, `scripts/`) — do not create copies in subdirectories
 8. **Pre-commit hooks**: Husky runs lint-staged on staged files (ESLint + Prettier) before commit
@@ -154,4 +178,5 @@ PORT=3000           # Change server/UI dev port (default: 37003)
 - **Never edit `dist/`**: Always work in `src/`; use `PORT=3003 pnpm -C apps/ui dev` for UI dev with HMR
 - **API routes are NOT duplicated**: All routes live in `apps/server/src/routes/` only — `vite.config.ts` has no API logic
 - **Server bundle not auto-rebuilt**: Run `pnpm -C apps/server build` after any server-side change; committed `dist/index.js` is what the plugin uses at runtime
+- **VS Code dist is NOT committed**: Unlike server and UI, `apps/vscode/dist/` is gitignored. Always run `pnpm -C apps/vscode build` before `vsce package`
 - **Worktree `.git` is a file**: Git worktrees have a `.git` file (not directory) pointing to the parent repo. Use `git rev-parse --git-common-dir` to find the real repo root — `path.basename()` on a worktree path gives the worktree folder name, not the repo name

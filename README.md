@@ -1,6 +1,12 @@
 # local-review
 
-GitHub-style local code review plugin for Claude Code. Review diffs in a browser UI, add inline threaded comments, track tasks with phased progress, then let Claude resolve threads — replying to questions, applying fixes when clear, or asking for clarification when not.
+Local code review for Claude Code — review diffs, leave threaded comments, and let Claude resolve them. Works across three surfaces that share the same review sessions:
+
+- **Web UI** — Full-featured browser interface for reviewing diffs, managing threads, and tracking tasks
+- **VS Code extension** — Inline annotations, file tree, and diff panel right in your editor
+- **Claude Code CLI** — Resolve threads automatically via `/local-review:resolve`
+
+All three read and write the same session files, so you can start a review in the browser, continue in VS Code, and have Claude resolve threads from the CLI — everything stays in sync.
 
 ## Install
 
@@ -22,13 +28,11 @@ claude plugin install local-review@ugudlado
 /local-review:open
 ```
 
+## Web UI
+
+The browser interface gives you the full review experience — file sidebar, syntax-highlighted diffs, inline threaded comments, and a command palette.
+
 ![Code review UI showing file tree, inline diff with threaded comments, and thread panel](docs/images/review-ui.png)
-
-## Features
-
-### Review diffs in a browser UI
-
-Browse code changes with syntax highlighting. Click `+` on any line to start a threaded comment, or drag across multiple lines to create multi-line threads.
 
 ### Feature dashboard
 
@@ -36,43 +40,50 @@ See all active and completed features at a glance with status badges, thread cou
 
 ![Feature dashboard with active and completed features](docs/images/dashboard.png)
 
-### Task tracking with phased progress
+### Task tracking
 
-View implementation tasks organized by phase, with status indicators (pending, in progress, done) and expandable task details showing why, files, and verification criteria.
+View implementation tasks organized by phase, with status indicators and expandable task details.
 
 ![Task board with phased progress](docs/images/tasks-view.png)
 
-### Inline thread comments
-
-Add detailed review comments directly on code. Threads are persisted to `.review/sessions/*.json` and survive across sessions.
-
-### Resolve threads via UI or CLI
-
-Trigger resolution from the UI with the "Request changes" button, or run it directly from Claude Code:
-
-```
-/local-review:resolve
-```
-
-Claude reads every open thread, replies with analysis, applies code fixes where unambiguous, and asks clarifying questions when needed.
-
-### Thread resolution via subagent
-
-The `review-resolver` subagent processes each thread independently, deciding whether to:
-
-- Apply a fix → when issue is clear and solution is unambiguous
-- Reply with explanation → when the comment asks "why"
-- Ask a clarifying question → when context is missing or multiple valid approaches exist
-
 ### Keyboard shortcuts
 
-Full keyboard navigation for power users — press `?` for the shortcut help overlay:
+Press `?` for the shortcut help overlay:
 
 - `⌘K` / `Ctrl+K` — Command palette (fuzzy search files, threads, actions)
 - `j` / `k` — Navigate between threads
 - `r` — Resolve focused thread
 - `h` / `l` — Focus sidebar / diff panel
-- `↑` / `↓` — Navigate files (sidebar focused)
+
+## VS Code Extension
+
+Review code without leaving your editor. The extension surfaces review sessions directly in VS Code's Source Control sidebar — changed files with diff stats, inline comment threads via the native Comments API, and a dedicated diff panel.
+
+![VS Code extension showing changed files tree, inline review comments with Claude's reply, and threads panel](docs/images/vscode-extension.png)
+
+The extension works serverlessly — it reads and writes session files directly, with no server dependency. File watchers keep everything in sync: comments added in the browser appear in VS Code, and vice versa.
+
+Install the `.vsix` from the [latest release](https://github.com/ugudlado/local-review/releases):
+
+```bash
+code --install-extension local-review-vscode-<version>.vsix
+```
+
+## Claude Code Integration
+
+Claude connects all the pieces. When you're done reviewing, Claude reads every open thread and responds:
+
+- **Applies a fix** — when the issue is clear and the solution is unambiguous
+- **Replies with an explanation** — when the comment asks "why"
+- **Asks a clarifying question** — when context is missing or multiple valid approaches exist
+
+Trigger resolution from the web UI with "Request Changes", or directly from Claude Code:
+
+```
+/local-review:resolve
+```
+
+The `review-resolver` subagent processes each thread independently, writing replies back to the same session files that the web UI and VS Code extension read.
 
 ## Commands
 
@@ -81,34 +92,33 @@ Full keyboard navigation for power users — press `?` for the shortcut help ove
 | `/local-review:open [feature]`    | Open the review UI, optionally navigate to a feature        |
 | `/local-review:resolve [session]` | Resolve all open threads in the latest or specified session |
 
-## Workflow
+## How It Works Together
 
-1. **Open the UI** — `/local-review:open`
-   Browse diffs and add threaded comments.
+```
+You review code          Claude resolves threads       You see replies
+ (Web UI or VS Code)      (Claude Code CLI)             (Web UI or VS Code)
+       │                        │                              │
+       ▼                        ▼                              ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                .review/sessions/*.json                          │
+  │         Shared session files — single source of truth           │
+  └─────────────────────────────────────────────────────────────────┘
+```
 
-2. **Review code** — Click `+` on diff lines to add comments
-   Comments are auto-saved and persist across sessions.
-
-3. **Request changes** — Click "Request Changes" in the UI
-   Marks the review as needing changes.
-
-4. **Resolve threads** — `/local-review:resolve`
-   Claude replies to each comment thread with fixes, explanations, or clarifying questions.
-
-5. **See replies** — Refresh the UI to view Claude's responses inline
+1. **Review** — Open diffs in the web UI or VS Code, add threaded comments on any line
+2. **Request changes** — Click "Request Changes" in the UI or run `/local-review:resolve`
+3. **Claude responds** — Each thread gets a fix, explanation, or clarifying question
+4. **Continue** — See Claude's replies inline, resolve or follow up
 
 ## Architecture
 
-The plugin ships with two apps:
+The plugin ships with three apps:
 
-- **`apps/server`** — Standalone Hono server (REST API + WebSocket). Built with esbuild into a single bundled `dist/index.js` for zero-install plugin support. Supports multi-repo via workspace registry and per-request repo middleware.
-- **`apps/ui`** — React frontend built with Vite, Tailwind CSS v4, and shadcn/ui components. Built dist committed to git, served as static files by the server.
+- **`apps/server`** — Standalone Hono server (REST API + WebSocket). Bundles into a single `dist/index.js` via esbuild for zero-install plugin support. Multi-repo via workspace registry.
+- **`apps/ui`** — React frontend (Vite + Tailwind CSS v4 + shadcn/ui). Served as static files by the server.
+- **`apps/vscode`** — VS Code extension (esbuild bundle). Reads session files directly — no server dependency.
 
 The `SessionStart` hook auto-starts the server and registers the current repo as a workspace — no `pnpm install` or build step needed after plugin installation.
-
-### UI Component Library
-
-The UI uses [shadcn/ui](https://ui.shadcn.com/) components (new-york style) built on Radix UI primitives for accessibility. Key components: Button, Badge, Skeleton, Dialog, Command (cmdk), Popover, Collapsible, ToggleGroup, Textarea, Alert.
 
 ## Development
 
