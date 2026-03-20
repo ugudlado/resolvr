@@ -1,4 +1,5 @@
 import type { AuthorType } from "../types/sessions";
+import type { ThreadStatus } from "../types/constants";
 import { withWorkspaceQuery } from "../hooks/useWorkspaceContext";
 
 export type ReviewMessage = {
@@ -16,7 +17,7 @@ export type ReviewThread = {
   lineEnd?: number;
   side: "old" | "new";
   anchorContent?: string; // text of the anchor line at comment time
-  status: "open" | "resolved" | "approved";
+  status: ThreadStatus;
   severity?: string;
   messages: ReviewMessage[];
   lastUpdatedAt: string;

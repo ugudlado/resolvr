@@ -47,18 +47,21 @@ export function OverviewTab({
 }: {
   threads: ReviewThread[];
   outdatedThreadIds: Set<string>;
-  overviewFilter: "all" | "open" | "resolved" | "outdated";
-  onFilterChange: (f: "all" | "open" | "resolved" | "outdated") => void;
+  overviewFilter: "all" | "open" | "resolved" | "outdated" | "wontfix";
+  onFilterChange: (
+    f: "all" | "open" | "resolved" | "outdated" | "wontfix",
+  ) => void;
   onThreadClick: (thread: ReviewThread) => void;
   onReset: () => void;
 }) {
   const filtered = threads.filter((t) => {
-    const isOutdated = outdatedThreadIds.has(t.id);
+    const isOutdated = outdatedThreadIds.has(t.id) || t.status === "outdated";
     if (overviewFilter === "all") return true;
     if (overviewFilter === "outdated") return isOutdated;
     if (overviewFilter === "open") return t.status === "open" && !isOutdated;
     if (overviewFilter === "resolved")
       return t.status === "resolved" || t.status === "approved";
+    if (overviewFilter === "wontfix") return t.status === "wontfix";
     return true;
   });
 
@@ -73,6 +76,7 @@ export function OverviewTab({
     { key: "all", label: "All" },
     { key: "open", label: "Open" },
     { key: "resolved", label: "Resolved" },
+    { key: "wontfix", label: "Won't Fix" },
     { key: "outdated", label: "Outdated" },
   ];
 

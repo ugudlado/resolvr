@@ -59,6 +59,9 @@ export const FEATURE_TAB = {
 export const THREAD_STATUS = {
   Open: "open",
   Resolved: "resolved",
+  WontFix: "wontfix",
+  Outdated: "outdated",
+  /** @deprecated Alias for Resolved. Kept for backward compat with existing session files. */
   Approved: "approved",
 } as const;
 

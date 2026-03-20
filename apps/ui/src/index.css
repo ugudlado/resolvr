@@ -38,6 +38,8 @@
   --color-accent-blue-dim: #1e3a5f;
   --color-accent-rose: #fb7185;
   --color-accent-rose-dim: #4c1d2e;
+  --color-accent-purple: #a78bfa;
+  --color-accent-purple-dim: rgba(167, 139, 250, 0.15);
 
   /* Border */
   --color-border: #2e2e35;
@@ -115,6 +117,9 @@
   --accent-rose: #fb7185;
   --accent-rose-dim: #4d1a2a;
 
+  --accent-purple: #a78bfa;
+  --accent-purple-dim: rgba(167, 139, 250, 0.15);
+
   /* Semantic — Diff */
   --diff-added-bg: #0d4a1a;
   --diff-added-gutter: #0a3d15;
@@ -132,10 +137,12 @@
   /* Status badges */
   --status-open: #d29922;
   --status-open-bg: rgba(210, 153, 34, 0.2);
-  --status-resolved: #8b5cf6;
-  --status-resolved-bg: rgba(139, 92, 246, 0.2);
-  --status-approved: #3fb950;
-  --status-approved-bg: rgba(63, 185, 80, 0.2);
+  --status-resolved: #34d399;
+  --status-resolved-bg: rgba(52, 211, 153, 0.2);
+  --status-wontfix: var(--text-muted);
+  --status-wontfix-bg: rgba(72, 79, 88, 0.2);
+  --status-outdated: var(--accent-purple);
+  --status-outdated-bg: rgba(167, 139, 250, 0.2);
 
   /* Pipeline (from spec) */
   --pipeline-spec: #bc8cff;

@@ -53,9 +53,9 @@ interface FileSidebarProps {
   changeCountByFile: Map<string, number>;
   threads?: ReviewThread[];
   outdatedThreadIds?: Set<string>;
-  overviewFilter?: "all" | "open" | "resolved" | "outdated";
+  overviewFilter?: "all" | "open" | "resolved" | "outdated" | "wontfix";
   onOverviewFilterChange?: (
-    f: "all" | "open" | "resolved" | "outdated",
+    f: "all" | "open" | "resolved" | "outdated" | "wontfix",
   ) => void;
   onThreadClick?: (thread: ReviewThread) => void;
   onReset?: () => void;

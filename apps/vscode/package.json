@@ -54,6 +54,14 @@
         "title": "Re-open"
       },
       {
+        "command": "local-review.wontfixThread",
+        "title": "Won't Fix"
+      },
+      {
+        "command": "local-review.outdatedThread",
+        "title": "Mark Outdated"
+      },
+      {
         "command": "local-review.openDiff",
         "title": "Local Review: Open Diff",
         "icon": "$(diff)"
@@ -70,6 +78,10 @@
       {
         "command": "local-review.closeDiff",
         "title": "Local Review: Close Diff"
+      },
+      {
+        "command": "local-review.goToThread",
+        "title": "Local Review: Go to Thread"
       }
     ],
     "viewsContainers": {
@@ -82,10 +94,14 @@
       ]
     },
     "views": {
-      "local-review": [
+      "scm": [
         {
           "id": "localReview.changedFiles",
-          "name": "Changed Files"
+          "name": "Local Review: Changed Files"
+        },
+        {
+          "id": "localReview.threads",
+          "name": "Local Review: Threads"
         }
       ]
     },
@@ -107,16 +123,15 @@
           "command": "local-review.replyToComment",
           "group": "inline",
           "when": "commentController == local-review && !commentThreadIsEmpty"
-        },
-        {
-          "command": "local-review.resolveThread",
-          "group": "inline",
-          "when": "commentController == local-review && !commentThreadIsEmpty"
         }
       ],
       "commandPalette": [
         {
           "command": "local-review.openDiffFile",
+          "when": "false"
+        },
+        {
+          "command": "local-review.goToThread",
           "when": "false"
         }
       ],
@@ -131,12 +146,22 @@
         {
           "command": "local-review.resolveThread",
           "group": "inline@1",
-          "when": "commentController == local-review && !commentThreadIsEmpty"
+          "when": "commentController == local-review && !commentThreadIsEmpty && !commentThread.isResolved"
         },
         {
           "command": "local-review.unresolveThread",
+          "group": "inline@1",
+          "when": "commentController == local-review && !commentThreadIsEmpty && commentThread.isResolved"
+        },
+        {
+          "command": "local-review.wontfixThread",
           "group": "inline@2",
-          "when": "commentController == local-review && !commentThreadIsEmpty"
+          "when": "commentController == local-review && !commentThreadIsEmpty && !commentThread.isResolved"
+        },
+        {
+          "command": "local-review.outdatedThread",
+          "group": "inline@3",
+          "when": "commentController == local-review && !commentThreadIsEmpty && !commentThread.isResolved"
         }
       ]
     },

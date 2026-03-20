@@ -10,6 +10,25 @@ import { ThreadMapper } from "./threadMapper";
 import { SCHEME_BASE } from "./baseContentProvider";
 
 export class CommentManager implements vscode.Disposable {
+  /**
+   * Number of incoming reconcile calls to skip.
+   * Each outbound action (create, reply, status change) sets this to 2
+   * to absorb the server broadcast echo AND the browser auto-save echo.
+   * Decremented on each skipped loadThreads call. Resets to 0 naturally.
+   */
+  private _pendingSkips = 0;
+
+  private static readonly STATUS_LABELS: Record<string, string | undefined> = {
+    open: undefined,
+    resolved: "Resolved",
+    wontfix: "Won't Fix",
+    outdated: "Outdated",
+    approved: "Resolved",
+  };
+
+  private static _statusLabel(status: string): string | undefined {
+    return CommentManager.STATUS_LABELS[status];
+  }
   private _controller: vscode.CommentController;
   private _threadMapper: ThreadMapper;
   private _workspaceRoot: string;
@@ -48,6 +67,10 @@ export class CommentManager implements vscode.Disposable {
   }
 
   loadThreads(threads: SessionThread[]): void {
+    if (this._pendingSkips > 0) {
+      this._pendingSkips--;
+      return;
+    }
     this._threadMapper.reconcile(threads, (t) => this._createVSCodeThread(t));
   }
 
@@ -119,6 +142,9 @@ export class CommentManager implements vscode.Disposable {
             // will recreate it from server data (single source of truth)
             thread.dispose();
 
+            // Skip only the browser auto-save echo (1), let server echo through for reconcile
+            this._pendingSkips = 1;
+
             outputChannel.appendLine(
               `Created thread ${sessionThread.id} on ${sessionThread.anchor.path}:${sessionThread.anchor.line}`,
             );
@@ -163,6 +189,7 @@ export class CommentManager implements vscode.Disposable {
           };
           try {
             // Send only the new message — server appends to existing messages
+            this._pendingSkips = 2;
             await serverClient.updateThread(featureId, sessionId, {
               messages: [newMessage],
             });
@@ -183,51 +210,67 @@ export class CommentManager implements vscode.Disposable {
         },
       ),
 
-      // Resolve a thread
-      vscode.commands.registerCommand(
-        "local-review.resolveThread",
-        async (thread: vscode.CommentThread) => {
-          const featureId = getFeatureId();
-          if (!featureId) return;
-          const sessionId = this._threadMapper.getSessionId(thread);
-          if (!sessionId) return;
-          try {
-            await serverClient.updateThread(featureId, sessionId, {
-              status: "resolved",
-            });
-            thread.state = 1; // CommentThreadState.Resolved
-            thread.collapsibleState =
-              vscode.CommentThreadCollapsibleState.Collapsed;
-            outputChannel.appendLine(`Resolved thread ${sessionId}`);
-          } catch (err) {
-            outputChannel.appendLine(`Failed to resolve: ${String(err)}`);
-            void vscode.window.showErrorMessage(
-              `Local Review: Failed to resolve thread — ${String(err)}`,
-            );
-          }
-        },
-      ),
+      // Thread status commands — consolidated handler
+      ...this._registerStatusCommands(getFeatureId, outputChannel),
+    );
+  }
 
-      // Re-open a resolved thread
+  /** Register all thread status change commands (resolve, reopen, wontfix, outdated). */
+  private _registerStatusCommands(
+    getFeatureId: () => string | null,
+    outputChannel: vscode.OutputChannel,
+  ): vscode.Disposable[] {
+    const statusCommands: Array<{
+      command: string;
+      status: SessionThread["status"];
+      label: string;
+    }> = [
+      {
+        command: "local-review.resolveThread",
+        status: "resolved",
+        label: "Resolved",
+      },
+      {
+        command: "local-review.unresolveThread",
+        status: "open",
+        label: "Re-opened",
+      },
+      {
+        command: "local-review.wontfixThread",
+        status: "wontfix",
+        label: "Won't fix",
+      },
+      {
+        command: "local-review.outdatedThread",
+        status: "outdated",
+        label: "Outdated",
+      },
+    ];
+
+    return statusCommands.map(({ command, status, label }) =>
       vscode.commands.registerCommand(
-        "local-review.unresolveThread",
+        command,
         async (thread: vscode.CommentThread) => {
           const featureId = getFeatureId();
           if (!featureId) return;
           const sessionId = this._threadMapper.getSessionId(thread);
           if (!sessionId) return;
+          const closed = status !== "open";
           try {
-            await serverClient.updateThread(featureId, sessionId, {
-              status: "open",
-            });
-            thread.state = 0; // CommentThreadState.Unresolved
-            thread.collapsibleState =
-              vscode.CommentThreadCollapsibleState.Expanded;
-            outputChannel.appendLine(`Re-opened thread ${sessionId}`);
+            this._pendingSkips = 2;
+            await serverClient.updateThread(featureId, sessionId, { status });
+            thread.state = closed ? 1 : 0;
+            thread.collapsibleState = closed
+              ? vscode.CommentThreadCollapsibleState.Collapsed
+              : vscode.CommentThreadCollapsibleState.Expanded;
+            thread.label = CommentManager._statusLabel(status);
+            outputChannel.appendLine(`${label} thread ${sessionId}`);
           } catch (err) {
-            outputChannel.appendLine(`Failed to re-open: ${String(err)}`);
+            outputChannel.appendLine(
+              `Failed to set ${label.toLowerCase()}: ${String(err)}`,
+            );
             void vscode.window.showErrorMessage(
-              `Local Review: Failed to re-open thread — ${String(err)}`,
+              `Local Review: Failed to set ${label.toLowerCase()} — ${String(err)}`,
             );
           }
         },
@@ -343,25 +386,22 @@ export class CommentManager implements vscode.Disposable {
       comments,
     );
 
-    thread.label = undefined;
+    thread.label = CommentManager._statusLabel(sessionThread.status);
 
-    // Resolved threads are collapsed UNLESS the last message is from an agent
+    // Non-open threads are collapsed UNLESS the last message is from an agent
     // (user needs to read the agent's response before deciding next action)
+    const isNonOpen = sessionThread.status !== "open";
     const lastMsg = sessionThread.messages[sessionThread.messages.length - 1];
-    const hasAgentReply =
-      lastMsg?.authorType === "agent" && sessionThread.status === "resolved";
+    const hasAgentReply = lastMsg?.authorType === "agent" && isNonOpen;
 
     thread.collapsibleState =
-      sessionThread.status === "open" || hasAgentReply
+      !isNonOpen || hasAgentReply
         ? vscode.CommentThreadCollapsibleState.Expanded
         : vscode.CommentThreadCollapsibleState.Collapsed;
 
-    // Mark resolved threads as resolved in VS Code
+    // Map all non-open statuses to Resolved in VS Code
     // 0 = Unresolved, 1 = Resolved (CommentThreadState available since VS Code 1.88)
-    thread.state =
-      sessionThread.status === "resolved"
-        ? 1 // CommentThreadState.Resolved
-        : 0; // CommentThreadState.Unresolved
+    thread.state = isNonOpen ? 1 : 0;
 
     return thread;
   }

@@ -16,6 +16,8 @@ import type { Broadcaster } from "../watcher";
 export const THREAD_STATUS = {
   Open: "open",
   Resolved: "resolved",
+  WontFix: "wontfix",
+  Outdated: "outdated",
   Approved: "approved",
 } as const;
 
@@ -217,8 +219,8 @@ function registerSessionCRUD(
       });
     }
 
-    // Also broadcast per-thread completion for real-time sidebar progress
-    if (broadcast && updatedThread.status === THREAD_STATUS.Resolved) {
+    // Broadcast per-thread completion for real-time sidebar progress (all non-open transitions)
+    if (broadcast && updatedThread.status !== THREAD_STATUS.Open) {
       broadcast({
         event: "review:resolve-thread-done",
         data: {
@@ -226,7 +228,7 @@ function registerSessionCRUD(
           threadId,
           filePath: (updatedThread as Record<string, unknown>).filePath ?? "",
           line: (updatedThread as Record<string, unknown>).line ?? 0,
-          outcome: "resolved",
+          outcome: updatedThread.status,
         },
       });
     }

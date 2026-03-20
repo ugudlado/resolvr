@@ -25,7 +25,7 @@ export interface SessionThread {
     lineEnd?: number;
     side: "old" | "new";
   };
-  status: "open" | "resolved" | "approved";
+  status: "open" | "resolved" | "approved" | "wontfix" | "outdated";
   severity: "critical" | "improvement" | "style" | "question";
   messages: SessionMessage[];
   lastUpdatedAt: string;

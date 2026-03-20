@@ -9753,6 +9753,8 @@ function startSessionWatcher(workspaceName, sessionsDir) {
 var THREAD_STATUS = {
   Open: "open",
   Resolved: "resolved",
+  WontFix: "wontfix",
+  Outdated: "outdated",
   Approved: "approved"
 };
 var SESSION_CONFIGS = {
@@ -9864,7 +9866,7 @@ function registerSessionCRUD(app2, config, _sessionType, broadcast3) {
         data: { fileName, session }
       });
     }
-    if (broadcast3 && updatedThread.status === THREAD_STATUS.Resolved) {
+    if (broadcast3 && updatedThread.status !== THREAD_STATUS.Open) {
       broadcast3({
         event: "review:resolve-thread-done",
         data: {
@@ -9872,7 +9874,7 @@ function registerSessionCRUD(app2, config, _sessionType, broadcast3) {
           threadId,
           filePath: updatedThread.filePath ?? "",
           line: updatedThread.line ?? 0,
-          outcome: "resolved"
+          outcome: updatedThread.status
         }
       });
     }
@@ -9954,7 +9956,6 @@ function deriveFeatureStatus(codeSession, hasOpenspecArtifacts) {
   if (codeSession) {
     const codeVerdict = codeSession.reviewVerdict;
     if (codeVerdict === "changes_requested") return "code";
-    if (codeVerdict === "approved") return "complete";
     return "code_review";
   }
   if (hasOpenspecArtifacts) return "design";

@@ -32,11 +32,11 @@ import { DiffThreadNav } from "../components/diff/DiffThreadNav";
 import {
   AuthorType,
   REVIEW_VERDICT,
-  THREAD_STATUS,
   type ReviewThread as SessionReviewThread,
 } from "../types/sessions";
 import { APP_NAME, APP_VERSION } from "../config/app";
 import { scrollDiffToLine } from "../utils/keyboardUtils";
+import { isClosed } from "../utils/threadStatus";
 import { ShortcutHelp } from "../components/shared/ShortcutHelp";
 import { CommandPalette } from "../components/shared/CommandPalette";
 import { ThreadProgressRing } from "../components/shared/ThreadProgressRing";
@@ -407,12 +407,8 @@ export function ReviewPage({
     let pending = 0;
     let resolved = 0;
     for (const t of threads) {
-      if (t.status === THREAD_STATUS.Open) pending++;
-      else if (
-        t.status === THREAD_STATUS.Resolved ||
-        t.status === THREAD_STATUS.Approved
-      )
-        resolved++;
+      if (isClosed(t.status)) resolved++;
+      else pending++;
     }
     return { pendingCount: pending, resolvedCount: resolved };
   }, [threads]);
@@ -698,8 +694,8 @@ export function ReviewPage({
         const targetLine = thread.lineEnd ?? thread.line;
         scrollDiffToLine(panel, targetLine, thread.side ?? "new");
       },
-      onThreadResolve: (threadId) => updateThreadStatus(threadId, "resolved"),
-      onThreadReopen: (threadId) => updateThreadStatus(threadId, "open"),
+      onThreadStatusChange: (threadId, status) =>
+        updateThreadStatus(threadId, status),
       onOpenPalette: () => setPaletteOpen(true),
     });
 
@@ -1147,6 +1143,7 @@ export function ReviewPage({
         {/* Right panel — threads */}
         <DiffThreadNav
           threads={threads}
+          outdatedThreadIds={outdatedThreadIds}
           onThreadClick={(thread) => {
             setSelectedFilePath(thread.filePath);
             // After file switch + re-render, scroll to the thread's line

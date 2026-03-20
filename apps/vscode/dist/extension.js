@@ -2440,7 +2440,7 @@ var require_extension = __commonJS({
 var require_websocket = __commonJS({
   "../../node_modules/.pnpm/ws@8.19.0_bufferutil@4.0.9/node_modules/ws/lib/websocket.js"(exports2, module2) {
     "use strict";
-    var EventEmitter6 = require("events");
+    var EventEmitter7 = require("events");
     var https2 = require("https");
     var http2 = require("http");
     var net = require("net");
@@ -2472,7 +2472,7 @@ var require_websocket = __commonJS({
     var protocolVersions = [8, 13];
     var readyStates = ["CONNECTING", "OPEN", "CLOSING", "CLOSED"];
     var subprotocolRegex = /^[!#$%&'*+\-.0-9A-Z^_`|a-z~]+$/;
-    var WebSocket2 = class _WebSocket extends EventEmitter6 {
+    var WebSocket2 = class _WebSocket extends EventEmitter7 {
       /**
        * Create a new `WebSocket`.
        *
@@ -3469,7 +3469,7 @@ var require_subprotocol = __commonJS({
 var require_websocket_server = __commonJS({
   "../../node_modules/.pnpm/ws@8.19.0_bufferutil@4.0.9/node_modules/ws/lib/websocket-server.js"(exports2, module2) {
     "use strict";
-    var EventEmitter6 = require("events");
+    var EventEmitter7 = require("events");
     var http2 = require("http");
     var { Duplex } = require("stream");
     var { createHash: createHash2 } = require("crypto");
@@ -3482,7 +3482,7 @@ var require_websocket_server = __commonJS({
     var RUNNING = 0;
     var CLOSING = 1;
     var CLOSED = 2;
-    var WebSocketServer2 = class extends EventEmitter6 {
+    var WebSocketServer2 = class extends EventEmitter7 {
       /**
        * Create a `WebSocketServer` instance.
        *
@@ -3865,7 +3865,7 @@ __export(extension_exports, {
   deactivate: () => deactivate
 });
 module.exports = __toCommonJS(extension_exports);
-var vscode10 = __toESM(require("vscode"));
+var vscode11 = __toESM(require("vscode"));
 var import_child_process3 = require("child_process");
 var import_util3 = require("util");
 var path2 = __toESM(require("path"));
@@ -4304,7 +4304,24 @@ var SCHEME_BASE = "local-review-base";
 var SCHEME_EMPTY = "local-review-empty";
 
 // src/commentManager.ts
-var CommentManager = class {
+var CommentManager = class _CommentManager {
+  /**
+   * Number of incoming reconcile calls to skip.
+   * Each outbound action (create, reply, status change) sets this to 2
+   * to absorb the server broadcast echo AND the browser auto-save echo.
+   * Decremented on each skipped loadThreads call. Resets to 0 naturally.
+   */
+  _pendingSkips = 0;
+  static STATUS_LABELS = {
+    open: void 0,
+    resolved: "Resolved",
+    wontfix: "Won't Fix",
+    outdated: "Outdated",
+    approved: "Resolved"
+  };
+  static _statusLabel(status) {
+    return _CommentManager.STATUS_LABELS[status];
+  }
   _controller;
   _threadMapper;
   _workspaceRoot;
@@ -4334,6 +4351,10 @@ var CommentManager = class {
     };
   }
   loadThreads(threads) {
+    if (this._pendingSkips > 0) {
+      this._pendingSkips--;
+      return;
+    }
     this._threadMapper.reconcile(threads, (t) => this._createVSCodeThread(t));
   }
   /**
@@ -4392,6 +4413,7 @@ var CommentManager = class {
             );
             await serverClient.createThread(featureId, sessionThread);
             thread.dispose();
+            this._pendingSkips = 1;
             outputChannel.appendLine(
               `Created thread ${sessionThread.id} on ${sessionThread.anchor.path}:${sessionThread.anchor.line}`
             );
@@ -4434,6 +4456,7 @@ var CommentManager = class {
             createdAt: now
           };
           try {
+            this._pendingSkips = 2;
             await serverClient.updateThread(featureId, sessionId, {
               messages: [newMessage]
             });
@@ -4450,48 +4473,55 @@ var CommentManager = class {
           }
         }
       ),
-      // Resolve a thread
-      vscode5.commands.registerCommand(
-        "local-review.resolveThread",
+      ...this._registerStatusCommands(getFeatureId, outputChannel)
+    );
+  }
+  /** Register all thread status change commands (resolve, reopen, wontfix, outdated). */
+  _registerStatusCommands(getFeatureId, outputChannel) {
+    const statusCommands = [
+      {
+        command: "local-review.resolveThread",
+        status: "resolved",
+        label: "Resolved"
+      },
+      {
+        command: "local-review.unresolveThread",
+        status: "open",
+        label: "Re-opened"
+      },
+      {
+        command: "local-review.wontfixThread",
+        status: "wontfix",
+        label: "Won't fix"
+      },
+      {
+        command: "local-review.outdatedThread",
+        status: "outdated",
+        label: "Outdated"
+      }
+    ];
+    return statusCommands.map(
+      ({ command, status, label }) => vscode5.commands.registerCommand(
+        command,
         async (thread) => {
           const featureId = getFeatureId();
           if (!featureId) return;
           const sessionId = this._threadMapper.getSessionId(thread);
           if (!sessionId) return;
+          const closed = status !== "open";
           try {
-            await serverClient.updateThread(featureId, sessionId, {
-              status: "resolved"
-            });
-            thread.state = 1;
-            thread.collapsibleState = vscode5.CommentThreadCollapsibleState.Collapsed;
-            outputChannel.appendLine(`Resolved thread ${sessionId}`);
+            this._pendingSkips = 2;
+            await serverClient.updateThread(featureId, sessionId, { status });
+            thread.state = closed ? 1 : 0;
+            thread.collapsibleState = closed ? vscode5.CommentThreadCollapsibleState.Collapsed : vscode5.CommentThreadCollapsibleState.Expanded;
+            thread.label = _CommentManager._statusLabel(status);
+            outputChannel.appendLine(`${label} thread ${sessionId}`);
           } catch (err) {
-            outputChannel.appendLine(`Failed to resolve: ${String(err)}`);
-            void vscode5.window.showErrorMessage(
-              `Local Review: Failed to resolve thread \u2014 ${String(err)}`
+            outputChannel.appendLine(
+              `Failed to set ${label.toLowerCase()}: ${String(err)}`
             );
-          }
-        }
-      ),
-      // Re-open a resolved thread
-      vscode5.commands.registerCommand(
-        "local-review.unresolveThread",
-        async (thread) => {
-          const featureId = getFeatureId();
-          if (!featureId) return;
-          const sessionId = this._threadMapper.getSessionId(thread);
-          if (!sessionId) return;
-          try {
-            await serverClient.updateThread(featureId, sessionId, {
-              status: "open"
-            });
-            thread.state = 0;
-            thread.collapsibleState = vscode5.CommentThreadCollapsibleState.Expanded;
-            outputChannel.appendLine(`Re-opened thread ${sessionId}`);
-          } catch (err) {
-            outputChannel.appendLine(`Failed to re-open: ${String(err)}`);
             void vscode5.window.showErrorMessage(
-              `Local Review: Failed to re-open thread \u2014 ${String(err)}`
+              `Local Review: Failed to set ${label.toLowerCase()} \u2014 ${String(err)}`
             );
           }
         }
@@ -4573,11 +4603,12 @@ var CommentManager = class {
       range,
       comments2
     );
-    thread.label = void 0;
+    thread.label = _CommentManager._statusLabel(sessionThread.status);
+    const isNonOpen = sessionThread.status !== "open";
     const lastMsg = sessionThread.messages[sessionThread.messages.length - 1];
-    const hasAgentReply = lastMsg?.authorType === "agent" && sessionThread.status === "resolved";
-    thread.collapsibleState = sessionThread.status === "open" || hasAgentReply ? vscode5.CommentThreadCollapsibleState.Expanded : vscode5.CommentThreadCollapsibleState.Collapsed;
-    thread.state = sessionThread.status === "resolved" ? 1 : 0;
+    const hasAgentReply = lastMsg?.authorType === "agent" && isNonOpen;
+    thread.collapsibleState = !isNonOpen || hasAgentReply ? vscode5.CommentThreadCollapsibleState.Expanded : vscode5.CommentThreadCollapsibleState.Collapsed;
+    thread.state = isNonOpen ? 1 : 0;
     return thread;
   }
   _createComment(msg) {
@@ -5088,12 +5119,109 @@ var DiffPanelManager = class {
   }
 };
 
+// src/threadsTree.ts
+var vscode10 = __toESM(require("vscode"));
+var STATUS_GROUPS = [
+  {
+    status: "open",
+    label: "Open",
+    icon: "circle-filled",
+    color: "list.warningForeground"
+  },
+  {
+    status: "resolved",
+    label: "Resolved",
+    icon: "check",
+    color: "testing.iconPassed"
+  },
+  {
+    status: "wontfix",
+    label: "Won't Fix",
+    icon: "circle-slash",
+    color: "disabledForeground"
+  },
+  {
+    status: "outdated",
+    label: "Outdated",
+    icon: "history",
+    color: "editorInfo.foreground"
+  }
+];
+var ThreadsTreeProvider = class {
+  _onDidChangeTreeData = new vscode10.EventEmitter();
+  onDidChangeTreeData = this._onDidChangeTreeData.event;
+  _threads = [];
+  updateThreads(threads) {
+    this._threads = threads;
+    this._onDidChangeTreeData.fire();
+  }
+  getTreeItem(element) {
+    if (element.kind === "group") {
+      const item2 = new vscode10.TreeItem(
+        `${element.label} (${element.threads.length})`,
+        element.threads.length > 0 ? vscode10.TreeItemCollapsibleState.Expanded : vscode10.TreeItemCollapsibleState.None
+      );
+      item2.iconPath = new vscode10.ThemeIcon(
+        element.icon,
+        new vscode10.ThemeColor(element.color)
+      );
+      item2.contextValue = "threadGroup";
+      return item2;
+    }
+    const t = element.thread;
+    const raw = t;
+    const filePath = t.anchor?.path ?? (typeof raw.filePath === "string" ? raw.filePath : "") ?? "";
+    const fileName = filePath ? filePath.split("/").pop() ?? filePath : "unknown";
+    const line = t.anchor?.line ?? (typeof raw.line === "number" ? raw.line : 0);
+    const preview = t.messages[0]?.text.slice(0, 60).replace(/\n/g, " ") ?? "";
+    const item = new vscode10.TreeItem(
+      `${fileName}:${line}`,
+      vscode10.TreeItemCollapsibleState.None
+    );
+    item.description = preview;
+    item.tooltip = `${filePath}:${line}
+${preview}`;
+    item.iconPath = new vscode10.ThemeIcon("comment");
+    if (filePath) {
+      item.command = {
+        command: "local-review.goToThread",
+        title: "Go to Thread",
+        arguments: [filePath, line]
+      };
+    }
+    return item;
+  }
+  getChildren(element) {
+    if (!element) {
+      return this._buildGroups().filter((g) => g.threads.length > 0);
+    }
+    if (element.kind === "group") {
+      return element.threads.map((thread) => ({
+        kind: "thread",
+        thread
+      }));
+    }
+    return [];
+  }
+  getParent(_element) {
+    return void 0;
+  }
+  _buildGroups() {
+    const normalize = (s) => s === "approved" ? "resolved" : s;
+    return STATUS_GROUPS.map((def) => ({
+      kind: "group",
+      ...def,
+      threads: this._threads.filter((t) => normalize(t.status) === def.status)
+    }));
+  }
+};
+
 // src/extension.ts
 var execFileAsync3 = (0, import_util3.promisify)(import_child_process3.execFile);
 function activate(context) {
-  const outputChannel = vscode10.window.createOutputChannel("Local Review");
+  const outputChannel = vscode11.window.createOutputChannel("Local Review");
   outputChannel.appendLine("Local Review extension activated");
-  const workspaceRoot = vscode10.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  const workspaceRoot = vscode11.workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (!workspaceRoot) {
     outputChannel.appendLine("No workspace folder found \u2014 going dormant");
     return;
@@ -5101,11 +5229,11 @@ function activate(context) {
   const baseProvider = new BaseContentProvider(workspaceRoot);
   const emptyProvider = new EmptyContentProvider();
   context.subscriptions.push(
-    vscode10.workspace.registerTextDocumentContentProvider(
+    vscode11.workspace.registerTextDocumentContentProvider(
       SCHEME_BASE,
       baseProvider
     ),
-    vscode10.workspace.registerTextDocumentContentProvider(
+    vscode11.workspace.registerTextDocumentContentProvider(
       SCHEME_EMPTY,
       emptyProvider
     ),
@@ -5120,12 +5248,18 @@ function activate(context) {
     baseProvider,
     outputChannel
   );
+  const threadsTree = new ThreadsTreeProvider();
+  const threadsTreeView = vscode11.window.createTreeView("localReview.threads", {
+    treeDataProvider: threadsTree,
+    showCollapseAll: true
+  });
   context.subscriptions.push(
     statusBar,
     featureDetector,
     commentManager,
     wsClient,
     diffPanelManager,
+    threadsTreeView,
     outputChannel
   );
   commentManager.setupCommentHandlers(
@@ -5147,6 +5281,7 @@ function activate(context) {
       commentManager.loadThreads(threads);
       statusBar.updateThreadCount(threads.length);
       diffPanelManager.updateThreadCounts(threads);
+      threadsTree.updateThreads(threads);
     }),
     // Resolver progress events — update status bar during resolve runs
     wsClient.on("review:resolve-started", (data) => {
@@ -5226,6 +5361,7 @@ function activate(context) {
     const openThreads = threads.filter((t) => t.status === "open").length;
     commentManager.loadThreads(threads);
     statusBar.setConnected(threads.length);
+    threadsTree.updateThreads(threads);
     outputChannel.appendLine(
       `Session loaded: ${session.threads.length} threads (${openThreads} open)`
     );
@@ -5240,6 +5376,7 @@ function activate(context) {
     currentFeatureId = newFeatureId;
     if (!newFeatureId) {
       commentManager.loadThreads([]);
+      threadsTree.updateThreads([]);
       diffPanelManager.close();
       statusBar.setNoFeature();
       return;
@@ -5247,6 +5384,7 @@ function activate(context) {
     const connected = await serverClient.checkConnection();
     if (!connected) {
       commentManager.loadThreads([]);
+      threadsTree.updateThreads([]);
       diffPanelManager.close();
       statusBar.setDisconnected();
       return;
@@ -5254,12 +5392,14 @@ function activate(context) {
     const session = await serverClient.getSession(newFeatureId);
     if (!session) {
       commentManager.loadThreads([]);
+      threadsTree.updateThreads([]);
       diffPanelManager.close();
       statusBar.setNoSession();
       return;
     }
     const threads = session.threads ?? [];
     commentManager.loadThreads(threads);
+    threadsTree.updateThreads(threads);
     statusBar.setConnected(threads.length);
     await diffPanelManager.populate(newFeatureId);
     diffPanelManager.updateThreadCounts(threads);
@@ -5268,30 +5408,30 @@ function activate(context) {
     );
   });
   context.subscriptions.push(
-    vscode10.commands.registerCommand("local-review.refresh", () => {
+    vscode11.commands.registerCommand("local-review.refresh", () => {
       outputChannel.appendLine("Refresh command invoked");
       void init();
     }),
-    vscode10.commands.registerCommand("local-review.connect", () => {
+    vscode11.commands.registerCommand("local-review.connect", () => {
       outputChannel.appendLine("Connect command invoked");
       void init();
     }),
-    vscode10.commands.registerCommand("local-review.disconnect", () => {
+    vscode11.commands.registerCommand("local-review.disconnect", () => {
       outputChannel.appendLine("Disconnect command invoked");
       wsClient.disconnect();
       statusBar.setDisconnected();
     }),
-    vscode10.commands.registerCommand("local-review.startReview", async () => {
+    vscode11.commands.registerCommand("local-review.startReview", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) {
-        void vscode10.window.showWarningMessage(
+        void vscode11.window.showWarningMessage(
           "No feature branch detected. Switch to a feature/* branch first."
         );
         return;
       }
       const existing = await serverClient.getSession(featureId);
       if (existing) {
-        void vscode10.window.showInformationMessage(
+        void vscode11.window.showInformationMessage(
           "Review session already exists for this feature."
         );
         return;
@@ -5317,21 +5457,21 @@ function activate(context) {
         wsClient.connect();
         currentFeatureId = featureId;
         outputChannel.appendLine("Review session created");
-        void vscode10.window.showInformationMessage(
+        void vscode11.window.showInformationMessage(
           `Review session created for ${featureId}`
         );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         outputChannel.appendLine(`Failed to create session: ${msg}`);
-        void vscode10.window.showErrorMessage(
+        void vscode11.window.showErrorMessage(
           `Failed to create review session: ${msg}`
         );
       }
     }),
-    vscode10.commands.registerCommand("local-review.requestChanges", async () => {
+    vscode11.commands.registerCommand("local-review.requestChanges", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) {
-        void vscode10.window.showWarningMessage("No active feature.");
+        void vscode11.window.showWarningMessage("No active feature.");
         return;
       }
       outputChannel.appendLine(
@@ -5361,24 +5501,24 @@ function activate(context) {
       }
     }),
     // Diff panel commands
-    vscode10.commands.registerCommand("local-review.openDiff", async () => {
+    vscode11.commands.registerCommand("local-review.openDiff", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) {
-        void vscode10.window.showWarningMessage(
+        void vscode11.window.showWarningMessage(
           "No feature branch detected. Switch to a feature/* branch first."
         );
         return;
       }
       const connected = await serverClient.checkConnection();
       if (!connected) {
-        void vscode10.window.showErrorMessage(
+        void vscode11.window.showErrorMessage(
           "Local Review server is not reachable."
         );
         return;
       }
       await diffPanelManager.open(featureId);
     }),
-    vscode10.commands.registerCommand(
+    vscode11.commands.registerCommand(
       "local-review.openDiffFile",
       async (file) => {
         if (file && typeof file === "object" && "path" in file) {
@@ -5388,12 +5528,33 @@ function activate(context) {
         }
       }
     ),
-    vscode10.commands.registerCommand("local-review.refreshDiff", async () => {
+    vscode11.commands.registerCommand(
+      "local-review.goToThread",
+      async (filePath, line) => {
+        await diffPanelManager.openFile({
+          path: filePath,
+          oldPath: filePath,
+          newPath: filePath,
+          status: "M"
+        });
+        setTimeout(() => {
+          const editor = vscode11.window.activeTextEditor;
+          if (editor) {
+            const pos = new vscode11.Position(Math.max(0, line - 1), 0);
+            editor.revealRange(
+              new vscode11.Range(pos, pos),
+              vscode11.TextEditorRevealType.InCenter
+            );
+          }
+        }, 300);
+      }
+    ),
+    vscode11.commands.registerCommand("local-review.refreshDiff", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) return;
       await diffPanelManager.refresh(featureId);
     }),
-    vscode10.commands.registerCommand("local-review.closeDiff", () => {
+    vscode11.commands.registerCommand("local-review.closeDiff", () => {
       diffPanelManager.close();
     })
   );
