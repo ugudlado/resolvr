@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [2.0.4] - 2026-03-21
+
+### Server
+
+- Added health check endpoint with version detection for robust server health verification
+
+### Plugin
+
+- Enhanced session-start hook with version-aware health checks to prevent reusing stale processes from previous versions
+
+* Simplified cache cleanup to use mtime-based version detection, removing dependency on installed_plugins.json
+
 ## [2.0.3] - 2026-03-21
 
 ### Plugin

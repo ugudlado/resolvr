@@ -10538,6 +10538,20 @@ app.post("/api/workspaces/register", async (c) => {
   }
   return c.json({ ok: true, added: result.added, workspace: result.workspace });
 });
+app.get("/api/health", async (c) => {
+  const pluginJsonPath = path12.resolve(
+    repoRoot,
+    ".claude-plugin",
+    "plugin.json"
+  );
+  let version = "unknown";
+  try {
+    const raw2 = await fs12.readFile(pluginJsonPath, "utf-8");
+    version = JSON.parse(raw2).version ?? "unknown";
+  } catch {
+  }
+  return c.json({ status: "ok", version });
+});
 ensureRegistered(repoRoot);
 app.post("/api/resolver/cold-start", (c) => {
   void coldStart(repoRoot);
