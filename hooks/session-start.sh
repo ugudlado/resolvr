@@ -7,9 +7,18 @@ SERVER_ALREADY_RUNNING=false
 # Clean up old cached versions (blocking — may kill server running from old version)
 cleanup_result=$("${BASH_SOURCE%/*}/cleanup-cache.sh" 2>>/tmp/local-review-cleanup.log) || true
 
-# Check if server is already running (unless cleanup just killed it)
+# Check if server is already running AND healthy (unless cleanup just killed it)
 if [ "$cleanup_result" != "SERVER_KILLED" ] && lsof -i :"$PORT" -sTCP:LISTEN &>/dev/null; then
-  SERVER_ALREADY_RUNNING=true
+  if curl -s --max-time 2 "http://localhost:$PORT/api/health" >/dev/null 2>&1; then
+    SERVER_ALREADY_RUNNING=true
+  else
+    # Port occupied but server not responding — kill the stale process
+    STALE_PID=$(lsof -ti :"$PORT" -sTCP:LISTEN 2>/dev/null || true)
+    if [ -n "$STALE_PID" ]; then
+      kill "$STALE_PID" 2>/dev/null || true
+      sleep 1
+    fi
+  fi
 fi
 
 if [ "$SERVER_ALREADY_RUNNING" = false ]; then
