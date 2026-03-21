@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Start the local-review server in the background if it's not already running.
+# Ensures the latest version is always running — kills older versions.
 set -euo pipefail
 
 PORT=37003
@@ -7,12 +9,36 @@ SERVER_ALREADY_RUNNING=false
 # Clean up old cached versions (blocking — may kill server running from old version)
 cleanup_result=$("${BASH_SOURCE%/*}/cleanup-cache.sh" 2>>/tmp/local-review-cleanup.log) || true
 
-# Check if server is already running AND healthy (unless cleanup just killed it)
+# Determine where to run from: live repo (dev) or latest cached version (by mtime)
+LIVE_REPO="$HOME/code/review"
+CACHE_DIR="$HOME/.claude/plugins/cache/ugudlado/local-review"
+PLUGIN_ROOT=""
+
+if [ -f "$LIVE_REPO/apps/server/dist/index.js" ]; then
+  PLUGIN_ROOT="$LIVE_REPO"
+else
+  latest_dir=$(ls -dt "$CACHE_DIR"/*/ 2>/dev/null | head -1)
+  if [ -n "$latest_dir" ] && [ -f "$latest_dir/apps/server/dist/index.js" ]; then
+    PLUGIN_ROOT="$latest_dir"
+  fi
+fi
+
+if [ -z "$PLUGIN_ROOT" ]; then
+  exit 0
+fi
+
+# Read the version we expect to be running
+expected_version=$(python3 -c "import json; print(json.load(open('$PLUGIN_ROOT/.claude-plugin/plugin.json')).get('version',''))" 2>/dev/null || true)
+
+# Check if server is already running AND is the right version (unless cleanup just killed it)
 if [ "$cleanup_result" != "SERVER_KILLED" ] && lsof -i :"$PORT" -sTCP:LISTEN &>/dev/null; then
-  if curl -s --max-time 2 "http://localhost:$PORT/api/health" >/dev/null 2>&1; then
+  running_version=$(curl -s --max-time 2 "http://localhost:$PORT/api/health" 2>/dev/null \
+    | python3 -c "import json,sys; print(json.load(sys.stdin).get('version',''))" 2>/dev/null || true)
+
+  if [ -n "$expected_version" ] && [ "$running_version" = "$expected_version" ]; then
     SERVER_ALREADY_RUNNING=true
   else
-    # Port occupied but server not responding — kill the stale process
+    # Wrong version or unresponsive — kill it
     STALE_PID=$(lsof -ti :"$PORT" -sTCP:LISTEN 2>/dev/null || true)
     if [ -n "$STALE_PID" ]; then
       kill "$STALE_PID" 2>/dev/null || true
@@ -22,18 +48,6 @@ if [ "$cleanup_result" != "SERVER_KILLED" ] && lsof -i :"$PORT" -sTCP:LISTEN &>/
 fi
 
 if [ "$SERVER_ALREADY_RUNNING" = false ]; then
-  # Prefer the live repo if it exists (for local development), otherwise find in cache
-  LIVE_REPO="$HOME/code/review"
-  if [ -f "$LIVE_REPO/apps/server/dist/index.js" ]; then
-    PLUGIN_ROOT="$LIVE_REPO"
-  else
-    PLUGIN_ROOT=$(find ~/.claude/plugins/cache -name "index.js" -path "*/local-review/*/apps/server/dist/index.js" 2>/dev/null | head -1 | sed 's|/apps/server/dist/index.js||')
-  fi
-
-  if [ -z "$PLUGIN_ROOT" ]; then
-    exit 0
-  fi
-
   # Start the standalone server in the background (serves API + static UI dist/)
   cd "$PLUGIN_ROOT"
   nohup node apps/server/dist/index.js >/tmp/local-review-server.log 2>&1 &
