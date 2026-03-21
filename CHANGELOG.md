@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [2.0.3] - 2026-03-21
+
+### Plugin
+
+! Fixed stale server process zombie issue - session-start hook now verifies server health and cleans up unhealthy processes occupying the port
+
 ## [2.0.2] - 2026-03-21
 
 ### Plugin
