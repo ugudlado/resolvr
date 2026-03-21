@@ -95,6 +95,22 @@ app.post("/api/workspaces/register", async (c) => {
   return c.json({ ok: true, added: result.added, workspace: result.workspace });
 });
 
+app.get("/api/health", async (c) => {
+  const pluginJsonPath = path.resolve(
+    repoRoot,
+    ".claude-plugin",
+    "plugin.json",
+  );
+  let version = "unknown";
+  try {
+    const raw = await fs.readFile(pluginJsonPath, "utf-8");
+    version = JSON.parse(raw).version ?? "unknown";
+  } catch {
+    // plugin.json not found
+  }
+  return c.json({ status: "ok", version });
+});
+
 // Register the plugin repo on startup WITHOUT touching lastActive
 ensureRegistered(repoRoot);
 
