@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "local-code-review",
-      "version": "2.0.6",
+      "version": "2.0.7",
       "source": ".",
       "description": "Local Code Review — GitHub-style threaded code review. Claude can read review sessions, reply to threads, apply fixes, and resolve open questions."
     }

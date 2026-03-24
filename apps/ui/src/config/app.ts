@@ -1,5 +1,5 @@
 export const APP_NAME = "Local Review";
-export const APP_VERSION = "2.0.6";
+export const APP_VERSION = "2.0.7";
 
 /** Base path for all API requests. */
 export const API_BASE = "/api";

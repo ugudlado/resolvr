@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 2.0.7 — 2026-03-24
+
+- Updated repository URLs from ugudlado/local-review to ugudlado/local-code-review
+
 ## 2.0.6 — 2026-03-24
 
 - Improved VS Code extension README with clearer Claude integration instructions
