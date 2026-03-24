@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 2.0.6 — 2026-03-24
+
+- Improved VS Code extension README with clearer Claude integration instructions
+- Renamed VS Code extension ID to ugudlado.local-code-review and added marketplace README
+
 ## 2.0.5 — 2026-03-24
 
 ### Plugin

@@ -2,7 +2,7 @@
   "name": "local-code-review",
   "displayName": "Local Code Review",
   "description": "Review code, leave threaded comments, and let Claude resolve them — right in VS Code.",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "publisher": "ugudlado",
   "repository": {
     "type": "git",

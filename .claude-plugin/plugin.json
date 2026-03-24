@@ -1,6 +1,6 @@
 {
   "name": "local-code-review",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "description": "Local Code Review — GitHub-style threaded code review. Claude can read review sessions, reply to threads, apply fixes, and resolve open questions.",
   "author": {
     "name": "Mahesh"
