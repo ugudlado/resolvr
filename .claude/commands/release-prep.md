@@ -119,7 +119,26 @@ cd $HOME/code/review
 git tag vx.y.z
 ```
 
-### 8. Push and Create GitHub Release
+### 8. Publish to VS Code Marketplace
+
+Publish the extension to the VS Code Marketplace using the prebuilt `.vsix` from step 6:
+
+```bash
+cd apps/vscode
+VSIX_PATH="local-review-vscode-$(node -p "require('./package.json').version").vsix"
+pnpm exec vsce publish --pat "$VSCE_PAT" --packagePath "$VSIX_PATH"
+```
+
+The `--packagePath` flag publishes the exact same `.vsix` that will be attached to the GitHub release, ensuring both distributions are identical.
+
+If the publish fails, do NOT block the GitHub release — continue to step 9:
+
+- **`VSCE_PAT` not set**: Skip with warning: "VSCE_PAT not set — skipping marketplace publish. Run manually after setting the env var."
+- **PAT expired**: Skip with message pointing to https://dev.azure.com > User Settings > Personal Access Tokens to regenerate.
+- **Network error**: Retry once. If still failing, skip and note in report.
+- **Version already published**: Skip — non-fatal. GitHub release still proceeds.
+
+### 9. Push and Create GitHub Release
 
 Push commits and tags, then create a GitHub release with the `.vsix` asset:
 
@@ -149,7 +168,7 @@ Verify the release was created:
 gh release view vx.y.z
 ```
 
-### 9. Report
+### 10. Report
 
 Output:
 
@@ -159,5 +178,8 @@ Output:
 - VS Code extension `.vsix` path and size
 - Tag name created
 - GitHub release URL
+- VS Code Marketplace publish status (published / skipped with reason)
 - Remind user to:
-  - Install the `.vsix` via `code --install-extension apps/vscode/local-review-vscode-x.y.z.vsix`
+  - Install via marketplace: `code --install-extension ugudlado.local-review-vscode`
+  - Or install from `.vsix`: `code --install-extension apps/vscode/local-review-vscode-x.y.z.vsix`
+  - Verify marketplace listing at: https://marketplace.visualstudio.com/items?itemName=ugudlado.local-review-vscode

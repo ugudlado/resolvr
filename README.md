@@ -63,7 +63,13 @@ Review code without leaving your editor. The extension surfaces review sessions 
 
 The extension works serverlessly — it reads and writes session files directly, with no server dependency. File watchers keep everything in sync: comments added in the browser appear in VS Code, and vice versa.
 
-Install the `.vsix` from the [latest release](https://github.com/ugudlado/local-review/releases):
+Install from the VS Code Marketplace:
+
+```bash
+code --install-extension ugudlado.local-review-vscode
+```
+
+Or install manually from the [latest release](https://github.com/ugudlado/local-review/releases):
 
 ```bash
 code --install-extension local-review-vscode-<version>.vsix
