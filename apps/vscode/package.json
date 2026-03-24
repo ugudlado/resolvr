@@ -4,6 +4,11 @@
   "description": "Inline code review annotations synced with the local-review browser UI",
   "version": "2.0.4",
   "publisher": "ugudlado",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ugudlado/local-review"
+  },
+  "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
   },
