@@ -1,4 +1,4 @@
-# local-review
+# Local Code Review
 
 Local code review for Claude Code — review diffs, leave threaded comments, and let Claude resolve them. Works across three surfaces that share the same review sessions:
 

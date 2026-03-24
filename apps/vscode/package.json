@@ -1,6 +1,6 @@
 {
   "name": "local-review-vscode",
-  "displayName": "Local Review",
+  "displayName": "Local Code Review",
   "description": "Inline code review annotations synced with the local-review browser UI",
   "version": "2.0.4",
   "publisher": "ugudlado",
