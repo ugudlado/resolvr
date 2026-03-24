@@ -69,7 +69,7 @@ Install from the VS Code Marketplace:
 code --install-extension ugudlado.local-review-vscode
 ```
 
-Or install manually from the [latest release](https://github.com/ugudlado/local-review/releases):
+Or download from the [latest release](https://github.com/ugudlado/local-review/releases) and install manually:
 
 ```bash
 code --install-extension local-review-vscode-<version>.vsix

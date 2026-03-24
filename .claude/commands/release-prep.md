@@ -126,17 +126,23 @@ Publish the extension to the VS Code Marketplace using the prebuilt `.vsix` from
 ```bash
 cd apps/vscode
 VSIX_PATH="local-review-vscode-$(node -p "require('./package.json').version").vsix"
-pnpm exec vsce publish --pat "$VSCE_PAT" --packagePath "$VSIX_PATH"
+if [ -z "$VSCE_PAT" ]; then
+  echo "MARKETPLACE_STATUS=skipped: VSCE_PAT not set — run manually after setting the env var."
+else
+  pnpm exec vsce publish --pat "$VSCE_PAT" --packagePath "$VSIX_PATH" \
+    && echo "MARKETPLACE_STATUS=published" \
+    || echo "MARKETPLACE_STATUS=failed — see output above. GitHub release proceeding."
+fi
 ```
 
-The `--packagePath` flag publishes the exact same `.vsix` that will be attached to the GitHub release, ensuring both distributions are identical.
+The `--packagePath` flag publishes the exact same `.vsix` that will be attached to the GitHub release, ensuring both distributions are identical. The publish step is **non-blocking** — any failure echoes a status and proceeds to step 9.
 
-If the publish fails, do NOT block the GitHub release — continue to step 9:
+Common failure modes:
 
-- **`VSCE_PAT` not set**: Skip with warning: "VSCE_PAT not set — skipping marketplace publish. Run manually after setting the env var."
-- **PAT expired**: Skip with message pointing to https://dev.azure.com > User Settings > Personal Access Tokens to regenerate.
-- **Network error**: Retry once. If still failing, skip and note in report.
-- **Version already published**: Skip — non-fatal. GitHub release still proceeds.
+- **`VSCE_PAT` not set**: Guarded above — skips with message. Set `export VSCE_PAT="<token>"` in `~/.zshrc` and publish manually.
+- **PAT expired**: `vsce` will fail with an auth error. Regenerate at https://dev.azure.com > User Settings > Personal Access Tokens.
+- **Network error**: Retry the command once. If still failing, note in report and proceed.
+- **Version already published**: Non-fatal. GitHub release still proceeds.
 
 ### 9. Push and Create GitHub Release
 
