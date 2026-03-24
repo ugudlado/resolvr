@@ -66,7 +66,7 @@ The extension works serverlessly — it reads and writes session files directly,
 Install from the VS Code Marketplace:
 
 ```bash
-code --install-extension ugudlado.local-review-vscode
+code --install-extension ugudlado.local-code-review
 ```
 
 Or download from the [latest release](https://github.com/ugudlado/local-review/releases) and install manually:

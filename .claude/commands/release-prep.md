@@ -93,7 +93,7 @@ cd apps/vscode
 pnpm exec vsce package --no-dependencies
 ```
 
-This produces `apps/vscode/local-review-vscode-x.y.z.vsix`. Verify the file was created and the version in the filename matches.
+This produces `apps/vscode/local-code-review-x.y.z.vsix`. Verify the file was created and the version in the filename matches.
 
 ### 7. Commit and Tag
 
@@ -125,7 +125,7 @@ Publish the extension to the VS Code Marketplace using the prebuilt `.vsix` from
 
 ```bash
 cd apps/vscode
-VSIX_PATH="local-review-vscode-$(node -p "require('./package.json').version").vsix"
+VSIX_PATH="local-code-review-$(node -p "require('./package.json').version").vsix"
 if [ -z "$VSCE_PAT" ]; then
   echo "MARKETPLACE_STATUS=skipped: VSCE_PAT not set — run manually after setting the env var."
 else
@@ -163,7 +163,7 @@ Extract the changelog entry for this version (everything between the `## x.y.z` 
 ```bash
 cd $HOME/code/review
 gh release create vx.y.z \
-  apps/vscode/local-review-vscode-x.y.z.vsix \
+  apps/vscode/local-code-review-x.y.z.vsix \
   --title "vx.y.z" \
   --notes-file <temp-changelog-file>
 ```
@@ -186,6 +186,6 @@ Output:
 - GitHub release URL
 - VS Code Marketplace publish status (published / skipped with reason)
 - Remind user to:
-  - Install via marketplace: `code --install-extension ugudlado.local-review-vscode`
-  - Or install from `.vsix`: `code --install-extension apps/vscode/local-review-vscode-x.y.z.vsix`
-  - Verify marketplace listing at: https://marketplace.visualstudio.com/items?itemName=ugudlado.local-review-vscode
+  - Install via marketplace: `code --install-extension ugudlado.local-code-review`
+  - Or install from `.vsix`: `code --install-extension apps/vscode/local-code-review-x.y.z.vsix`
+  - Verify marketplace listing at: https://marketplace.visualstudio.com/items?itemName=ugudlado.local-code-review
