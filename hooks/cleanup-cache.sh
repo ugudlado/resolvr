@@ -6,7 +6,7 @@
 # so the caller knows to start a fresh one.
 set -euo pipefail
 
-CACHE_DIR="$HOME/.claude/plugins/cache/ugudlado/local-review"
+CACHE_DIR="$HOME/.claude/plugins/cache/ugudlado/local-code-review"
 LOG_PREFIX="[$(date '+%Y-%m-%d %H:%M:%S')]"
 
 # Exit early if cache directory doesn't exist or has < 2 versions

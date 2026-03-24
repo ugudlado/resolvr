@@ -7,11 +7,11 @@ PORT=37003
 SERVER_ALREADY_RUNNING=false
 
 # Clean up old cached versions (blocking — may kill server running from old version)
-cleanup_result=$("${BASH_SOURCE%/*}/cleanup-cache.sh" 2>>/tmp/local-review-cleanup.log) || true
+cleanup_result=$("${BASH_SOURCE%/*}/cleanup-cache.sh" 2>>/tmp/local-code-review-cleanup.log) || true
 
 # Determine where to run from: live repo (dev) or latest cached version (by mtime)
 LIVE_REPO="$HOME/code/review"
-CACHE_DIR="$HOME/.claude/plugins/cache/ugudlado/local-review"
+CACHE_DIR="$HOME/.claude/plugins/cache/ugudlado/local-code-review"
 PLUGIN_ROOT=""
 
 if [ -f "$LIVE_REPO/apps/server/dist/index.js" ]; then
@@ -50,7 +50,7 @@ fi
 if [ "$SERVER_ALREADY_RUNNING" = false ]; then
   # Start the standalone server in the background (serves API + static UI dist/)
   cd "$PLUGIN_ROOT"
-  nohup node apps/server/dist/index.js >/tmp/local-review-server.log 2>&1 &
+  nohup node apps/server/dist/index.js >/tmp/local-code-review-server.log 2>&1 &
 
   # Wait for server to be ready (max 10s)
   for i in $(seq 1 20); do

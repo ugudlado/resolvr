@@ -9,10 +9,10 @@
   },
   "plugins": [
     {
-      "name": "local-review",
+      "name": "local-code-review",
       "version": "2.0.4",
       "source": ".",
-      "description": "GitHub-style local code review with threaded comments. Claude can read review sessions, reply to threads, apply fixes, and resolve open questions."
+      "description": "Local Code Review — GitHub-style threaded code review. Claude can read review sessions, reply to threads, apply fixes, and resolve open questions."
     }
   ]
 }

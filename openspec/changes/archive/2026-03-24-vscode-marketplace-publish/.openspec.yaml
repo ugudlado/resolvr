@@ -1,0 +1,5 @@
+schema: feature-rapid
+feature-id: 2026-03-24-vscode-marketplace-publish
+linear-ticket: none
+worktree: ~/code/feature_worktrees/2026-03-24-vscode-marketplace-publish
+branch: feature/2026-03-24-vscode-marketplace-publish

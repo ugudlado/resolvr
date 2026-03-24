@@ -1,4 +1,4 @@
-# local-review
+# Local Code Review
 
 Local code review for Claude Code — review diffs, leave threaded comments, and let Claude resolve them. Works across three surfaces that share the same review sessions:
 
@@ -19,7 +19,7 @@ claude plugin marketplace add ugudlado/claude-marketplace
 **Step 2:** Install the plugin:
 
 ```
-claude plugin install local-review@ugudlado
+claude plugin install local-code-review@ugudlado
 ```
 
 **Step 3:** Open the review UI:
@@ -63,7 +63,13 @@ Review code without leaving your editor. The extension surfaces review sessions 
 
 The extension works serverlessly — it reads and writes session files directly, with no server dependency. File watchers keep everything in sync: comments added in the browser appear in VS Code, and vice versa.
 
-Install the `.vsix` from the [latest release](https://github.com/ugudlado/local-review/releases):
+Install from the VS Code Marketplace:
+
+```bash
+code --install-extension ugudlado.local-review-vscode
+```
+
+Or download from the [latest release](https://github.com/ugudlado/local-review/releases) and install manually:
 
 ```bash
 code --install-extension local-review-vscode-<version>.vsix
