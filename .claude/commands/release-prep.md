@@ -5,7 +5,7 @@ model: haiku
 
 # Release Prep
 
-Prepare a release for the local-review plugin: generate changelog from commits since last tag, update CHANGELOG.md, bump versions in this repo and the marketplace, then tag.
+Prepare a release for the local-code-review VS Code extension: generate changelog from commits since last tag, update CHANGELOG.md, bump versions, then tag.
 
 ## Arguments
 
@@ -36,7 +36,6 @@ Read each commit message and classify into:
 Rules:
 
 - Keep descriptions concise, one line per change
-- Group by area using subheadings (UI, Server, Plugin) only if changes span multiple — skip if all in one area
 - Within each group, order: + first, then \*, then !, then -
 
 ### 3. Draft Changelog Entry
@@ -62,31 +61,13 @@ After approval, update all version files:
 
 **b) `package.json`** — Bump the root `"version"` field to x.y.z.
 
-**c) `apps/ui/src/config/app.ts`** — Update `APP_VERSION` to "x.y.z".
-
-**d) `.claude-plugin/plugin.json`** — Bump the `"version"` field to x.y.z.
-
-**e) `.claude-plugin/marketplace.json`** — Bump the `"version"` for the `local-review` entry to x.y.z.
-
-**f) `$HOME/code/claude-marketplace/.claude-plugin/marketplace.json`** — Bump the `"version"` for the `local-review` plugin entry to x.y.z.
-
-**g) `apps/vscode/package.json`** — Bump the `"version"` field to x.y.z.
+**c) `apps/vscode/package.json`** — Bump the `"version"` field to x.y.z.
 
 Read each file before editing. Use Edit to update version fields in-place.
 
-### 5. Build Dist Artifacts
+### 5. Build VS Code Extension
 
-Run a full build so that committed dist artifacts match the release version:
-
-```bash
-pnpm build
-```
-
-Verify the build succeeds before proceeding. This ensures the plugin's dist (used by `node apps/server/dist/index.js` at runtime) matches the source.
-
-### 6. Build VS Code Extension
-
-After version bumps, build and package the VS Code extension `.vsix`:
+Build and package the VS Code extension `.vsix`:
 
 ```bash
 cd apps/vscode
@@ -95,33 +76,19 @@ pnpm exec vsce package --no-dependencies
 
 This produces `apps/vscode/local-code-review-x.y.z.vsix`. Verify the file was created and the version in the filename matches.
 
-### 7. Commit and Tag
+### 6. Commit and Tag
 
-Stage all changed files including rebuilt dist:
+Stage all changed files:
 
 ```bash
-git add CHANGELOG.md package.json apps/ui/src/config/app.ts .claude-plugin/plugin.json .claude-plugin/marketplace.json apps/vscode/package.json pnpm-lock.yaml apps/server/dist/ apps/ui/dist/ packages/schema/dist/
+git add CHANGELOG.md package.json apps/vscode/package.json pnpm-lock.yaml
 git commit -m "chore: release vx.y.z"
-```
-
-Then in the marketplace repo, commit the version bump:
-
-```bash
-cd $HOME/code/claude-marketplace
-git add .claude-plugin/marketplace.json
-git commit -m "chore: bump local-review to vx.y.z"
-```
-
-Then tag this repo:
-
-```bash
-cd $HOME/code/review
 git tag vx.y.z
 ```
 
-### 8. Publish to VS Code Marketplace
+### 7. Publish to VS Code Marketplace
 
-Publish the extension to the VS Code Marketplace using the prebuilt `.vsix` from step 6:
+Publish the extension to the VS Code Marketplace using the prebuilt `.vsix` from step 5:
 
 ```bash
 cd apps/vscode
@@ -135,16 +102,9 @@ else
 fi
 ```
 
-The `--packagePath` flag publishes the exact same `.vsix` that will be attached to the GitHub release, ensuring both distributions are identical. The publish step is **non-blocking** — any failure echoes a status and proceeds to step 9.
+The publish step is **non-blocking** — any failure echoes a status and proceeds to step 8.
 
-Common failure modes:
-
-- **`VSCE_PAT` not set**: Guarded above — skips with message. Set `export VSCE_PAT="<token>"` in `~/.zshrc` and publish manually.
-- **PAT expired**: `vsce` will fail with an auth error. Regenerate at https://dev.azure.com > User Settings > Personal Access Tokens.
-- **Network error**: Retry the command once. If still failing, note in report and proceed.
-- **Version already published**: Non-fatal. GitHub release still proceeds.
-
-### 9. Push and Create GitHub Release
+### 8. Push and Create GitHub Release
 
 Push commits and tags, then create a GitHub release with the `.vsix` asset:
 
@@ -153,15 +113,9 @@ cd $HOME/code/review
 git push origin main --tags
 ```
 
-```bash
-cd $HOME/code/claude-marketplace
-git push
-```
-
-Extract the changelog entry for this version (everything between the `## x.y.z` heading and the next `##` heading) into a temp file, then create the GitHub release:
+Extract the changelog entry for this version into a temp file, then create the GitHub release:
 
 ```bash
-cd $HOME/code/review
 gh release create vx.y.z \
   apps/vscode/local-code-review-x.y.z.vsix \
   --title "vx.y.z" \
@@ -174,13 +128,13 @@ Verify the release was created:
 gh release view vx.y.z
 ```
 
-### 10. Report
+### 9. Report
 
 Output:
 
 - Release version
 - Number of changelog entries
-- Files updated (CHANGELOG.md, package.json, app.ts, plugin.json, marketplace.json x2, vscode/package.json)
+- Files updated (CHANGELOG.md, package.json, vscode/package.json)
 - VS Code extension `.vsix` path and size
 - Tag name created
 - GitHub release URL
