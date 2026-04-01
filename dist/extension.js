@@ -1961,7 +1961,9 @@ function activate(context) {
         `Session file changed: reconciling ${threads.length} threads for ${currentFeatureId}`
       );
       commentManager.loadThreads(threads);
-      const openCount = threads.filter((t) => t.status === "open").length;
+      const openCount = threads.filter(
+        (t) => t.status === "open"
+      ).length;
       statusBar.updateThreadCount(threads.length, openCount);
       diffPanelManager.updateThreadCounts(threads);
       threadsTree.updateThreads(threads);
@@ -1972,7 +1974,9 @@ function activate(context) {
       const session = await sessionStore.getSession(featureId);
       if (!session) return;
       const threads = session.threads ?? [];
-      const openCount = threads.filter((t) => t.status === "open").length;
+      const openCount = threads.filter(
+        (t) => t.status === "open"
+      ).length;
       statusBar.updateThreadCount(threads.length, openCount);
       diffPanelManager.updateThreadCounts(threads);
       threadsTree.updateThreads(threads);
@@ -2038,9 +2042,7 @@ function activate(context) {
           session
         );
         await skillGenerator.generate(skillContext, session);
-        outputChannel.appendLine(
-          `Agent skill files generated in .review/`
-        );
+        outputChannel.appendLine(`Agent skill files generated in .review/`);
       } catch (skillErr) {
         outputChannel.appendLine(
           `Skill generation failed: ${skillErr instanceof Error ? skillErr.message : String(skillErr)}`
@@ -2226,56 +2228,53 @@ function activate(context) {
       diffPanelManager.toggleViewMode();
     }),
     // Resolve open threads with AI agent
-    vscode11.commands.registerCommand(
-      "local-review.resolveWithAI",
-      async () => {
-        const featureId = featureDetector.featureId;
-        if (!featureId) {
-          void vscode11.window.showWarningMessage(
-            "No feature branch detected. Switch to a feature/* branch first."
-          );
-          return;
-        }
-        const session = await sessionStore.getSession(featureId);
-        if (!session) {
-          void vscode11.window.showWarningMessage(
-            "No review session found. Start a review first."
-          );
-          return;
-        }
-        const choice = await vscode11.window.showQuickPick(
-          [
-            {
-              label: "$(terminal) Send to existing terminal",
-              description: "Send resolve prompt to an agent already running",
-              mode: "existing"
-            },
-            {
-              label: "$(add) Start new agent",
-              description: "Spawn a new agent process to resolve threads",
-              mode: "new"
-            }
-          ],
-          { placeHolder: "How should the agent be invoked?" }
+    vscode11.commands.registerCommand("local-review.resolveWithAI", async () => {
+      const featureId = featureDetector.featureId;
+      if (!featureId) {
+        void vscode11.window.showWarningMessage(
+          "No feature branch detected. Switch to a feature/* branch first."
         );
-        if (!choice) return;
-        if (choice.mode === "existing") {
-          await resolveInExistingTerminal(
-            getSessionFilePath(featureId),
-            session,
-            workspaceRoot,
-            outputChannel
-          );
-        } else {
-          resolveWithNewAgent(
-            getSessionFilePath(featureId),
-            session,
-            workspaceRoot,
-            outputChannel
-          );
-        }
+        return;
       }
-    ),
+      const session = await sessionStore.getSession(featureId);
+      if (!session) {
+        void vscode11.window.showWarningMessage(
+          "No review session found. Start a review first."
+        );
+        return;
+      }
+      const choice = await vscode11.window.showQuickPick(
+        [
+          {
+            label: "$(terminal) Send to existing terminal",
+            description: "Send resolve prompt to an agent already running",
+            mode: "existing"
+          },
+          {
+            label: "$(add) Start new agent",
+            description: "Spawn a new agent process to resolve threads",
+            mode: "new"
+          }
+        ],
+        { placeHolder: "How should the agent be invoked?" }
+      );
+      if (!choice) return;
+      if (choice.mode === "existing") {
+        await resolveInExistingTerminal(
+          getSessionFilePath(featureId),
+          session,
+          workspaceRoot,
+          outputChannel
+        );
+      } else {
+        resolveWithNewAgent(
+          getSessionFilePath(featureId),
+          session,
+          workspaceRoot,
+          outputChannel
+        );
+      }
+    }),
     // Regenerate agent skill files
     vscode11.commands.registerCommand(
       "local-review.regenerateSkills",
