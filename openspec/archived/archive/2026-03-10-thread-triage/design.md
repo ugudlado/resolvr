@@ -27,45 +27,55 @@ Claude Agent SDK resolves threads in priority order
 ## Changes by File
 
 ### types/constants.ts
+
 - Add `THREAD_SEVERITY` const object with `Critical`, `Improvement`, `Style`, `Question`
 - Export `ThreadSeverity` type
 
 ### types/sessions.ts
+
 - Remove inline `ThreadSeverity` type alias
 - Import from constants
 - Change `ReviewThread.severity` from optional to required
 
 ### components/shared/ComposeBox.tsx
+
 - Update `SEVERITIES` array to use new values from `THREAD_SEVERITY`
 - Update `severityStyles` map with new color scheme
 - Change default severity from `"suggestion"` to `THREAD_SEVERITY.Improvement`
 
 ### components/shared/ThreadCard.tsx
+
 - Update `severityConfig` map with new values and colors
 - Add `SeveritySelector` sub-component for manual override in expanded view
 - Wire `onSeverityChange` callback through `ThreadCardProps`
 
 ### apps/server/src/resolver-daemon.ts
+
 - Update `pickModel()` to check for `"critical"` instead of `"blocking"`
 - Add `sortByPriority()` to order threads before resolution
 - Filter out `"question"` threads from resolution batch
 - Update `buildResolvePrompt()` to mention priority ordering
 
 ### apps/server/src/routes/sessions.ts
+
 - Add `severity` to `PatchPayload` interface
 - Apply severity in PATCH handler
 
 ### pages/ReviewPage.tsx
+
 - Pass severity through `handleComposeSubmit`
 - Include severity in the thread object created
 
 ### pages/SpecReviewPage.tsx
+
 - Pass severity through thread creation handler
 
 ### services/localReviewApi.ts
+
 - Add optional `severity` field to the legacy `ReviewThread` type
 
 ### hooks/useReviewSession.ts
+
 - No changes needed (threads pass through as-is)
 
 ## Error Handling

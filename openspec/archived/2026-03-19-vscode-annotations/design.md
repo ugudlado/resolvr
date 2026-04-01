@@ -40,11 +40,13 @@ apps/vscode/
 ### Activation Strategy
 
 The extension activates on three conditions (OR):
+
 1. `workspaceContains:.review/` -- the workspace has a review session directory
 2. `onStartupFinished` -- lightweight fallback for worktrees without `.review/` yet
 3. `onCommand:local-review.refresh`, `onCommand:local-review.connect`, `onCommand:local-review.disconnect` -- user explicitly invokes a command (each listed individually; wildcard activation events are not valid VS Code API)
 
 On activation:
+
 1. `featureDetector` reads `git rev-parse --abbrev-ref HEAD` and extracts the feature ID from `feature/(.+)` pattern
 2. If no feature branch detected, go dormant: no CommentController, no WebSocket, no status bar. Watch `.git/HEAD` file for branch changes (more reliable than `git.onDidChangeState` which is an unstable internal API)
 3. If feature ID found, `serverClient` fetches the code session from `GET /api/features/{id}/code-session`
@@ -201,6 +203,7 @@ The extension determines the active feature ID by:
 4. Listen for `vscode.workspace.onDidChangeConfiguration` and `git.onDidChangeState` (from VS Code Git extension API) to detect branch switches
 
 When the feature ID changes:
+
 - Dispose all current CommentThreads
 - Disconnect WebSocket (if feature-scoped)
 - Reconnect and load new session
@@ -214,6 +217,7 @@ Creates a single thread in the session without overwriting the entire session. T
 **Request body**: A single `ReviewThread` object
 **Response**: `201 Created` with the created thread
 **Behavior**:
+
 1. Read current session from disk
 2. Append the new thread to `session.threads`
 3. Update `session.metadata.updatedAt`
@@ -256,13 +260,16 @@ Session data uses 1-based line numbers. VS Code uses 0-based positions.
 
 ```typescript
 function sessionLineToRange(line: number, lineEnd?: number): vscode.Range {
-  const startLine = line - 1;           // 1-based -> 0-based
+  const startLine = line - 1; // 1-based -> 0-based
   const endLine = (lineEnd ?? line) - 1;
   return new vscode.Range(startLine, 0, endLine, Number.MAX_SAFE_INTEGER);
 }
 
-function rangeToSessionLine(range: vscode.Range): { line: number; lineEnd?: number } {
-  const line = range.start.line + 1;     // 0-based -> 1-based
+function rangeToSessionLine(range: vscode.Range): {
+  line: number;
+  lineEnd?: number;
+} {
+  const line = range.start.line + 1; // 0-based -> 1-based
   const lineEnd = range.end.line + 1;
   return line === lineEnd ? { line } : { line, lineEnd };
 }
@@ -277,12 +284,14 @@ Messages from VS Code use author `"vscode-user"`. Messages from the browser revi
 ## Extension Packaging
 
 For the rapid prototype:
+
 - The extension is developed in `apps/vscode/` within the monorepo
 - Built with esbuild to a single `dist/extension.js` bundle
 - Installed locally via `code --install-extension ./apps/vscode/local-review-0.1.0.vsix`
 - A `pnpm -C apps/vscode package` script runs `@vscode/vsce package`
 
 The `package.json` contributes:
+
 - `commentController`: ID `local-review`, label `Local Review`
 - Commands: `local-review.refresh`, `local-review.connect`, `local-review.disconnect`
 - Configuration: `local-review.serverUrl` (default `http://localhost:37003`)

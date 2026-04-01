@@ -30,6 +30,7 @@ The code review page (`ReviewPage.tsx`, 1023 LOC) supports mouse-driven file sel
 **Location**: `apps/ui/src/hooks/useKeyboardReview.ts`
 
 **Responsibilities**:
+
 - Registers a single `keydown` listener on `document`
 - Guards against input/textarea focus for letter keys
 - Guards against non-sidebar focus for arrow keys
@@ -37,25 +38,26 @@ The code review page (`ReviewPage.tsx`, 1023 LOC) supports mouse-driven file sel
 - Calls provided callbacks: `onFileSelect`, `onThreadResolve`, `onThreadReopen`
 
 **Interface**:
+
 ```typescript
 interface UseKeyboardReviewOptions {
-  files: string[]                    // ordered file list from sidebar
-  threads: ReviewThread[]            // pre-filtered to current file, ordered by line number (derived from threadsByLine)
-  selectedFile: string | null        // currently viewed file
-  sidebarRef: RefObject<HTMLElement> // sidebar container for focus detection
-  onFileSelect: (path: string) => void
-  onThreadFocus: (thread: ReviewThread) => void
-  onThreadResolve: (threadId: string) => void
-  onThreadReopen: (threadId: string) => void
-  onOpenPalette: () => void          // trigger Ctrl+K
+  files: string[]; // ordered file list from sidebar
+  threads: ReviewThread[]; // pre-filtered to current file, ordered by line number (derived from threadsByLine)
+  selectedFile: string | null; // currently viewed file
+  sidebarRef: RefObject<HTMLElement>; // sidebar container for focus detection
+  onFileSelect: (path: string) => void;
+  onThreadFocus: (thread: ReviewThread) => void;
+  onThreadResolve: (threadId: string) => void;
+  onThreadReopen: (threadId: string) => void;
+  onOpenPalette: () => void; // trigger Ctrl+K
 }
 
 interface UseKeyboardReviewReturn {
-  selectedFileIndex: number
-  focusedThreadIndex: number
-  focusedThread: ReviewThread | null
-  showHelp: boolean
-  setShowHelp: (show: boolean) => void
+  selectedFileIndex: number;
+  focusedThreadIndex: number;
+  focusedThread: ReviewThread | null;
+  showHelp: boolean;
+  setShowHelp: (show: boolean) => void;
 }
 ```
 
@@ -64,6 +66,7 @@ interface UseKeyboardReviewReturn {
 **File**: `apps/ui/src/components/sidebar/FileSidebar.tsx`
 
 Changes:
+
 - Accept `selectedIndex` prop for keyboard-driven highlight
 - Add `tabIndex={0}` to make sidebar focusable
 - Render `ring-2 ring-accent-blue` on the item at `selectedIndex`
@@ -74,6 +77,7 @@ Changes:
 **File**: `apps/ui/src/components/shared/CommandPalette.tsx`
 
 Changes:
+
 - Accept `reviewFiles` prop: `Array<{ path: string; threadCount: number }>`
 - Add review files to the existing `"Files"` group (matches hardcoded group iteration in CommandPalette)
 - Show thread count badge next to each file entry
@@ -91,6 +95,7 @@ Changes:
 **File**: `apps/ui/src/components/shared/ShortcutHelp.tsx`
 
 Changes:
+
 - Refactor to accept a `shortcuts` prop: `Array<{ key: string; description: string; group: string }>`
 - Remove hardcoded shortcut table — each page passes its own bindings
 - `SpecReviewPage` passes spec-specific shortcuts (existing behavior preserved)
@@ -135,12 +140,12 @@ ReviewPage
 
 ## Risks & Trade-offs
 
-| Risk | Mitigation |
-|------|------------|
+| Risk                                         | Mitigation                                                                                                                                                                                |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Arrow keys conflict with diff view scrolling | Guard: `sidebarRef.current.contains(document.activeElement)` — fires when sidebar or any child has focus. Child buttons don't have their own arrow handlers so no double-navigation risk. |
-| `Ctrl+K` conflicts with browser address bar | `preventDefault()` in handler — standard pattern used by VS Code, GitHub |
-| Thread count changes while navigating | Clamp index on every render via `Math.min(index, threads.length - 1)` |
-| Hints becoming annoying | localStorage fade after 5 views; conservative styling |
+| `Ctrl+K` conflicts with browser address bar  | `preventDefault()` in handler — standard pattern used by VS Code, GitHub                                                                                                                  |
+| Thread count changes while navigating        | Clamp index on every render via `Math.min(index, threads.length - 1)`                                                                                                                     |
+| Hints becoming annoying                      | localStorage fade after 5 views; conservative styling                                                                                                                                     |
 
 ## Open Questions
 

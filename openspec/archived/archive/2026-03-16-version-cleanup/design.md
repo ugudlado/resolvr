@@ -26,6 +26,7 @@ The core cleanup script. Logic:
 ```
 
 **JSON parsing**: Use Python (always available on macOS) for reliable JSON extraction rather than fragile jq/grep:
+
 ```bash
 python3 -c "
 import json, sys
@@ -82,13 +83,13 @@ SessionStart hook
 
 ## Error Handling
 
-| Scenario | Behavior |
-|----------|----------|
-| `installed_plugins.json` missing | Exit 0, log warning |
-| No `local-review@ugudlado` entry | Exit 0, log warning |
-| Cache directory missing | Exit 0, no action |
-| `rm -rf` fails on a directory | Log error, continue with remaining directories |
-| Python3 not available | Exit 0, log warning |
+| Scenario                         | Behavior                                       |
+| -------------------------------- | ---------------------------------------------- |
+| `installed_plugins.json` missing | Exit 0, log warning                            |
+| No `local-review@ugudlado` entry | Exit 0, log warning                            |
+| Cache directory missing          | Exit 0, no action                              |
+| `rm -rf` fails on a directory    | Log error, continue with remaining directories |
+| Python3 not available            | Exit 0, log warning                            |
 
 ## Alternatives Considered
 

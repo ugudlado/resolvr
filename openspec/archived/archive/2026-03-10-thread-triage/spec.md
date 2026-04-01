@@ -10,6 +10,7 @@ feature-id: 2026-03-10-thread-triage
 Add a severity/priority system to review threads that enables smart model routing in the resolver daemon and gives reviewers visual clarity on thread importance.
 
 ### Goals
+
 - Replace `ThreadSeverity` values with triage-oriented levels: `critical`, `improvement`, `style`, `question`
 - Display severity badges on thread cards in both inline diff view and side panels
 - Route resolver model selection based on severity (`critical` -> Sonnet, others -> Haiku, `question` -> skip)
@@ -17,6 +18,7 @@ Add a severity/priority system to review threads that enables smart model routin
 - Allow reviewers to manually set/change severity via the ComposeBox selector
 
 ### Non-Goals
+
 - AI auto-classification of severity (deferred to future iteration)
 - Batch resolution of style threads (optimization deferred)
 - Severity filtering in thread navigation panels
@@ -24,24 +26,28 @@ Add a severity/priority system to review threads that enables smart model routin
 ## Requirements
 
 ### R1: Severity Type Update
+
 - Replace `ThreadSeverity` with `as const` object `THREAD_SEVERITY` in `types/constants.ts`
 - Values: `critical`, `improvement`, `style`, `question`
 - Default severity for new threads: `improvement`
 - Acceptance: All existing references compile with updated type
 
 ### R2: Severity Badge Display
+
 - ThreadCard header shows a severity badge with color-coded indicator
 - Colors: critical = red/rose, improvement = blue, style = gray/muted, question = amber
 - Badge shows both dot + label text (matches existing SeverityBadge pattern)
 - Acceptance: Given a thread with severity "critical", the badge shows a red indicator with "critical" text
 
 ### R3: ComposeBox Severity Selector
+
 - Update ComposeBox severity pills to use new values
 - Default selection: `improvement`
 - Style pills with appropriate colors matching badge colors
 - Acceptance: Given the compose box is open, four severity pills are shown with correct labels and colors
 
 ### R4: Model Routing in Resolver
+
 - `pickModel()` uses severity to select model:
   - `critical` -> `claude-sonnet-4-6`
   - `improvement` -> `claude-haiku-4-5-20251001`
@@ -51,18 +57,21 @@ Add a severity/priority system to review threads that enables smart model routin
 - Acceptance: Given 3 threads (1 critical, 2 style), `pickModel()` returns Sonnet
 
 ### R5: Priority Ordering in Resolver
+
 - Before resolving, sort open threads by severity priority: critical > improvement > style
 - Question threads are excluded from resolution
 - The resolve prompt mentions thread priority ordering
 - Acceptance: Given threads in random severity order, resolver processes critical ones first
 
 ### R6: Severity in Session Persistence
+
 - `severity` field on ReviewThread is always populated (not optional)
 - Existing sessions without severity default to `improvement` on load
 - Server PATCH endpoint preserves severity field through thread updates
 - Acceptance: Given a session file without severity fields, loading it populates `improvement` on all threads
 
 ### R7: Manual Override
+
 - Reviewer can change severity after thread creation
 - ThreadCard expanded view includes a severity dropdown/selector
 - Changing severity persists to session immediately
@@ -71,6 +80,7 @@ Add a severity/priority system to review threads that enables smart model routin
 ## Data Model
 
 ### ThreadSeverity (updated)
+
 ```typescript
 export const THREAD_SEVERITY = {
   Critical: "critical",
@@ -79,20 +89,23 @@ export const THREAD_SEVERITY = {
   Question: "question",
 } as const;
 
-export type ThreadSeverity = (typeof THREAD_SEVERITY)[keyof typeof THREAD_SEVERITY];
+export type ThreadSeverity =
+  (typeof THREAD_SEVERITY)[keyof typeof THREAD_SEVERITY];
 ```
 
 ### Priority Order
+
 ```typescript
 const SEVERITY_PRIORITY: Record<ThreadSeverity, number> = {
-  critical: 0,    // highest priority
+  critical: 0, // highest priority
   improvement: 1,
   style: 2,
-  question: 3,    // lowest / skip
+  question: 3, // lowest / skip
 };
 ```
 
 ### ReviewThread.severity
+
 - Type: `ThreadSeverity` (required, not optional)
 - Default: `THREAD_SEVERITY.Improvement`
 

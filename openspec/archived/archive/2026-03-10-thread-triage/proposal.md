@@ -5,6 +5,7 @@
 The resolver daemon's `pickModel()` function already checks thread severity to decide whether to use Sonnet or Haiku, but threads never have a severity field populated. This means every resolve cycle defaults to Haiku regardless of thread importance, and there is no way for reviewers to understand thread priority at a glance.
 
 Adding a severity classification system enables:
+
 1. **Cost optimization** -- route simple style/naming threads to Haiku, reserve Sonnet for critical issues
 2. **Priority ordering** -- resolve blocking issues first so the developer gets the most impactful fixes earliest
 3. **Visual clarity** -- reviewers instantly see which threads need urgent attention via severity badges
