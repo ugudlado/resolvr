@@ -245,9 +245,7 @@ ${openThreads.length > 0 ? `\n## Open Threads Summary\n\n${this._renderThreadSum
 `;
   }
 
-  private _renderThreadSummary(
-    threads: SessionData["threads"],
-  ): string {
+  private _renderThreadSummary(threads: SessionData["threads"]): string {
     return threads
       .map((t) => {
         const lastMsg = t.messages[t.messages.length - 1];

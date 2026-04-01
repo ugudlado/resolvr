@@ -28,31 +28,31 @@ gh release create v<VERSION> \
 ```bash
 # From CHANGELOG content + .vsix asset
 gh release create v1.3.0 \
-  apps/vscode/local-code-review-1.3.0.vsix \
+  local-code-review-1.3.0.vsix \
   --title "v1.3.0" \
   --notes-file CHANGELOG.md
 
 # Auto-generate notes from commits since last tag
 gh release create v1.3.0 \
-  apps/vscode/local-code-review-1.3.0.vsix \
+  local-code-review-1.3.0.vsix \
   --title "v1.3.0" \
   --generate-notes
 
 # Draft release (not public)
 gh release create v1.3.0 --draft \
-  apps/vscode/local-code-review-1.3.0.vsix \
+  local-code-review-1.3.0.vsix \
   --title "v1.3.0"
 
 # Pre-release
 gh release create v1.3.0-beta.1 --prerelease \
-  apps/vscode/local-code-review-1.3.0.vsix \
+  local-code-review-1.3.0.vsix \
   --title "v1.3.0-beta.1"
 ```
 
 ### Upload assets to existing release
 
 ```bash
-gh release upload v1.3.0 apps/vscode/local-code-review-1.3.0.vsix
+gh release upload v1.3.0 local-code-review-1.3.0.vsix
 ```
 
 ### List and view releases
@@ -119,7 +119,7 @@ gh issue close <number>
 
 For local-code-review releases, upload:
 
-1. **VS Code extension**: `apps/vscode/local-code-review-<version>.vsix`
+1. **VS Code extension**: `local-code-review-<version>.vsix`
 
 The plugin itself is installed via the Claude Code marketplace (not GitHub releases), so no plugin archive is needed.
 

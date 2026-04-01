@@ -1,0 +1,14 @@
+.vscode/**
+.claude/**
+.husky/**
+.review/**
+src/**
+openspec/**
+docs/**
+node_modules/**
+tsconfig.json
+knip.json
+.prettierrc
+.gitignore
+CLAUDE.md
+CHANGELOG.md

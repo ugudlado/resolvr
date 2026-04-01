@@ -12,10 +12,7 @@ import {
 } from "./sessionStore";
 import type { SessionThread } from "./sessionStore";
 import { SkillGenerator } from "./skillGenerator";
-import {
-  resolveInExistingTerminal,
-  resolveWithNewAgent,
-} from "./agentInvoker";
+import { resolveInExistingTerminal, resolveWithNewAgent } from "./agentInvoker";
 import { StatusBar } from "./statusBar";
 import { CommentManager } from "./commentManager";
 import { SessionWatcher } from "./sessionWatcher";
@@ -110,7 +107,9 @@ export function activate(context: vscode.ExtensionContext): void {
         `Session file changed: reconciling ${threads.length} threads for ${currentFeatureId}`,
       );
       commentManager.loadThreads(threads);
-      const openCount = threads.filter((t: SessionThread) => t.status === "open").length;
+      const openCount = threads.filter(
+        (t: SessionThread) => t.status === "open",
+      ).length;
       statusBar.updateThreadCount(threads.length, openCount);
       diffPanelManager.updateThreadCounts(threads);
       threadsTree.updateThreads(threads);
@@ -124,7 +123,9 @@ export function activate(context: vscode.ExtensionContext): void {
       const session = await sessionStore.getSession(featureId);
       if (!session) return;
       const threads = session.threads ?? [];
-      const openCount = threads.filter((t: SessionThread) => t.status === "open").length;
+      const openCount = threads.filter(
+        (t: SessionThread) => t.status === "open",
+      ).length;
       statusBar.updateThreadCount(threads.length, openCount);
       diffPanelManager.updateThreadCounts(threads);
       threadsTree.updateThreads(threads);
@@ -202,9 +203,7 @@ export function activate(context: vscode.ExtensionContext): void {
           session,
         );
         await skillGenerator.generate(skillContext, session);
-        outputChannel.appendLine(
-          `Agent skill files generated in .review/`,
-        );
+        outputChannel.appendLine(`Agent skill files generated in .review/`);
       } catch (skillErr) {
         outputChannel.appendLine(
           `Skill generation failed: ${skillErr instanceof Error ? skillErr.message : String(skillErr)}`,
@@ -417,59 +416,56 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
 
     // Resolve open threads with AI agent
-    vscode.commands.registerCommand(
-      "local-review.resolveWithAI",
-      async () => {
-        const featureId = featureDetector.featureId;
-        if (!featureId) {
-          void vscode.window.showWarningMessage(
-            "No feature branch detected. Switch to a feature/* branch first.",
-          );
-          return;
-        }
-        const session = await sessionStore.getSession(featureId);
-        if (!session) {
-          void vscode.window.showWarningMessage(
-            "No review session found. Start a review first.",
-          );
-          return;
-        }
-
-        const choice = await vscode.window.showQuickPick(
-          [
-            {
-              label: "$(terminal) Send to existing terminal",
-              description: "Send resolve prompt to an agent already running",
-              mode: "existing" as const,
-            },
-            {
-              label: "$(add) Start new agent",
-              description: "Spawn a new agent process to resolve threads",
-              mode: "new" as const,
-            },
-          ],
-          { placeHolder: "How should the agent be invoked?" },
+    vscode.commands.registerCommand("local-review.resolveWithAI", async () => {
+      const featureId = featureDetector.featureId;
+      if (!featureId) {
+        void vscode.window.showWarningMessage(
+          "No feature branch detected. Switch to a feature/* branch first.",
         );
+        return;
+      }
+      const session = await sessionStore.getSession(featureId);
+      if (!session) {
+        void vscode.window.showWarningMessage(
+          "No review session found. Start a review first.",
+        );
+        return;
+      }
 
-        if (!choice) return;
+      const choice = await vscode.window.showQuickPick(
+        [
+          {
+            label: "$(terminal) Send to existing terminal",
+            description: "Send resolve prompt to an agent already running",
+            mode: "existing" as const,
+          },
+          {
+            label: "$(add) Start new agent",
+            description: "Spawn a new agent process to resolve threads",
+            mode: "new" as const,
+          },
+        ],
+        { placeHolder: "How should the agent be invoked?" },
+      );
 
-        if (choice.mode === "existing") {
-          await resolveInExistingTerminal(
-            getSessionFilePath(featureId),
-            session,
-            workspaceRoot,
-            outputChannel,
-          );
-        } else {
-          resolveWithNewAgent(
-            getSessionFilePath(featureId),
-            session,
-            workspaceRoot,
-            outputChannel,
-          );
-        }
-      },
-    ),
+      if (!choice) return;
+
+      if (choice.mode === "existing") {
+        await resolveInExistingTerminal(
+          getSessionFilePath(featureId),
+          session,
+          workspaceRoot,
+          outputChannel,
+        );
+      } else {
+        resolveWithNewAgent(
+          getSessionFilePath(featureId),
+          session,
+          workspaceRoot,
+          outputChannel,
+        );
+      }
+    }),
 
     // Regenerate agent skill files
     vscode.commands.registerCommand(

@@ -49,7 +49,8 @@ export class StatusBar implements vscode.Disposable {
       case "ready":
         if (this._openThreadCount > 0) {
           this._item.text = `$(sparkle) Local Review: ${this._openThreadCount} open · Resolve with AI`;
-          this._item.tooltip = "Click to resolve open threads with your coding agent";
+          this._item.tooltip =
+            "Click to resolve open threads with your coding agent";
           this._item.command = "local-review.resolveWithAI";
           this._item.backgroundColor = new vscode.ThemeColor(
             "statusBarItem.warningBackground",

@@ -45,18 +45,16 @@ pnpm install
 ```
 
 ```bash
-pnpm -C apps/vscode build         # Build extension bundle
-pnpm -C apps/vscode watch         # Watch mode for development
-pnpm -C apps/vscode type-check    # TypeScript type checking
-pnpm type-check                   # Type-check (root shortcut)
-pnpm lint                         # Lint all files (ESLint 9)
-pnpm format                       # Format all files (Prettier)
+pnpm build          # Build extension bundle
+pnpm watch          # Watch mode for development
+pnpm type-check     # TypeScript type checking
+pnpm format         # Format all files (Prettier)
 ```
 
 ### Packaging
 
 ```bash
-pnpm -C apps/vscode exec vsce package --no-dependencies
+pnpm package
 ```
 
 ### Debug in VS Code
@@ -70,7 +68,7 @@ For more development details, see [CLAUDE.md](./CLAUDE.md).
 1. Fork the repo and create a feature branch
 2. `pnpm install`
 3. Make your changes — validate with `pnpm type-check`
-4. Build: `pnpm -C apps/vscode build`
+4. Build: `pnpm build`
 5. Open a pull request
 
 ## License

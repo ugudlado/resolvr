@@ -1,22 +1,261 @@
 {
-  "name": "local-review",
+  "name": "local-code-review",
+  "displayName": "Local Code Review",
+  "description": "Review code, leave threaded comments, and let Claude resolve them — right in VS Code.",
   "version": "2.0.7",
-  "private": true,
-  "type": "module",
+  "publisher": "ugudlado",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ugudlado/local-code-review"
+  },
+  "homepage": "https://github.com/ugudlado/local-code-review#readme",
+  "bugs": {
+    "url": "https://github.com/ugudlado/local-code-review/issues"
+  },
+  "license": "MIT",
+  "keywords": [
+    "code review",
+    "claude",
+    "ai",
+    "comments",
+    "diff",
+    "threads",
+    "scm"
+  ],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "Other"
+  ],
+  "activationEvents": [
+    "workspaceContains:.review/",
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "local-review.refresh",
+        "title": "Local Review: Refresh"
+      },
+      {
+        "command": "local-review.startReview",
+        "title": "Local Review: Start Review"
+      },
+      {
+        "command": "local-review.requestChanges",
+        "title": "Local Review: Request Changes"
+      },
+      {
+        "command": "local-review.createComment",
+        "title": "Add Comment"
+      },
+      {
+        "command": "local-review.replyToComment",
+        "title": "Reply"
+      },
+      {
+        "command": "local-review.resolveThread",
+        "title": "Resolve"
+      },
+      {
+        "command": "local-review.unresolveThread",
+        "title": "Re-open"
+      },
+      {
+        "command": "local-review.wontfixThread",
+        "title": "Won't Fix"
+      },
+      {
+        "command": "local-review.outdatedThread",
+        "title": "Mark Outdated"
+      },
+      {
+        "command": "local-review.openDiff",
+        "title": "Local Review: Open Diff",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "local-review.openDiffFile",
+        "title": "Local Review: Open Diff File"
+      },
+      {
+        "command": "local-review.refreshDiff",
+        "title": "Local Review: Refresh Diff",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "local-review.closeDiff",
+        "title": "Local Review: Close Diff"
+      },
+      {
+        "command": "local-review.goToThread",
+        "title": "Local Review: Go to Thread"
+      },
+      {
+        "command": "local-review.toggleFileViewMode",
+        "title": "Local Review: Toggle Tree/Flat View",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "local-review.regenerateSkills",
+        "title": "Local Review: Regenerate Agent Skills",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "local-review.resolveWithAI",
+        "title": "Local Review: Resolve with AI",
+        "icon": "$(robot)"
+      }
+    ],
+    "views": {
+      "scm": [
+        {
+          "id": "localReview.changedFiles",
+          "name": "Local Review: Changed Files"
+        },
+        {
+          "id": "localReview.threads",
+          "name": "Local Review: Threads"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "localReview.changedFiles",
+        "contents": "No review session active.\n[Open Diff](command:local-review.openDiff)",
+        "when": "!local-review.hasDiffPanel"
+      }
+    ],
+    "menus": {
+      "comments/commentThread/context": [
+        {
+          "command": "local-review.createComment",
+          "group": "inline",
+          "when": "commentController == local-review && commentThreadIsEmpty"
+        },
+        {
+          "command": "local-review.replyToComment",
+          "group": "inline",
+          "when": "commentController == local-review && !commentThreadIsEmpty"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "local-review.openDiffFile",
+          "when": "false"
+        },
+        {
+          "command": "local-review.goToThread",
+          "when": "false"
+        },
+        {
+          "command": "local-review.toggleFileViewMode",
+          "when": "false"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "local-review.refreshDiff",
+          "when": "view == localReview.changedFiles",
+          "group": "navigation"
+        },
+        {
+          "command": "local-review.toggleFileViewMode",
+          "when": "view == localReview.changedFiles && local-review.hasDiffPanel",
+          "group": "navigation"
+        },
+        {
+          "command": "local-review.resolveWithAI",
+          "when": "view == localReview.threads",
+          "group": "navigation"
+        }
+      ],
+      "comments/commentThread/title": [
+        {
+          "command": "local-review.resolveWithAI",
+          "group": "inline@0",
+          "when": "commentController == local-review && !commentThreadIsEmpty && commentThread == open"
+        },
+        {
+          "command": "local-review.resolveThread",
+          "group": "inline@1",
+          "when": "commentController == local-review && !commentThreadIsEmpty && commentThread == open"
+        },
+        {
+          "command": "local-review.unresolveThread",
+          "group": "inline@1",
+          "when": "commentController == local-review && !commentThreadIsEmpty && commentThread == closed"
+        },
+        {
+          "command": "local-review.wontfixThread",
+          "group": "inline@2",
+          "when": "commentController == local-review && !commentThreadIsEmpty && commentThread == open"
+        },
+        {
+          "command": "local-review.outdatedThread",
+          "group": "inline@3",
+          "when": "commentController == local-review && !commentThreadIsEmpty && commentThread == open"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "local-review.resolveWithAI",
+          "when": "view == localReview.threads && viewItem == thread-open",
+          "group": "inline@0"
+        },
+        {
+          "command": "local-review.resolveThread",
+          "when": "view == localReview.threads && viewItem == thread-open",
+          "group": "inline@1"
+        },
+        {
+          "command": "local-review.wontfixThread",
+          "when": "view == localReview.threads && viewItem == thread-open",
+          "group": "inline@2"
+        },
+        {
+          "command": "local-review.outdatedThread",
+          "when": "view == localReview.threads && viewItem == thread-open",
+          "group": "inline@3"
+        },
+        {
+          "command": "local-review.unresolveThread",
+          "when": "view == localReview.threads && viewItem == thread-closed",
+          "group": "inline@1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Local Review",
+      "properties": {
+        "localReview.codingAgent": {
+          "type": "string",
+          "enum": [
+            "claude",
+            "gemini",
+            "codex"
+          ],
+          "default": "claude",
+          "description": "Which coding agent CLI to use for resolving review threads."
+        }
+      }
+    }
+  },
   "scripts": {
-    "type-check": "pnpm -C apps/vscode type-check",
-    "lint": "pnpm -C apps/vscode type-check",
-    "format": "prettier --write apps/vscode/src/**/*.ts",
+    "build": "esbuild src/extension.ts --bundle --platform=node --format=cjs --outfile=dist/extension.js --external:vscode",
+    "watch": "esbuild src/extension.ts --bundle --platform=node --format=cjs --outfile=dist/extension.js --external:vscode --watch",
+    "package": "vsce package --no-dependencies",
+    "type-check": "tsc --noEmit",
+    "format": "prettier --write src/**/*.ts",
     "prepare": "husky",
     "knip": "knip",
     "knip:fix": "knip --fix"
   },
   "lint-staged": {
-    "apps/vscode/src/**/*.ts": [
-      "pnpm -C apps/vscode exec eslint --no-warn-ignored",
-      "prettier --write"
-    ],
-    "apps/**/*.{json,css,html}": [
+    "src/**/*.ts": [
       "prettier --write"
     ],
     "*.md": [
@@ -24,6 +263,10 @@
     ]
   },
   "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.24.0",
     "husky": "^9.1.7",
     "knip": "^5.86.0",
     "lint-staged": "^16.2.7",

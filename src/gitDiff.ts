@@ -98,9 +98,7 @@ export async function getLocalDiff(
     )
     .join("\n");
 
-  const combinedDiff = untrackedDiff
-    ? `${allDiff}\n${untrackedDiff}`
-    : allDiff;
+  const combinedDiff = untrackedDiff ? `${allDiff}\n${untrackedDiff}` : allDiff;
 
   return {
     worktreePath: workspaceRoot,

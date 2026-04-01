@@ -1,83 +1,73 @@
 ---
 name: vscode-ext
-description: Use when working on the VS Code extension at apps/vscode/ — building, packaging, versioning, installing, type-checking, or developing extension features. Triggers when user mentions "vscode extension", "build extension", "package vsix", "extension version", "vsce", "extension development", or when modifying files under apps/vscode/.
+description: Use when working on the VS Code extension — building, packaging, versioning, installing, type-checking, or developing extension features. Triggers when user mentions "vscode extension", "build extension", "package vsix", "extension version", "vsce", "extension development", or when modifying files under src/.
 ---
 
 # VS Code Extension Development
 
-Guide for developing, building, and packaging the local-review VS Code extension.
+Guide for developing, building, and packaging the local-code-review VS Code extension.
 
 ## Extension Overview
 
-- **Location**: `apps/vscode/`
 - **Entry point**: `src/extension.ts` → bundled to `dist/extension.js`
 - **Bundler**: esbuild (CJS format, `vscode` externalized)
 - **Package manager**: pnpm (never npm)
-- **Current version**: Check `apps/vscode/package.json` `version` field
+- **Current version**: Check root `package.json` `version` field
 
 ## Commands Reference
 
-All commands run from the **repo root** using `pnpm -C apps/vscode`:
+All commands run from the **repo root**:
 
-| Task               | Command                                                                   |
-| ------------------ | ------------------------------------------------------------------------- |
-| Build              | `pnpm -C apps/vscode build`                                               |
-| Watch (dev)        | `pnpm -C apps/vscode watch`                                               |
-| Type-check         | `pnpm -C apps/vscode type-check`                                          |
-| Package .vsix      | `pnpm -C apps/vscode exec vsce package --no-dependencies`                 |
-| Install in VS Code | `code --install-extension apps/vscode/local-review-vscode-<version>.vsix` |
-| Version bump       | `pnpm -C apps/vscode version patch\|minor\|major --no-git-tag-version`    |
+| Task               | Command                                                     |
+| ------------------ | ----------------------------------------------------------- |
+| Build              | `pnpm build`                                                |
+| Watch (dev)        | `pnpm watch`                                                |
+| Type-check         | `pnpm type-check`                                           |
+| Package .vsix      | `pnpm package`                                              |
+| Install in VS Code | `code --install-extension local-code-review-<version>.vsix` |
 
 ## Build & Package Workflow
 
 ### Quick build
 
 ```bash
-pnpm -C apps/vscode build
+pnpm build
 ```
 
 ### Full package (build → .vsix)
 
 ```bash
-pnpm -C apps/vscode build && pnpm -C apps/vscode exec vsce package --no-dependencies
+pnpm build && pnpm package
 ```
 
 ### Build + package + install
 
 ```bash
-pnpm -C apps/vscode build && \
-pnpm -C apps/vscode exec vsce package --no-dependencies && \
-code --install-extension apps/vscode/local-review-vscode-*.vsix
+pnpm build && pnpm package && \
+code --install-extension local-code-review-*.vsix
 ```
 
 After installing, remind the user to reload VS Code (`Developer: Reload Window`).
 
 ## Versioning
 
-### Standalone version bump
-
-```bash
-pnpm -C apps/vscode version patch --no-git-tag-version
-```
-
-Use `--no-git-tag-version` to avoid git tags — tagging is handled by `/release-prep` for full releases.
-
 ### Full release versioning
 
-Use `/release-prep` which bumps all package versions in sync (root, UI, server, plugin, marketplace, and VS Code extension).
+Use `/release-prep` which bumps the version in `package.json`, builds the vsix, tags, and publishes.
 
 ## Architecture
 
 ```
-apps/vscode/
 ├── src/
 │   ├── extension.ts          # Extension entry point (activate/deactivate)
-│   ├── SessionStore.ts       # File-based session CRUD operations
-│   ├── SessionWatcher.ts     # FileSystemWatcher for .review/ changes
-│   ├── ChangedFilesProvider.ts  # TreeDataProvider for SCM sidebar
-│   ├── ThreadsProvider.ts    # TreeDataProvider for review threads
-│   ├── DiffPanelManager.ts   # Webview panel for diff rendering
-│   └── CommentManager.ts     # VS Code CommentController integration
+│   ├── sessionStore.ts       # File-based session CRUD operations
+│   ├── sessionWatcher.ts     # FileSystemWatcher for .review/ changes
+│   ├── changedFilesTree.ts   # TreeDataProvider for SCM sidebar
+│   ├── threadsTree.ts        # TreeDataProvider for review threads
+│   ├── diffPanelManager.ts   # Webview panel for diff rendering
+│   ├── commentManager.ts     # VS Code CommentController integration
+│   ├── agentInvoker.ts       # AI agent spawner for thread resolution
+│   └── skillGenerator.ts     # Agent skill file generator
 ├── dist/
 │   └── extension.js          # esbuild bundle output (gitignored)
 ├── package.json              # Extension manifest + contributes
@@ -97,8 +87,8 @@ apps/vscode/
 
 - **Always use pnpm**: Never npm. All commands go through pnpm.
 - **`--no-dependencies` for vsce**: Required because dependencies are bundled by esbuild, not shipped in `node_modules`.
-- **dist/ is gitignored**: Unlike `apps/server/dist` and `apps/ui/dist`, the VS Code extension dist is NOT committed. Always build before packaging.
-- **esbuild doesn't type-check**: Run `pnpm -C apps/vscode type-check` separately — the build step skips type checking.
+- **dist/ is gitignored**: Always build before packaging.
+- **esbuild doesn't type-check**: Run `pnpm type-check` separately — the build step skips type checking.
 - **Reload after install**: VS Code requires window reload (`Developer: Reload Window`) to pick up extension changes.
 - **`.vscodeignore` matters**: Controls what goes into the `.vsix`. Source files (`src/`), `node_modules/`, and `tsconfig.json` are excluded.
 - **`vscode` module is external**: Never bundle the `vscode` module — it's provided by the VS Code runtime. esbuild config uses `--external:vscode`.
@@ -107,8 +97,8 @@ apps/vscode/
 
 Before packaging a release:
 
-1. `pnpm -C apps/vscode type-check` — passes with no errors
-2. `pnpm -C apps/vscode build` — produces `dist/extension.js`
-3. Version in `apps/vscode/package.json` matches intended release
-4. `pnpm -C apps/vscode exec vsce package --no-dependencies` — produces `.vsix`
+1. `pnpm type-check` — passes with no errors
+2. `pnpm build` — produces `dist/extension.js`
+3. Version in `package.json` matches intended release
+4. `pnpm package` — produces `.vsix`
 5. Test install: `code --install-extension <path>.vsix` → reload → verify activation

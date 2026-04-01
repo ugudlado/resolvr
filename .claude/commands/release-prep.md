@@ -61,7 +61,7 @@ After approval, update all version files:
 
 **b) `package.json`** — Bump the root `"version"` field to x.y.z.
 
-**c) `apps/vscode/package.json`** — Bump the `"version"` field to x.y.z.
+The root `package.json` is both the npm manifest and the VS Code extension manifest — only one version to update.
 
 Read each file before editing. Use Edit to update version fields in-place.
 
@@ -70,18 +70,17 @@ Read each file before editing. Use Edit to update version fields in-place.
 Build and package the VS Code extension `.vsix`:
 
 ```bash
-cd apps/vscode
-pnpm exec vsce package --no-dependencies
+pnpm build && pnpm package
 ```
 
-This produces `apps/vscode/local-code-review-x.y.z.vsix`. Verify the file was created and the version in the filename matches.
+This produces `local-code-review-x.y.z.vsix` in the repo root. Verify the file was created and the version in the filename matches.
 
 ### 6. Commit and Tag
 
 Stage all changed files:
 
 ```bash
-git add CHANGELOG.md package.json apps/vscode/package.json pnpm-lock.yaml
+git add CHANGELOG.md package.json pnpm-lock.yaml
 git commit -m "chore: release vx.y.z"
 git tag vx.y.z
 ```
@@ -91,12 +90,11 @@ git tag vx.y.z
 Publish the extension to the VS Code Marketplace using the prebuilt `.vsix` from step 5:
 
 ```bash
-cd apps/vscode
 VSIX_PATH="local-code-review-$(node -p "require('./package.json').version").vsix"
 if [ -z "$VSCE_PAT" ]; then
   echo "MARKETPLACE_STATUS=skipped: VSCE_PAT not set — run manually after setting the env var."
 else
-  pnpm exec vsce publish --pat "$VSCE_PAT" --packagePath "$VSIX_PATH" \
+  pnpm vsce publish --pat "$VSCE_PAT" --packagePath "$VSIX_PATH" \
     && echo "MARKETPLACE_STATUS=published" \
     || echo "MARKETPLACE_STATUS=failed — see output above. GitHub release proceeding."
 fi
@@ -109,7 +107,6 @@ The publish step is **non-blocking** — any failure echoes a status and proceed
 Push commits and tags, then create a GitHub release with the `.vsix` asset:
 
 ```bash
-cd $HOME/code/review
 git push origin main --tags
 ```
 
@@ -117,7 +114,7 @@ Extract the changelog entry for this version into a temp file, then create the G
 
 ```bash
 gh release create vx.y.z \
-  apps/vscode/local-code-review-x.y.z.vsix \
+  local-code-review-x.y.z.vsix \
   --title "vx.y.z" \
   --notes-file <temp-changelog-file>
 ```
@@ -134,12 +131,12 @@ Output:
 
 - Release version
 - Number of changelog entries
-- Files updated (CHANGELOG.md, package.json, vscode/package.json)
+- Files updated (CHANGELOG.md, package.json)
 - VS Code extension `.vsix` path and size
 - Tag name created
 - GitHub release URL
 - VS Code Marketplace publish status (published / skipped with reason)
 - Remind user to:
   - Install via marketplace: `code --install-extension ugudlado.local-code-review`
-  - Or install from `.vsix`: `code --install-extension apps/vscode/local-code-review-x.y.z.vsix`
+  - Or install from `.vsix`: `code --install-extension local-code-review-x.y.z.vsix`
   - Verify marketplace listing at: https://marketplace.visualstudio.com/items?itemName=ugudlado.local-code-review
