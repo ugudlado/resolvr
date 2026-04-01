@@ -4,26 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @local-review/server dev",
-    "build": "pnpm --filter @local-review/ui build",
-    "start": "pnpm --filter @local-review/server start",
-    "test:unit": "pnpm --filter @local-review/ui test:unit",
-    "test:watch": "pnpm --filter @local-review/ui test:watch",
-    "test:coverage": "pnpm --filter @local-review/ui test:coverage",
-    "type-check": "pnpm --filter @local-review/ui type-check && pnpm --filter @local-review/server type-check",
-    "lint": "pnpm --filter @local-review/ui lint && pnpm --filter @local-review/server lint",
-    "format": "prettier --write apps/ui/src/**/*.{ts,tsx} apps/ui/*.{ts,js}",
+    "type-check": "pnpm -C apps/vscode type-check",
+    "lint": "pnpm -C apps/vscode type-check",
+    "format": "prettier --write apps/vscode/src/**/*.ts",
     "prepare": "husky",
     "knip": "knip",
     "knip:fix": "knip --fix"
   },
   "lint-staged": {
-    "apps/ui/src/**/*.{ts,tsx}": [
-      "pnpm -C apps/ui exec eslint --no-warn-ignored",
-      "prettier --write"
-    ],
-    "apps/server/src/**/*.ts": [
-      "pnpm -C apps/server exec eslint --no-warn-ignored",
+    "apps/vscode/src/**/*.ts": [
+      "pnpm -C apps/vscode exec eslint --no-warn-ignored",
       "prettier --write"
     ],
     "apps/**/*.{json,css,html}": [
@@ -38,7 +28,6 @@
     "knip": "^5.86.0",
     "lint-staged": "^16.2.7",
     "prettier": "^3.5.3",
-    "prettier-plugin-tailwindcss": "^0.6.14",
     "typescript": "~5.8.3"
   }
 }
