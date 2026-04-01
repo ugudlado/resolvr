@@ -4,6 +4,7 @@ export class StatusBar implements vscode.Disposable {
   private _item: vscode.StatusBarItem;
   private _state: "ready" | "no-feature" | "no-session" = "no-feature";
   private _threadCount = 0;
+  private _openThreadCount = 0;
 
   constructor() {
     this._item = vscode.window.createStatusBarItem(
@@ -14,9 +15,12 @@ export class StatusBar implements vscode.Disposable {
     this._update();
   }
 
-  setReady(threadCount: number): void {
+  setReady(threadCount: number, openCount?: number): void {
     this._state = "ready";
     this._threadCount = threadCount;
+    if (openCount !== undefined) {
+      this._openThreadCount = openCount;
+    }
     this._update();
   }
 
@@ -27,12 +31,14 @@ export class StatusBar implements vscode.Disposable {
 
   setNoSession(): void {
     this._state = "no-session";
-    this._item.command = "local-review.startReview";
     this._update();
   }
 
-  updateThreadCount(count: number): void {
+  updateThreadCount(count: number, openCount?: number): void {
     this._threadCount = count;
+    if (openCount !== undefined) {
+      this._openThreadCount = openCount;
+    }
     if (this._state === "ready") {
       this._update();
     }
@@ -41,10 +47,24 @@ export class StatusBar implements vscode.Disposable {
   private _update(): void {
     switch (this._state) {
       case "ready":
-        this._item.text = `$(comment-discussion) Local Review: ${this._threadCount} threads`;
-        this._item.tooltip = "Local Review";
-        this._item.command = "local-review.refresh";
-        this._item.backgroundColor = undefined;
+        if (this._openThreadCount > 0) {
+          this._item.text = `$(sparkle) Local Review: ${this._openThreadCount} open · Resolve with AI`;
+          this._item.tooltip = "Click to resolve open threads with your coding agent";
+          this._item.command = "local-review.resolveWithAI";
+          this._item.backgroundColor = new vscode.ThemeColor(
+            "statusBarItem.warningBackground",
+          );
+        } else if (this._threadCount > 0) {
+          this._item.text = `$(check) Local Review: ${this._threadCount} threads · All resolved`;
+          this._item.tooltip = "All review threads resolved";
+          this._item.command = "local-review.refresh";
+          this._item.backgroundColor = undefined;
+        } else {
+          this._item.text = "$(comment-discussion) Local Review";
+          this._item.tooltip = "No review threads yet";
+          this._item.command = "local-review.refresh";
+          this._item.backgroundColor = undefined;
+        }
         break;
       case "no-feature":
         this._item.text = "$(git-branch) Local Review: No active feature";

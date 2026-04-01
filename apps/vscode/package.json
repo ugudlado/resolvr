@@ -98,6 +98,16 @@
         "command": "local-review.toggleFileViewMode",
         "title": "Local Review: Toggle Tree/Flat View",
         "icon": "$(list-tree)"
+      },
+      {
+        "command": "local-review.regenerateSkills",
+        "title": "Local Review: Regenerate Agent Skills",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "local-review.resolveWithAI",
+        "title": "Local Review: Resolve with AI",
+        "icon": "$(robot)"
       }
     ],
     "views": {
@@ -156,9 +166,19 @@
           "command": "local-review.toggleFileViewMode",
           "when": "view == localReview.changedFiles && local-review.hasDiffPanel",
           "group": "navigation"
+        },
+        {
+          "command": "local-review.resolveWithAI",
+          "when": "view == localReview.threads",
+          "group": "navigation"
         }
       ],
       "comments/commentThread/title": [
+        {
+          "command": "local-review.resolveWithAI",
+          "group": "inline@0",
+          "when": "commentController == local-review && !commentThreadIsEmpty && commentThread == open"
+        },
         {
           "command": "local-review.resolveThread",
           "group": "inline@1",
@@ -181,6 +201,11 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "local-review.resolveWithAI",
+          "when": "view == localReview.threads && viewItem == thread-open",
+          "group": "inline@0"
+        },
         {
           "command": "local-review.resolveThread",
           "when": "view == localReview.threads && viewItem == thread-open",
@@ -205,7 +230,18 @@
     },
     "configuration": {
       "title": "Local Review",
-      "properties": {}
+      "properties": {
+        "localReview.codingAgent": {
+          "type": "string",
+          "enum": [
+            "claude",
+            "gemini",
+            "codex"
+          ],
+          "default": "claude",
+          "description": "Which coding agent CLI to use for resolving review threads."
+        }
+      }
     }
   },
   "scripts": {

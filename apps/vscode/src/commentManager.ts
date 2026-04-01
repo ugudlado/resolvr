@@ -146,6 +146,7 @@ export class CommentManager implements vscode.Disposable {
             thread.dispose();
             this.loadThreads(updated.threads);
 
+            this._onDidUpdateThread.fire(featureId);
             outputChannel.appendLine(
               `Created thread ${sessionThread.id} on ${sessionThread.anchor.path}:${sessionThread.anchor.line}`,
             );
@@ -200,6 +201,7 @@ export class CommentManager implements vscode.Disposable {
               this._createComment(newMessage),
             ];
 
+            this._onDidUpdateThread.fire(featureId);
             outputChannel.appendLine(`Replied to thread ${sessionId}`);
           } catch (err) {
             outputChannel.appendLine(`Failed to reply: ${String(err)}`);
