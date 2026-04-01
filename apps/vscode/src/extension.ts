@@ -5,11 +5,17 @@ import * as path from "path";
 import { FeatureDetector } from "./featureDetector";
 import {
   sessionStore,
+  setWorkspaceRoot,
   setWorkspaceName,
   setOnBeforeWrite,
   getSessionFilePath,
 } from "./sessionStore";
 import type { SessionThread } from "./sessionStore";
+import { SkillGenerator } from "./skillGenerator";
+import {
+  resolveInExistingTerminal,
+  resolveWithNewAgent,
+} from "./agentInvoker";
 import { StatusBar } from "./statusBar";
 import { CommentManager } from "./commentManager";
 import { SessionWatcher } from "./sessionWatcher";
@@ -67,6 +73,8 @@ export function activate(context: vscode.ExtensionContext): void {
     context,
   );
 
+  const skillGenerator = new SkillGenerator(workspaceRoot);
+
   // Threads tree view — grouped by status (below Changed Files)
   const threadsTree = new ThreadsTreeProvider();
   const threadsTreeView = vscode.window.createTreeView("localReview.threads", {
@@ -102,7 +110,8 @@ export function activate(context: vscode.ExtensionContext): void {
         `Session file changed: reconciling ${threads.length} threads for ${currentFeatureId}`,
       );
       commentManager.loadThreads(threads);
-      statusBar.updateThreadCount(threads.length);
+      const openCount = threads.filter((t: SessionThread) => t.status === "open").length;
+      statusBar.updateThreadCount(threads.length, openCount);
       diffPanelManager.updateThreadCounts(threads);
       threadsTree.updateThreads(threads);
     }),
@@ -115,7 +124,8 @@ export function activate(context: vscode.ExtensionContext): void {
       const session = await sessionStore.getSession(featureId);
       if (!session) return;
       const threads = session.threads ?? [];
-      statusBar.updateThreadCount(threads.length);
+      const openCount = threads.filter((t: SessionThread) => t.status === "open").length;
+      statusBar.updateThreadCount(threads.length, openCount);
       diffPanelManager.updateThreadCounts(threads);
       threadsTree.updateThreads(threads);
     }),
@@ -123,6 +133,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Resolve workspace name from git repo root (handles worktrees).
   const resolveWorkspace = async () => {
+    setWorkspaceRoot(workspaceRoot);
     try {
       const { stdout } = await execFileAsync(
         "git",
@@ -170,7 +181,7 @@ export function activate(context: vscode.ExtensionContext): void {
         (t: SessionThread) => t.status === "open",
       ).length;
       commentManager.loadThreads(threads);
-      statusBar.setReady(threads.length);
+      statusBar.setReady(threads.length, openThreads);
       threadsTree.updateThreads(threads);
       outputChannel.appendLine(
         `Session loaded: ${threads.length} threads (${openThreads} open)`,
@@ -182,6 +193,23 @@ export function activate(context: vscode.ExtensionContext): void {
       // Populate sidebar tree with changed files
       await diffPanelManager.populate(featureId);
       diffPanelManager.updateThreadCounts(threads);
+
+      // Generate agent skill files (.review/AGENTS.md, .review/CLAUDE.md)
+      try {
+        const skillContext = await skillGenerator.buildContext(
+          featureId,
+          getSessionFilePath(featureId),
+          session,
+        );
+        await skillGenerator.generate(skillContext, session);
+        outputChannel.appendLine(
+          `Agent skill files generated in .review/`,
+        );
+      } catch (skillErr) {
+        outputChannel.appendLine(
+          `Skill generation failed: ${skillErr instanceof Error ? skillErr.message : String(skillErr)}`,
+        );
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       outputChannel.appendLine(
@@ -387,6 +415,92 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("local-review.toggleFileViewMode", () => {
       diffPanelManager.toggleViewMode();
     }),
+
+    // Resolve open threads with AI agent
+    vscode.commands.registerCommand(
+      "local-review.resolveWithAI",
+      async () => {
+        const featureId = featureDetector.featureId;
+        if (!featureId) {
+          void vscode.window.showWarningMessage(
+            "No feature branch detected. Switch to a feature/* branch first.",
+          );
+          return;
+        }
+        const session = await sessionStore.getSession(featureId);
+        if (!session) {
+          void vscode.window.showWarningMessage(
+            "No review session found. Start a review first.",
+          );
+          return;
+        }
+
+        const choice = await vscode.window.showQuickPick(
+          [
+            {
+              label: "$(terminal) Send to existing terminal",
+              description: "Send resolve prompt to an agent already running",
+              mode: "existing" as const,
+            },
+            {
+              label: "$(add) Start new agent",
+              description: "Spawn a new agent process to resolve threads",
+              mode: "new" as const,
+            },
+          ],
+          { placeHolder: "How should the agent be invoked?" },
+        );
+
+        if (!choice) return;
+
+        if (choice.mode === "existing") {
+          await resolveInExistingTerminal(
+            getSessionFilePath(featureId),
+            session,
+            workspaceRoot,
+            outputChannel,
+          );
+        } else {
+          resolveWithNewAgent(
+            getSessionFilePath(featureId),
+            session,
+            workspaceRoot,
+            outputChannel,
+          );
+        }
+      },
+    ),
+
+    // Regenerate agent skill files
+    vscode.commands.registerCommand(
+      "local-review.regenerateSkills",
+      async () => {
+        const featureId = featureDetector.featureId;
+        if (!featureId) {
+          void vscode.window.showWarningMessage(
+            "No feature branch detected. Switch to a feature/* branch first.",
+          );
+          return;
+        }
+        try {
+          const session = await sessionStore.getSession(featureId);
+          const skillContext = await skillGenerator.buildContext(
+            featureId,
+            getSessionFilePath(featureId),
+            session,
+          );
+          await skillGenerator.generate(skillContext, session);
+          void vscode.window.showInformationMessage(
+            "Agent skill files regenerated in .review/",
+          );
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          void vscode.window.showErrorMessage(
+            `Failed to regenerate skills: ${msg}`,
+          );
+        }
+      },
+    ),
   );
 
   // Run initialization

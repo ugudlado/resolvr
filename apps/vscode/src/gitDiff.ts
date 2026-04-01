@@ -79,12 +79,35 @@ export async function getLocalDiff(
     workspaceRoot,
   );
 
+  // Untracked files: new files not yet git-added
+  const untrackedRaw = await gitExec(
+    ["ls-files", "--others", "--exclude-standard"],
+    workspaceRoot,
+  );
+  const untrackedFiles = untrackedRaw
+    .trim()
+    .split("\n")
+    .filter((f) => f.length > 0);
+
+  // Generate synthetic unified diff headers for untracked files
+  // so they appear as "Added" in the changed files tree
+  const untrackedDiff = untrackedFiles
+    .map(
+      (f) =>
+        `diff --git a/${f} b/${f}\nnew file mode 100644\n--- /dev/null\n+++ b/${f}`,
+    )
+    .join("\n");
+
+  const combinedDiff = untrackedDiff
+    ? `${allDiff}\n${untrackedDiff}`
+    : allDiff;
+
   return {
     worktreePath: workspaceRoot,
     sourceBranch,
     targetBranch,
     committedDiff,
     uncommittedDiff,
-    allDiff,
+    allDiff: combinedDiff,
   };
 }

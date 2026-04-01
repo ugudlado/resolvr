@@ -1,6 +1,5 @@
 import * as fs from "fs";
 import * as path from "path";
-import * as os from "os";
 
 export interface SessionData {
   featureId: string;
@@ -42,8 +41,13 @@ export interface SessionMessage {
   createdAt: string;
 }
 
-/** Workspace name resolved from git repo root — set during activation. */
+/** Workspace root (set during activation) — sessions live at {root}/.review/sessions/ */
+let _workspaceRoot: string | null = null;
 let _workspaceName: string | null = null;
+
+export function setWorkspaceRoot(root: string): void {
+  _workspaceRoot = root;
+}
 
 export function setWorkspaceName(name: string): void {
   _workspaceName = name;
@@ -54,15 +58,8 @@ export function getWorkspaceName(): string | null {
 }
 
 function getSessionsDir(): string {
-  if (!_workspaceName) throw new Error("Workspace name not set");
-  return path.join(
-    os.homedir(),
-    ".config",
-    "local-review",
-    "workspace",
-    _workspaceName,
-    "sessions",
-  );
+  if (!_workspaceRoot) throw new Error("Workspace root not set");
+  return path.join(_workspaceRoot, ".review", "sessions");
 }
 
 export function getSessionFilePath(featureId: string): string {

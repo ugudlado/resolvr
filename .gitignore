@@ -45,6 +45,9 @@ specs-link
 specs-completed/
 .claude/settings.local.json
 .review/sessions/
+.review/AGENTS.md
+.review/CLAUDE.md
+.review/resolve-prompt.md
 .claude/marketplace/
 .claude/plugins/local-review
 .claude/worktrees/
