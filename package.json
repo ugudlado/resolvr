@@ -2,7 +2,7 @@
   "name": "resolvr",
   "displayName": "Resolvr",
   "description": "Review code, leave threaded comments, and let Claude resolve them — right in VS Code.",
-  "version": "2.0.7",
+  "version": "1.0.0",
   "publisher": "ugudlado",
   "repository": {
     "type": "git",
