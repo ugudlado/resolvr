@@ -51,6 +51,8 @@ Present the draft to the user in this format:
 - Removed something
 ```
 
+Run `/humanizer` on the drafted entry internally. Only present the humanized, scored version to the user — never show the raw draft. Show the score alongside the entry.
+
 WAIT for user approval before writing.
 
 ### 4. Update Files
