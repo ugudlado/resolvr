@@ -531,7 +531,7 @@ async function resolveInExistingTerminal(sessionFilePath, session, workspaceRoot
   );
 }
 function resolveWithNewAgent(sessionFilePath, session, workspaceRoot, outputChannel) {
-  const config = vscode2.workspace.getConfiguration("localReview");
+  const config = vscode2.workspace.getConfiguration("resolvr");
   const agentName = config.get("codingAgent", "claude");
   const agentConfig = AGENTS[agentName];
   if (!agentConfig) {
@@ -553,7 +553,7 @@ function resolveWithNewAgent(sessionFilePath, session, workspaceRoot, outputChan
   outputChannel.appendLine(
     `Resolving ${openCount} thread(s) with ${agentName} (new terminal)`
   );
-  const terminalName = `Local Review: ${agentName}`;
+  const terminalName = `Resolvr: ${agentName}`;
   const terminal = vscode2.window.createTerminal({
     name: terminalName,
     cwd: workspaceRoot
@@ -615,34 +615,34 @@ var StatusBar = class {
     switch (this._state) {
       case "ready":
         if (this._openThreadCount > 0) {
-          this._item.text = `$(sparkle) Local Review: ${this._openThreadCount} open \xB7 Resolve with AI`;
+          this._item.text = `$(sparkle) Resolvr: ${this._openThreadCount} open \xB7 Resolve with AI`;
           this._item.tooltip = "Click to resolve open threads with your coding agent";
-          this._item.command = "local-review.resolveWithAI";
+          this._item.command = "resolvr.resolveWithAI";
           this._item.backgroundColor = new vscode3.ThemeColor(
             "statusBarItem.warningBackground"
           );
         } else if (this._threadCount > 0) {
-          this._item.text = `$(check) Local Review: ${this._threadCount} threads \xB7 All resolved`;
+          this._item.text = `$(check) Resolvr: ${this._threadCount} threads \xB7 All resolved`;
           this._item.tooltip = "All review threads resolved";
-          this._item.command = "local-review.refresh";
+          this._item.command = "resolvr.refresh";
           this._item.backgroundColor = void 0;
         } else {
-          this._item.text = "$(comment-discussion) Local Review";
+          this._item.text = "$(comment-discussion) Resolvr";
           this._item.tooltip = "No review threads yet";
-          this._item.command = "local-review.refresh";
+          this._item.command = "resolvr.refresh";
           this._item.backgroundColor = void 0;
         }
         break;
       case "no-feature":
-        this._item.text = "$(git-branch) Local Review: No active feature";
+        this._item.text = "$(git-branch) Resolvr: No active feature";
         this._item.tooltip = "Switch to a feature/* branch to activate";
         this._item.command = void 0;
         this._item.backgroundColor = void 0;
         break;
       case "no-session":
-        this._item.text = "$(add) Local Review: Start Review";
+        this._item.text = "$(add) Resolvr: Start Review";
         this._item.tooltip = "Click to create a new review session";
-        this._item.command = "local-review.startReview";
+        this._item.command = "resolvr.startReview";
         this._item.backgroundColor = void 0;
         break;
     }
@@ -780,8 +780,8 @@ var EmptyContentProvider = class {
     return "";
   }
 };
-var SCHEME_BASE = "local-review-base";
-var SCHEME_EMPTY = "local-review-empty";
+var SCHEME_BASE = "resolvr-base";
+var SCHEME_EMPTY = "resolvr-empty";
 
 // src/commentManager.ts
 var CommentManager = class _CommentManager {
@@ -810,8 +810,8 @@ var CommentManager = class _CommentManager {
     this._outputChannel = outputChannel;
     this._threadMapper = new ThreadMapper();
     this._controller = vscode5.comments.createCommentController(
-      "local-review",
-      "Local Review"
+      "resolvr",
+      "Resolvr"
     );
     this._controller.commentingRangeProvider = {
       provideCommentingRanges(document) {
@@ -871,13 +871,13 @@ var CommentManager = class _CommentManager {
       // Create a new thread (user types in the "+" gutter inline box)
       // VS Code passes a single CommentReply object with { text, thread }
       vscode5.commands.registerCommand(
-        "local-review.createComment",
+        "resolvr.createComment",
         async (reply) => {
           const thread = reply.thread;
           const featureId = getFeatureId();
           if (!featureId) {
             void vscode5.window.showWarningMessage(
-              "Local Review: No active feature branch."
+              "Resolvr: No active feature branch."
             );
             return;
           }
@@ -903,20 +903,20 @@ var CommentManager = class _CommentManager {
           } catch (err) {
             outputChannel.appendLine(`Failed to create thread: ${String(err)}`);
             void vscode5.window.showErrorMessage(
-              `Local Review: Failed to create comment \u2014 ${String(err)}`
+              `Resolvr: Failed to create comment \u2014 ${String(err)}`
             );
           }
         }
       ),
       // Reply to an existing thread
       vscode5.commands.registerCommand(
-        "local-review.replyToComment",
+        "resolvr.replyToComment",
         async (reply) => {
           const thread = reply.thread;
           const featureId = getFeatureId();
           if (!featureId) {
             void vscode5.window.showWarningMessage(
-              "Local Review: No active feature branch."
+              "Resolvr: No active feature branch."
             );
             return;
           }
@@ -951,7 +951,7 @@ var CommentManager = class _CommentManager {
           } catch (err) {
             outputChannel.appendLine(`Failed to reply: ${String(err)}`);
             void vscode5.window.showErrorMessage(
-              `Local Review: Failed to post reply \u2014 ${String(err)}`
+              `Resolvr: Failed to post reply \u2014 ${String(err)}`
             );
           }
         }
@@ -963,22 +963,22 @@ var CommentManager = class _CommentManager {
   _registerStatusCommands(getFeatureId, outputChannel) {
     const statusCommands = [
       {
-        command: "local-review.resolveThread",
+        command: "resolvr.resolveThread",
         status: "resolved",
         label: "Resolved"
       },
       {
-        command: "local-review.unresolveThread",
+        command: "resolvr.unresolveThread",
         status: "open",
         label: "Re-opened"
       },
       {
-        command: "local-review.wontfixThread",
+        command: "resolvr.wontfixThread",
         status: "wontfix",
         label: "Won't fix"
       },
       {
-        command: "local-review.outdatedThread",
+        command: "resolvr.outdatedThread",
         status: "outdated",
         label: "Outdated"
       }
@@ -1012,7 +1012,7 @@ var CommentManager = class _CommentManager {
             `Failed to set ${label.toLowerCase()}: ${String(err)}`
           );
           void vscode5.window.showErrorMessage(
-            `Local Review: Failed to set ${label.toLowerCase()} \u2014 ${String(err)}`
+            `Resolvr: Failed to set ${label.toLowerCase()} \u2014 ${String(err)}`
           );
         }
       })
@@ -1193,7 +1193,7 @@ var SessionWatcher = class {
         `Session watcher: failed to read \u2014 ${String(err)}`
       );
       void vscode6.window.showWarningMessage(
-        "Local Review: Session file could not be read. Your view may be out of date. Try refreshing."
+        "Resolvr: Session file could not be read. Your view may be out of date. Try refreshing."
       );
     }
   }
@@ -1248,7 +1248,7 @@ function parseDiffFileList(unifiedDiff) {
 
 // src/fileDecorationProvider.ts
 var vscode7 = __toESM(require("vscode"));
-var SCHEME_REVIEW_FILE = "local-review-file";
+var SCHEME_REVIEW_FILE = "resolvr-file";
 var STATUS_DECORATIONS = {
   ["A" /* Added */]: {
     badge: "A",
@@ -1553,7 +1553,7 @@ var ChangedFilesTreeProvider = class {
       new vscode8.ThemeColor(STATUS_COLORS[element.status])
     );
     item.command = {
-      command: "local-review.openDiffFile",
+      command: "resolvr.openDiffFile",
       title: "Open Diff",
       arguments: [element]
     };
@@ -1683,10 +1683,10 @@ var DiffPanelManager = class {
     this._treeProvider.setMode(savedMode);
     void vscode9.commands.executeCommand(
       "setContext",
-      "local-review.fileViewMode",
+      "resolvr.fileViewMode",
       savedMode
     );
-    this._treeView = vscode9.window.createTreeView("localReview.changedFiles", {
+    this._treeView = vscode9.window.createTreeView("resolvr.changedFiles", {
       treeDataProvider: this._treeProvider
     });
   }
@@ -1697,7 +1697,7 @@ var DiffPanelManager = class {
     void this._context.workspaceState.update("fileViewMode", nextMode);
     void vscode9.commands.executeCommand(
       "setContext",
-      "local-review.fileViewMode",
+      "resolvr.fileViewMode",
       nextMode
     );
     this._outputChannel.appendLine(`File view mode: ${nextMode}`);
@@ -1716,7 +1716,7 @@ var DiffPanelManager = class {
       this._updateTitle();
       void vscode9.commands.executeCommand(
         "setContext",
-        "local-review.hasDiffPanel",
+        "resolvr.hasDiffPanel",
         this._files.length > 0
       );
       this._outputChannel.appendLine(
@@ -1785,7 +1785,7 @@ var DiffPanelManager = class {
     this._viewedFiles.clear();
     void vscode9.commands.executeCommand(
       "setContext",
-      "local-review.hasDiffPanel",
+      "resolvr.hasDiffPanel",
       false
     );
   }
@@ -1866,7 +1866,7 @@ ${preview}`;
     item.contextValue = t.status === "open" ? "thread-open" : "thread-closed";
     if (filePath) {
       item.command = {
-        command: "local-review.goToThread",
+        command: "resolvr.goToThread",
         title: "Go to Thread",
         arguments: [filePath, line]
       };
@@ -1901,8 +1901,8 @@ ${preview}`;
 // src/extension.ts
 var execFileAsync5 = (0, import_util5.promisify)(import_child_process5.execFile);
 function activate(context) {
-  const outputChannel = vscode11.window.createOutputChannel("Local Review");
-  outputChannel.appendLine("Local Review extension activated");
+  const outputChannel = vscode11.window.createOutputChannel("Resolvr");
+  outputChannel.appendLine("Resolvr extension activated");
   const workspaceRoot = vscode11.workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (!workspaceRoot) {
     outputChannel.appendLine("No workspace folder found \u2014 going dormant");
@@ -1934,7 +1934,7 @@ function activate(context) {
   );
   const skillGenerator = new SkillGenerator(workspaceRoot);
   const threadsTree = new ThreadsTreeProvider();
-  const threadsTreeView = vscode11.window.createTreeView("localReview.threads", {
+  const threadsTreeView = vscode11.window.createTreeView("resolvr.threads", {
     treeDataProvider: threadsTree,
     showCollapseAll: true
   });
@@ -2054,7 +2054,7 @@ function activate(context) {
         `Failed to load session for ${featureId}: ${msg}`
       );
       void vscode11.window.showErrorMessage(
-        `Local Review: Failed to load review session \u2014 ${msg}`
+        `Resolvr: Failed to load review session \u2014 ${msg}`
       );
     }
   };
@@ -2086,11 +2086,11 @@ function activate(context) {
     await loadSession(newFeatureId);
   });
   context.subscriptions.push(
-    vscode11.commands.registerCommand("local-review.refresh", () => {
+    vscode11.commands.registerCommand("resolvr.refresh", () => {
       outputChannel.appendLine("Refresh command invoked");
       void init();
     }),
-    vscode11.commands.registerCommand("local-review.startReview", async () => {
+    vscode11.commands.registerCommand("resolvr.startReview", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) {
         void vscode11.window.showWarningMessage(
@@ -2138,7 +2138,7 @@ function activate(context) {
         );
       }
     }),
-    vscode11.commands.registerCommand("local-review.requestChanges", async () => {
+    vscode11.commands.registerCommand("resolvr.requestChanges", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) {
         void vscode11.window.showWarningMessage("No active feature.");
@@ -2160,7 +2160,7 @@ function activate(context) {
       }
     }),
     // Diff panel commands
-    vscode11.commands.registerCommand("local-review.openDiff", async () => {
+    vscode11.commands.registerCommand("resolvr.openDiff", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) {
         void vscode11.window.showWarningMessage(
@@ -2174,12 +2174,12 @@ function activate(context) {
         const msg = err instanceof Error ? err.message : String(err);
         outputChannel.appendLine(`openDiff failed: ${msg}`);
         void vscode11.window.showErrorMessage(
-          `Local Review: Failed to open diff \u2014 ${msg}`
+          `Resolvr: Failed to open diff \u2014 ${msg}`
         );
       }
     }),
     vscode11.commands.registerCommand(
-      "local-review.openDiffFile",
+      "resolvr.openDiffFile",
       async (file) => {
         if (file && typeof file === "object" && "path" in file) {
           await diffPanelManager.openFile(
@@ -2189,7 +2189,7 @@ function activate(context) {
       }
     ),
     vscode11.commands.registerCommand(
-      "local-review.goToThread",
+      "resolvr.goToThread",
       async (filePath, line) => {
         const fileRef = diffPanelManager.getFileByPath(filePath) ?? {
           path: filePath,
@@ -2210,7 +2210,7 @@ function activate(context) {
         }, 300);
       }
     ),
-    vscode11.commands.registerCommand("local-review.refreshDiff", async () => {
+    vscode11.commands.registerCommand("resolvr.refreshDiff", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) return;
       try {
@@ -2220,15 +2220,15 @@ function activate(context) {
         outputChannel.appendLine(`refreshDiff failed: ${msg}`);
       }
     }),
-    vscode11.commands.registerCommand("local-review.closeDiff", () => {
+    vscode11.commands.registerCommand("resolvr.closeDiff", () => {
       diffPanelManager.close();
     }),
     // View mode toggle: flat ↔ compact-tree
-    vscode11.commands.registerCommand("local-review.toggleFileViewMode", () => {
+    vscode11.commands.registerCommand("resolvr.toggleFileViewMode", () => {
       diffPanelManager.toggleViewMode();
     }),
     // Resolve open threads with AI agent
-    vscode11.commands.registerCommand("local-review.resolveWithAI", async () => {
+    vscode11.commands.registerCommand("resolvr.resolveWithAI", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) {
         void vscode11.window.showWarningMessage(
@@ -2277,7 +2277,7 @@ function activate(context) {
     }),
     // Regenerate agent skill files
     vscode11.commands.registerCommand(
-      "local-review.regenerateSkills",
+      "resolvr.regenerateSkills",
       async () => {
         const featureId = featureDetector.featureId;
         if (!featureId) {
