@@ -39,8 +39,8 @@ export class CommentManager implements vscode.Disposable {
     this._outputChannel = outputChannel;
     this._threadMapper = new ThreadMapper();
     this._controller = vscode.comments.createCommentController(
-      "local-review",
-      "Local Review",
+      "resolvr",
+      "Resolvr",
     );
 
     // Enable the "+" gutter icon on real files and virtual base-content files
@@ -115,13 +115,13 @@ export class CommentManager implements vscode.Disposable {
       // Create a new thread (user types in the "+" gutter inline box)
       // VS Code passes a single CommentReply object with { text, thread }
       vscode.commands.registerCommand(
-        "local-review.createComment",
+        "resolvr.createComment",
         async (reply: vscode.CommentReply) => {
           const thread = reply.thread;
           const featureId = getFeatureId();
           if (!featureId) {
             void vscode.window.showWarningMessage(
-              "Local Review: No active feature branch.",
+              "Resolvr: No active feature branch.",
             );
             return;
           }
@@ -153,7 +153,7 @@ export class CommentManager implements vscode.Disposable {
           } catch (err) {
             outputChannel.appendLine(`Failed to create thread: ${String(err)}`);
             void vscode.window.showErrorMessage(
-              `Local Review: Failed to create comment — ${String(err)}`,
+              `Resolvr: Failed to create comment — ${String(err)}`,
             );
           }
         },
@@ -161,13 +161,13 @@ export class CommentManager implements vscode.Disposable {
 
       // Reply to an existing thread
       vscode.commands.registerCommand(
-        "local-review.replyToComment",
+        "resolvr.replyToComment",
         async (reply: vscode.CommentReply) => {
           const thread = reply.thread;
           const featureId = getFeatureId();
           if (!featureId) {
             void vscode.window.showWarningMessage(
-              "Local Review: No active feature branch.",
+              "Resolvr: No active feature branch.",
             );
             return;
           }
@@ -206,7 +206,7 @@ export class CommentManager implements vscode.Disposable {
           } catch (err) {
             outputChannel.appendLine(`Failed to reply: ${String(err)}`);
             void vscode.window.showErrorMessage(
-              `Local Review: Failed to post reply — ${String(err)}`,
+              `Resolvr: Failed to post reply — ${String(err)}`,
             );
           }
         },
@@ -228,22 +228,22 @@ export class CommentManager implements vscode.Disposable {
       label: string;
     }> = [
       {
-        command: "local-review.resolveThread",
+        command: "resolvr.resolveThread",
         status: "resolved",
         label: "Resolved",
       },
       {
-        command: "local-review.unresolveThread",
+        command: "resolvr.unresolveThread",
         status: "open",
         label: "Re-opened",
       },
       {
-        command: "local-review.wontfixThread",
+        command: "resolvr.wontfixThread",
         status: "wontfix",
         label: "Won't fix",
       },
       {
-        command: "local-review.outdatedThread",
+        command: "resolvr.outdatedThread",
         status: "outdated",
         label: "Outdated",
       },
@@ -295,7 +295,7 @@ export class CommentManager implements vscode.Disposable {
             `Failed to set ${label.toLowerCase()}: ${String(err)}`,
           );
           void vscode.window.showErrorMessage(
-            `Local Review: Failed to set ${label.toLowerCase()} — ${String(err)}`,
+            `Resolvr: Failed to set ${label.toLowerCase()} — ${String(err)}`,
           );
         }
       }),

@@ -156,7 +156,7 @@ export function resolveWithNewAgent(
   workspaceRoot: string,
   outputChannel: vscode.OutputChannel,
 ): void {
-  const config = vscode.workspace.getConfiguration("localReview");
+  const config = vscode.workspace.getConfiguration("resolvr");
   const agentName = config.get<string>("codingAgent", "claude");
   const agentConfig = AGENTS[agentName];
 
@@ -184,7 +184,7 @@ export function resolveWithNewAgent(
     `Resolving ${openCount} thread(s) with ${agentName} (new terminal)`,
   );
 
-  const terminalName = `Local Review: ${agentName}`;
+  const terminalName = `Resolvr: ${agentName}`;
   const terminal = vscode.window.createTerminal({
     name: terminalName,
     cwd: workspaceRoot,

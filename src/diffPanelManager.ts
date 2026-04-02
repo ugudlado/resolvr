@@ -73,11 +73,11 @@ export class DiffPanelManager implements vscode.Disposable {
     this._treeProvider.setMode(savedMode);
     void vscode.commands.executeCommand(
       "setContext",
-      "local-review.fileViewMode",
+      "resolvr.fileViewMode",
       savedMode,
     );
 
-    this._treeView = vscode.window.createTreeView("localReview.changedFiles", {
+    this._treeView = vscode.window.createTreeView("resolvr.changedFiles", {
       treeDataProvider: this._treeProvider,
     });
   }
@@ -90,7 +90,7 @@ export class DiffPanelManager implements vscode.Disposable {
     void this._context.workspaceState.update("fileViewMode", nextMode);
     void vscode.commands.executeCommand(
       "setContext",
-      "local-review.fileViewMode",
+      "resolvr.fileViewMode",
       nextMode,
     );
 
@@ -115,7 +115,7 @@ export class DiffPanelManager implements vscode.Disposable {
 
       void vscode.commands.executeCommand(
         "setContext",
-        "local-review.hasDiffPanel",
+        "resolvr.hasDiffPanel",
         this._files.length > 0,
       );
 
@@ -207,7 +207,7 @@ export class DiffPanelManager implements vscode.Disposable {
     this._viewedFiles.clear();
     void vscode.commands.executeCommand(
       "setContext",
-      "local-review.hasDiffPanel",
+      "resolvr.hasDiffPanel",
       false,
     );
   }

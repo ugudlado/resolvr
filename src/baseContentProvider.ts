@@ -6,7 +6,7 @@ const execFileAsync = promisify(execFile);
 
 /**
  * Provides old-side file content for diff editors via a virtual document scheme.
- * URI format: local-review-base:/<relative-path>?ref=<branch>
+ * URI format: resolvr-base:/<relative-path>?ref=<branch>
  */
 export class BaseContentProvider
   implements vscode.TextDocumentContentProvider, vscode.Disposable
@@ -99,5 +99,5 @@ export class EmptyContentProvider
   }
 }
 
-export const SCHEME_BASE = "local-review-base";
-export const SCHEME_EMPTY = "local-review-empty";
+export const SCHEME_BASE = "resolvr-base";
+export const SCHEME_EMPTY = "resolvr-empty";

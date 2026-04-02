@@ -114,7 +114,7 @@ export class ThreadsTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     // Click opens the diff view and scrolls to the thread's line
     if (filePath) {
       item.command = {
-        command: "local-review.goToThread",
+        command: "resolvr.goToThread",
         title: "Go to Thread",
         arguments: [filePath, line],
       };
