@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1 — 2026-04-02
+
+- Fix demo GIF not rendering on marketplace
+
 ## 1.0.0 — 2026-04-02
 
 - Extension icon and marketplace branding
