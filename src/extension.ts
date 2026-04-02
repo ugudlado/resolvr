@@ -29,8 +29,8 @@ import { ThreadsTreeProvider } from "./threadsTree";
 const execFileAsync = promisify(execFile);
 
 export function activate(context: vscode.ExtensionContext): void {
-  const outputChannel = vscode.window.createOutputChannel("Local Review");
-  outputChannel.appendLine("Local Review extension activated");
+  const outputChannel = vscode.window.createOutputChannel("Resolvr");
+  outputChannel.appendLine("Resolvr extension activated");
 
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (!workspaceRoot) {
@@ -74,7 +74,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Threads tree view — grouped by status (below Changed Files)
   const threadsTree = new ThreadsTreeProvider();
-  const threadsTreeView = vscode.window.createTreeView("localReview.threads", {
+  const threadsTreeView = vscode.window.createTreeView("resolvr.threads", {
     treeDataProvider: threadsTree,
     showCollapseAll: true,
   });
@@ -215,7 +215,7 @@ export function activate(context: vscode.ExtensionContext): void {
         `Failed to load session for ${featureId}: ${msg}`,
       );
       void vscode.window.showErrorMessage(
-        `Local Review: Failed to load review session — ${msg}`,
+        `Resolvr: Failed to load review session — ${msg}`,
       );
     }
   };
@@ -257,11 +257,11 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Register commands
   context.subscriptions.push(
-    vscode.commands.registerCommand("local-review.refresh", () => {
+    vscode.commands.registerCommand("resolvr.refresh", () => {
       outputChannel.appendLine("Refresh command invoked");
       void init();
     }),
-    vscode.commands.registerCommand("local-review.startReview", async () => {
+    vscode.commands.registerCommand("resolvr.startReview", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) {
         void vscode.window.showWarningMessage(
@@ -312,7 +312,7 @@ export function activate(context: vscode.ExtensionContext): void {
         );
       }
     }),
-    vscode.commands.registerCommand("local-review.requestChanges", async () => {
+    vscode.commands.registerCommand("resolvr.requestChanges", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) {
         void vscode.window.showWarningMessage("No active feature.");
@@ -337,7 +337,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
 
     // Diff panel commands
-    vscode.commands.registerCommand("local-review.openDiff", async () => {
+    vscode.commands.registerCommand("resolvr.openDiff", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) {
         void vscode.window.showWarningMessage(
@@ -351,13 +351,13 @@ export function activate(context: vscode.ExtensionContext): void {
         const msg = err instanceof Error ? err.message : String(err);
         outputChannel.appendLine(`openDiff failed: ${msg}`);
         void vscode.window.showErrorMessage(
-          `Local Review: Failed to open diff — ${msg}`,
+          `Resolvr: Failed to open diff — ${msg}`,
         );
       }
     }),
 
     vscode.commands.registerCommand(
-      "local-review.openDiffFile",
+      "resolvr.openDiffFile",
       async (file: unknown) => {
         if (file && typeof file === "object" && "path" in file) {
           await diffPanelManager.openFile(
@@ -373,7 +373,7 @@ export function activate(context: vscode.ExtensionContext): void {
     ),
 
     vscode.commands.registerCommand(
-      "local-review.goToThread",
+      "resolvr.goToThread",
       async (filePath: string, line: number) => {
         const fileRef = diffPanelManager.getFileByPath(filePath) ?? {
           path: filePath,
@@ -395,7 +395,7 @@ export function activate(context: vscode.ExtensionContext): void {
       },
     ),
 
-    vscode.commands.registerCommand("local-review.refreshDiff", async () => {
+    vscode.commands.registerCommand("resolvr.refreshDiff", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) return;
       try {
@@ -406,17 +406,17 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     }),
 
-    vscode.commands.registerCommand("local-review.closeDiff", () => {
+    vscode.commands.registerCommand("resolvr.closeDiff", () => {
       diffPanelManager.close();
     }),
 
     // View mode toggle: flat ↔ compact-tree
-    vscode.commands.registerCommand("local-review.toggleFileViewMode", () => {
+    vscode.commands.registerCommand("resolvr.toggleFileViewMode", () => {
       diffPanelManager.toggleViewMode();
     }),
 
     // Resolve open threads with AI agent
-    vscode.commands.registerCommand("local-review.resolveWithAI", async () => {
+    vscode.commands.registerCommand("resolvr.resolveWithAI", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) {
         void vscode.window.showWarningMessage(
@@ -469,7 +469,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
     // Regenerate agent skill files
     vscode.commands.registerCommand(
-      "local-review.regenerateSkills",
+      "resolvr.regenerateSkills",
       async () => {
         const featureId = featureDetector.featureId;
         if (!featureId) {

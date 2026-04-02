@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { DiffStatus } from "./diffParser";
 import type { DiffFileEntry } from "./diffParser";
 
-export const SCHEME_REVIEW_FILE = "local-review-file";
+export const SCHEME_REVIEW_FILE = "resolvr-file";
 
 const STATUS_DECORATIONS: Record<
   DiffStatus,

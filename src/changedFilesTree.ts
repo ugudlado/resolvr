@@ -338,7 +338,7 @@ export class ChangedFilesTreeProvider
     );
 
     item.command = {
-      command: "local-review.openDiffFile",
+      command: "resolvr.openDiffFile",
       title: "Open Diff",
       arguments: [element],
     };

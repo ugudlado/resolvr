@@ -5,7 +5,7 @@ model: haiku
 
 # Release Prep
 
-Prepare a release for the local-code-review VS Code extension: generate changelog from commits since last tag, update CHANGELOG.md, bump versions, then tag.
+Prepare a release for the resolvr VS Code extension: generate changelog from commits since last tag, update CHANGELOG.md, bump versions, then tag.
 
 ## Arguments
 
@@ -73,7 +73,7 @@ Build and package the VS Code extension `.vsix`:
 pnpm build && pnpm package
 ```
 
-This produces `local-code-review-x.y.z.vsix` in the repo root. Verify the file was created and the version in the filename matches.
+This produces `resolvr-x.y.z.vsix` in the repo root. Verify the file was created and the version in the filename matches.
 
 ### 6. Commit and Tag
 
@@ -90,7 +90,7 @@ git tag vx.y.z
 Publish the extension to the VS Code Marketplace using the prebuilt `.vsix` from step 5:
 
 ```bash
-VSIX_PATH="local-code-review-$(node -p "require('./package.json').version").vsix"
+VSIX_PATH="resolvr-$(node -p "require('./package.json').version").vsix"
 if [ -z "$VSCE_PAT" ]; then
   echo "MARKETPLACE_STATUS=skipped: VSCE_PAT not set — run manually after setting the env var."
 else
@@ -114,7 +114,7 @@ Extract the changelog entry for this version into a temp file, then create the G
 
 ```bash
 gh release create vx.y.z \
-  local-code-review-x.y.z.vsix \
+  resolvr-x.y.z.vsix \
   --title "vx.y.z" \
   --notes-file <temp-changelog-file>
 ```
@@ -137,6 +137,6 @@ Output:
 - GitHub release URL
 - VS Code Marketplace publish status (published / skipped with reason)
 - Remind user to:
-  - Install via marketplace: `code --install-extension ugudlado.local-code-review`
-  - Or install from `.vsix`: `code --install-extension local-code-review-x.y.z.vsix`
-  - Verify marketplace listing at: https://marketplace.visualstudio.com/items?itemName=ugudlado.local-code-review
+  - Install via marketplace: `code --install-extension ugudlado.resolvr`
+  - Or install from `.vsix`: `code --install-extension resolvr-x.y.z.vsix`
+  - Verify marketplace listing at: https://marketplace.visualstudio.com/items?itemName=ugudlado.resolvr

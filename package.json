@@ -1,16 +1,16 @@
 {
-  "name": "local-code-review",
-  "displayName": "Local Code Review",
+  "name": "resolvr",
+  "displayName": "Resolvr",
   "description": "Review code, leave threaded comments, and let Claude resolve them — right in VS Code.",
   "version": "2.0.7",
   "publisher": "ugudlado",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ugudlado/local-code-review"
+    "url": "https://github.com/ugudlado/resolvr"
   },
-  "homepage": "https://github.com/ugudlado/local-code-review#readme",
+  "homepage": "https://github.com/ugudlado/resolvr#readme",
   "bugs": {
-    "url": "https://github.com/ugudlado/local-code-review/issues"
+    "url": "https://github.com/ugudlado/resolvr/issues"
   },
   "license": "MIT",
   "keywords": [
@@ -37,201 +37,201 @@
   "contributes": {
     "commands": [
       {
-        "command": "local-review.refresh",
-        "title": "Local Review: Refresh"
+        "command": "resolvr.refresh",
+        "title": "Resolvr: Refresh"
       },
       {
-        "command": "local-review.startReview",
-        "title": "Local Review: Start Review"
+        "command": "resolvr.startReview",
+        "title": "Resolvr: Start Review"
       },
       {
-        "command": "local-review.requestChanges",
-        "title": "Local Review: Request Changes"
+        "command": "resolvr.requestChanges",
+        "title": "Resolvr: Request Changes"
       },
       {
-        "command": "local-review.createComment",
+        "command": "resolvr.createComment",
         "title": "Add Comment"
       },
       {
-        "command": "local-review.replyToComment",
+        "command": "resolvr.replyToComment",
         "title": "Reply"
       },
       {
-        "command": "local-review.resolveThread",
+        "command": "resolvr.resolveThread",
         "title": "Resolve"
       },
       {
-        "command": "local-review.unresolveThread",
+        "command": "resolvr.unresolveThread",
         "title": "Re-open"
       },
       {
-        "command": "local-review.wontfixThread",
+        "command": "resolvr.wontfixThread",
         "title": "Won't Fix"
       },
       {
-        "command": "local-review.outdatedThread",
+        "command": "resolvr.outdatedThread",
         "title": "Mark Outdated"
       },
       {
-        "command": "local-review.openDiff",
-        "title": "Local Review: Open Diff",
+        "command": "resolvr.openDiff",
+        "title": "Resolvr: Open Diff",
         "icon": "$(diff)"
       },
       {
-        "command": "local-review.openDiffFile",
-        "title": "Local Review: Open Diff File"
+        "command": "resolvr.openDiffFile",
+        "title": "Resolvr: Open Diff File"
       },
       {
-        "command": "local-review.refreshDiff",
-        "title": "Local Review: Refresh Diff",
+        "command": "resolvr.refreshDiff",
+        "title": "Resolvr: Refresh Diff",
         "icon": "$(refresh)"
       },
       {
-        "command": "local-review.closeDiff",
-        "title": "Local Review: Close Diff"
+        "command": "resolvr.closeDiff",
+        "title": "Resolvr: Close Diff"
       },
       {
-        "command": "local-review.goToThread",
-        "title": "Local Review: Go to Thread"
+        "command": "resolvr.goToThread",
+        "title": "Resolvr: Go to Thread"
       },
       {
-        "command": "local-review.toggleFileViewMode",
-        "title": "Local Review: Toggle Tree/Flat View",
+        "command": "resolvr.toggleFileViewMode",
+        "title": "Resolvr: Toggle Tree/Flat View",
         "icon": "$(list-tree)"
       },
       {
-        "command": "local-review.regenerateSkills",
-        "title": "Local Review: Regenerate Agent Skills",
+        "command": "resolvr.regenerateSkills",
+        "title": "Resolvr: Regenerate Agent Skills",
         "icon": "$(sparkle)"
       },
       {
-        "command": "local-review.resolveWithAI",
-        "title": "Local Review: Resolve with AI",
+        "command": "resolvr.resolveWithAI",
+        "title": "Resolvr: Resolve with AI",
         "icon": "$(robot)"
       }
     ],
     "views": {
       "scm": [
         {
-          "id": "localReview.changedFiles",
-          "name": "Local Review: Changed Files"
+          "id": "resolvr.changedFiles",
+          "name": "Resolvr: Changed Files"
         },
         {
-          "id": "localReview.threads",
-          "name": "Local Review: Threads"
+          "id": "resolvr.threads",
+          "name": "Resolvr: Threads"
         }
       ]
     },
     "viewsWelcome": [
       {
-        "view": "localReview.changedFiles",
-        "contents": "No review session active.\n[Open Diff](command:local-review.openDiff)",
-        "when": "!local-review.hasDiffPanel"
+        "view": "resolvr.changedFiles",
+        "contents": "No review session active.\n[Open Diff](command:resolvr.openDiff)",
+        "when": "!resolvr.hasDiffPanel"
       }
     ],
     "menus": {
       "comments/commentThread/context": [
         {
-          "command": "local-review.createComment",
+          "command": "resolvr.createComment",
           "group": "inline",
-          "when": "commentController == local-review && commentThreadIsEmpty"
+          "when": "commentController == resolvr && commentThreadIsEmpty"
         },
         {
-          "command": "local-review.replyToComment",
+          "command": "resolvr.replyToComment",
           "group": "inline",
-          "when": "commentController == local-review && !commentThreadIsEmpty"
+          "when": "commentController == resolvr && !commentThreadIsEmpty"
         }
       ],
       "commandPalette": [
         {
-          "command": "local-review.openDiffFile",
+          "command": "resolvr.openDiffFile",
           "when": "false"
         },
         {
-          "command": "local-review.goToThread",
+          "command": "resolvr.goToThread",
           "when": "false"
         },
         {
-          "command": "local-review.toggleFileViewMode",
+          "command": "resolvr.toggleFileViewMode",
           "when": "false"
         }
       ],
       "view/title": [
         {
-          "command": "local-review.refreshDiff",
-          "when": "view == localReview.changedFiles",
+          "command": "resolvr.refreshDiff",
+          "when": "view == resolvr.changedFiles",
           "group": "navigation"
         },
         {
-          "command": "local-review.toggleFileViewMode",
-          "when": "view == localReview.changedFiles && local-review.hasDiffPanel",
+          "command": "resolvr.toggleFileViewMode",
+          "when": "view == resolvr.changedFiles && resolvr.hasDiffPanel",
           "group": "navigation"
         },
         {
-          "command": "local-review.resolveWithAI",
-          "when": "view == localReview.threads",
+          "command": "resolvr.resolveWithAI",
+          "when": "view == resolvr.threads",
           "group": "navigation"
         }
       ],
       "comments/commentThread/title": [
         {
-          "command": "local-review.resolveWithAI",
+          "command": "resolvr.resolveWithAI",
           "group": "inline@0",
-          "when": "commentController == local-review && !commentThreadIsEmpty && commentThread == open"
+          "when": "commentController == resolvr && !commentThreadIsEmpty && commentThread == open"
         },
         {
-          "command": "local-review.resolveThread",
+          "command": "resolvr.resolveThread",
           "group": "inline@1",
-          "when": "commentController == local-review && !commentThreadIsEmpty && commentThread == open"
+          "when": "commentController == resolvr && !commentThreadIsEmpty && commentThread == open"
         },
         {
-          "command": "local-review.unresolveThread",
+          "command": "resolvr.unresolveThread",
           "group": "inline@1",
-          "when": "commentController == local-review && !commentThreadIsEmpty && commentThread == closed"
+          "when": "commentController == resolvr && !commentThreadIsEmpty && commentThread == closed"
         },
         {
-          "command": "local-review.wontfixThread",
+          "command": "resolvr.wontfixThread",
           "group": "inline@2",
-          "when": "commentController == local-review && !commentThreadIsEmpty && commentThread == open"
+          "when": "commentController == resolvr && !commentThreadIsEmpty && commentThread == open"
         },
         {
-          "command": "local-review.outdatedThread",
+          "command": "resolvr.outdatedThread",
           "group": "inline@3",
-          "when": "commentController == local-review && !commentThreadIsEmpty && commentThread == open"
+          "when": "commentController == resolvr && !commentThreadIsEmpty && commentThread == open"
         }
       ],
       "view/item/context": [
         {
-          "command": "local-review.resolveWithAI",
-          "when": "view == localReview.threads && viewItem == thread-open",
+          "command": "resolvr.resolveWithAI",
+          "when": "view == resolvr.threads && viewItem == thread-open",
           "group": "inline@0"
         },
         {
-          "command": "local-review.resolveThread",
-          "when": "view == localReview.threads && viewItem == thread-open",
+          "command": "resolvr.resolveThread",
+          "when": "view == resolvr.threads && viewItem == thread-open",
           "group": "inline@1"
         },
         {
-          "command": "local-review.wontfixThread",
-          "when": "view == localReview.threads && viewItem == thread-open",
+          "command": "resolvr.wontfixThread",
+          "when": "view == resolvr.threads && viewItem == thread-open",
           "group": "inline@2"
         },
         {
-          "command": "local-review.outdatedThread",
-          "when": "view == localReview.threads && viewItem == thread-open",
+          "command": "resolvr.outdatedThread",
+          "when": "view == resolvr.threads && viewItem == thread-open",
           "group": "inline@3"
         },
         {
-          "command": "local-review.unresolveThread",
-          "when": "view == localReview.threads && viewItem == thread-closed",
+          "command": "resolvr.unresolveThread",
+          "when": "view == resolvr.threads && viewItem == thread-closed",
           "group": "inline@1"
         }
       ]
     },
     "configuration": {
-      "title": "Local Review",
+      "title": "Resolvr",
       "properties": {
-        "localReview.codingAgent": {
+        "resolvr.codingAgent": {
           "type": "string",
           "enum": [
             "claude",

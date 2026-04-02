@@ -5,11 +5,11 @@ description: Use when working with GitHub — creating releases, managing issues
 
 # GitHub Operations
 
-Guide for GitHub operations using the `gh` CLI for the local-review project.
+Guide for GitHub operations using the `gh` CLI for the Resolvr project.
 
 ## Repository
 
-- **Remote**: `git@github.com:ugudlado/local-code-review.git`
+- **Remote**: `git@github.com:ugudlado/resolvr.git`
 - **CLI**: Always use `gh` (GitHub CLI) — never raw API calls
 
 ## Releases
@@ -28,31 +28,31 @@ gh release create v<VERSION> \
 ```bash
 # From CHANGELOG content + .vsix asset
 gh release create v1.3.0 \
-  local-code-review-1.3.0.vsix \
+  resolvr-1.3.0.vsix \
   --title "v1.3.0" \
   --notes-file CHANGELOG.md
 
 # Auto-generate notes from commits since last tag
 gh release create v1.3.0 \
-  local-code-review-1.3.0.vsix \
+  resolvr-1.3.0.vsix \
   --title "v1.3.0" \
   --generate-notes
 
 # Draft release (not public)
 gh release create v1.3.0 --draft \
-  local-code-review-1.3.0.vsix \
+  resolvr-1.3.0.vsix \
   --title "v1.3.0"
 
 # Pre-release
 gh release create v1.3.0-beta.1 --prerelease \
-  local-code-review-1.3.0.vsix \
+  resolvr-1.3.0.vsix \
   --title "v1.3.0-beta.1"
 ```
 
 ### Upload assets to existing release
 
 ```bash
-gh release upload v1.3.0 local-code-review-1.3.0.vsix
+gh release upload v1.3.0 resolvr-1.3.0.vsix
 ```
 
 ### List and view releases
@@ -117,15 +117,15 @@ gh issue close <number>
 
 ## Release Assets — What to Upload
 
-For local-code-review releases, upload:
+For resolvr releases, upload:
 
-1. **VS Code extension**: `local-code-review-<version>.vsix`
+1. **VS Code extension**: `resolvr-<version>.vsix`
 
 The plugin itself is installed via the Claude Code marketplace (not GitHub releases), so no plugin archive is needed.
 
 ## Gotchas
 
 - **Tag must exist first**: `gh release create` creates the tag if it doesn't exist, but if you've already tagged (via `/release-prep`), it uses the existing tag.
-- **Asset names**: GitHub uses the filename as the display name. Keep filenames descriptive (e.g., `local-code-review-1.3.0.vsix` — matches the vsce-generated filename).
+- **Asset names**: GitHub uses the filename as the display name. Keep filenames descriptive (e.g., `resolvr-1.3.0.vsix` — matches the vsce-generated filename).
 - **Release notes from CHANGELOG**: When using `--notes-file CHANGELOG.md`, the entire file is used as the body. For a single version's notes, extract the relevant section first.
 - **TLS errors**: If `gh` fails with TLS certificate errors, the user may need to check proxy/VPN settings or run `gh auth refresh`.

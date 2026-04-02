@@ -91,7 +91,7 @@ export class SessionWatcher implements vscode.Disposable {
         `Session watcher: failed to read — ${String(err)}`,
       );
       void vscode.window.showWarningMessage(
-        "Local Review: Session file could not be read. Your view may be out of date. Try refreshing.",
+        "Resolvr: Session file could not be read. Your view may be out of date. Try refreshing.",
       );
     }
   }

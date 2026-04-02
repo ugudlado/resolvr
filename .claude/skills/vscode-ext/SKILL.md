@@ -5,7 +5,7 @@ description: Use when working on the VS Code extension — building, packaging, 
 
 # VS Code Extension Development
 
-Guide for developing, building, and packaging the local-code-review VS Code extension.
+Guide for developing, building, and packaging the resolvr VS Code extension.
 
 ## Extension Overview
 
@@ -24,7 +24,7 @@ All commands run from the **repo root**:
 | Watch (dev)        | `pnpm watch`                                                |
 | Type-check         | `pnpm type-check`                                           |
 | Package .vsix      | `pnpm package`                                              |
-| Install in VS Code | `code --install-extension local-code-review-<version>.vsix` |
+| Install in VS Code | `code --install-extension resolvr-<version>.vsix` |
 
 ## Build & Package Workflow
 
@@ -44,7 +44,7 @@ pnpm build && pnpm package
 
 ```bash
 pnpm build && pnpm package && \
-code --install-extension local-code-review-*.vsix
+code --install-extension resolvr-*.vsix
 ```
 
 After installing, remind the user to reload VS Code (`Developer: Reload Window`).
