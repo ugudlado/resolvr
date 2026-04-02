@@ -20,6 +20,7 @@ test-results.json
 coverage
 
 # Build artifacts
+dist/
 *.tar.gz
 *.vsix
 vite.config.ts.*
