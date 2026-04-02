@@ -1,9 +1,9 @@
-# Local Code Review — Claude Instructions
+# Resolvr — Claude Instructions
 
 ## Project Overview
 
-**Project**: local-code-review
-**Repository**: VS Code extension for local code review with inline comments, diff rendering, and AI-assisted thread resolution
+**Project**: resolvr
+**Repository**: VS Code extension for code review with inline comments, diff rendering, and AI-assisted thread resolution
 
 ## Quick Start
 

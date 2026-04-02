@@ -1,6 +1,6 @@
-# Local Code Review
+# Resolvr
 
-VS Code extension for local code review — review diffs, leave threaded comments inline, and resolve them with AI assistance. Reviews are stored as local session files, keeping everything private and version-control friendly.
+VS Code extension for code review — review diffs, leave threaded comments inline, and resolve them with AI assistance. Reviews are stored as local session files, keeping everything private and version-control friendly.
 
 ## Features
 
@@ -18,13 +18,13 @@ VS Code extension for local code review — review diffs, leave threaded comment
 From the VS Code Marketplace:
 
 ```bash
-code --install-extension ugudlado.local-code-review
+code --install-extension ugudlado.resolvr
 ```
 
-Or download from the [latest release](https://github.com/ugudlado/local-code-review/releases) and install manually:
+Or download from the [latest release](https://github.com/ugudlado/resolvr/releases) and install manually:
 
 ```bash
-code --install-extension local-code-review-<version>.vsix
+code --install-extension resolvr-<version>.vsix
 ```
 
 ## How It Works
@@ -39,8 +39,8 @@ Review sessions are stored in `.review/sessions/` as JSON files — portable, di
 ## Development
 
 ```bash
-git clone https://github.com/ugudlado/local-code-review.git
-cd local-code-review
+git clone https://github.com/ugudlado/resolvr.git
+cd resolvr
 pnpm install
 ```
 

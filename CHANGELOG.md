@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Rebrand extension from "Local Code Review" to "Resolvr" — new extension ID `ugudlado.resolvr`, updated all command IDs (`resolvr.*`), view IDs, URI schemes, configuration keys, and documentation
+
 ## 2.0.7 — 2026-03-24
 
 - Updated repository URLs from ugudlado/local-review to ugudlado/local-code-review
