@@ -1,17 +1,16 @@
 # Resolvr
 
-VS Code extension for code review — review diffs, leave threaded comments inline, and resolve them with AI assistance. Reviews are stored as local session files, keeping everything private and version-control friendly.
+Code review inside VS Code. Open diffs, leave threaded comments on any line, then hand the open threads to your AI agent to work through. Session files live on your machine. No account needed, no server to run.
+
+![Resolvr demo — changed files tree, inline review comments, and AI thread resolution](assets/demo.gif)
 
 ## Features
 
-- **Inline comments** — Native VS Code Comments API for threaded annotations on any line
-- **Changed files tree** — Source Control sidebar shows changed files with diff stats
-- **Diff panel** — Dedicated webview for side-by-side diff rendering
-- **File watching** — Live updates when session files change on disk
-- **AI resolution** — "Resolve with AI" spawns your configured coding agent to address open threads
-- **Serverless** — Reads/writes session files directly, no server dependency
-
-![VS Code extension showing changed files tree, inline review comments, and threads panel](docs/images/vscode-extension.png)
+- Threaded inline comments on any line, using VS Code's native Comments API
+- Changed files tree in the Source Control sidebar with diff stats
+- Side-by-side diff panel
+- Live updates as session files change on disk
+- "Resolve with AI": spawns your configured agent in a terminal to tackle open threads
 
 ## Install
 
@@ -21,20 +20,17 @@ From the VS Code Marketplace:
 code --install-extension ugudlado.resolvr
 ```
 
-Or download from the [latest release](https://github.com/ugudlado/resolvr/releases) and install manually:
+Or grab the `.vsix` from the [latest release](https://github.com/ugudlado/resolvr/releases):
 
 ```bash
 code --install-extension resolvr-<version>.vsix
 ```
 
-## How It Works
+## How it works
 
-1. **Review** — Open changed files in the sidebar, add threaded comments on any line
-2. **Discuss** — Reply to threads, mark as resolved or re-open
-3. **Resolve with AI** — Click the status bar button or use the command palette to spawn your coding agent on open threads
-4. **Continue** — See AI replies inline, resolve or follow up
+Open changed files in the sidebar and comment on any line. Threads stay open until resolved. Reply, reopen, or mark as won't fix. When you're ready, hit "Resolve with AI" and your agent picks up the open threads inline.
 
-Review sessions are stored in `.review/sessions/` as JSON files — portable, diffable, and private.
+Sessions are stored in `.review/sessions/` as JSON files you can diff, commit, or ignore.
 
 ## Development
 
@@ -45,10 +41,10 @@ pnpm install
 ```
 
 ```bash
-pnpm build          # Build extension bundle
-pnpm watch          # Watch mode for development
-pnpm type-check     # TypeScript type checking
-pnpm format         # Format all files (Prettier)
+pnpm build       # bundle the extension
+pnpm watch       # watch mode
+pnpm type-check  # type check
+pnpm format      # prettier
 ```
 
 ### Packaging
@@ -59,18 +55,16 @@ pnpm package
 
 ### Debug in VS Code
 
-Press F5 to launch the Extension Development Host (configured in `.vscode/launch.json`).
-
-For more development details, see [CLAUDE.md](./CLAUDE.md).
+Press `F5` to launch the Extension Development Host.
 
 ## Contributing
 
-1. Fork the repo and create a feature branch
+1. Fork and create a feature branch
 2. `pnpm install`
-3. Make your changes — validate with `pnpm type-check`
-4. Build: `pnpm build`
+3. Make changes, run `pnpm type-check`
+4. `pnpm build`
 5. Open a pull request
 
 ## License
 
-MIT — see [LICENSE](./LICENSE)
+MIT. See [LICENSE](./LICENSE).
