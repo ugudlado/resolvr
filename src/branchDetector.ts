@@ -5,18 +5,27 @@ import * as path from "path";
 
 const execFileAsync = promisify(execFile);
 
-export class FeatureDetector implements vscode.Disposable {
-  private readonly _onDidChangeFeature = new vscode.EventEmitter<
+const DEFAULT_BRANCHES = new Set(["main", "master", "HEAD"]);
+
+export class BranchDetector implements vscode.Disposable {
+  private readonly _onDidChangeBranch = new vscode.EventEmitter<
     string | null
   >();
-  readonly onDidChangeFeature = this._onDidChangeFeature.event;
+  readonly onDidChangeBranch = this._onDidChangeBranch.event;
 
-  private _currentFeatureId: string | null = null;
+  private _currentSessionId: string | null = null;
+  private _currentBranchName: string | null = null;
   private _watcher: vscode.FileSystemWatcher | undefined;
   private _workspaceRoot: string;
 
-  get featureId(): string | null {
-    return this._currentFeatureId;
+  /** Sanitized branch name safe for use as session key / filename. */
+  get sessionId(): string | null {
+    return this._currentSessionId;
+  }
+
+  /** Raw git branch name (e.g. "fix/auth-bug"). */
+  get branchName(): string | null {
+    return this._currentBranchName;
   }
 
   get workspaceRoot(): string {
@@ -28,12 +37,12 @@ export class FeatureDetector implements vscode.Disposable {
   }
 
   async initialize(): Promise<string | null> {
-    this._currentFeatureId = await this._detectFeatureId();
+    await this._detect();
     await this._startWatching();
-    return this._currentFeatureId;
+    return this._currentSessionId;
   }
 
-  private async _detectFeatureId(): Promise<string | null> {
+  private async _detect(): Promise<void> {
     try {
       const { stdout } = await execFileAsync(
         "git",
@@ -43,10 +52,16 @@ export class FeatureDetector implements vscode.Disposable {
         },
       );
       const branch = stdout.trim();
-      const match = branch.match(/^feature\/(.+)$/);
-      return match ? match[1] : null;
+      if (DEFAULT_BRANCHES.has(branch)) {
+        this._currentSessionId = null;
+        this._currentBranchName = null;
+        return;
+      }
+      this._currentBranchName = branch;
+      this._currentSessionId = branch.replace(/\//g, "--");
     } catch {
-      return null;
+      this._currentSessionId = null;
+      this._currentBranchName = null;
     }
   }
 
@@ -72,10 +87,10 @@ export class FeatureDetector implements vscode.Disposable {
       );
 
       const onHeadChange = async () => {
-        const newFeatureId = await this._detectFeatureId();
-        if (newFeatureId !== this._currentFeatureId) {
-          this._currentFeatureId = newFeatureId;
-          this._onDidChangeFeature.fire(newFeatureId);
+        const prevId = this._currentSessionId;
+        await this._detect();
+        if (this._currentSessionId !== prevId) {
+          this._onDidChangeBranch.fire(this._currentSessionId);
         }
       };
 
@@ -88,6 +103,6 @@ export class FeatureDetector implements vscode.Disposable {
 
   dispose(): void {
     this._watcher?.dispose();
-    this._onDidChangeFeature.dispose();
+    this._onDidChangeBranch.dispose();
   }
 }

@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 
 export class StatusBar implements vscode.Disposable {
   private _item: vscode.StatusBarItem;
-  private _state: "ready" | "no-feature" | "no-session" = "no-feature";
+  private _state: "ready" | "no-branch" | "no-session" = "no-branch";
   private _threadCount = 0;
   private _openThreadCount = 0;
 
@@ -24,8 +24,8 @@ export class StatusBar implements vscode.Disposable {
     this._update();
   }
 
-  setNoFeature(): void {
-    this._state = "no-feature";
+  setNoBranch(): void {
+    this._state = "no-branch";
     this._update();
   }
 
@@ -67,9 +67,9 @@ export class StatusBar implements vscode.Disposable {
           this._item.backgroundColor = undefined;
         }
         break;
-      case "no-feature":
-        this._item.text = "$(git-branch) Resolvr: No active feature";
-        this._item.tooltip = "Switch to a feature/* branch to activate";
+      case "no-branch":
+        this._item.text = "$(git-branch) Resolvr: No active branch";
+        this._item.tooltip = "Switch to a non-default branch to activate";
         this._item.command = undefined;
         this._item.backgroundColor = undefined;
         break;

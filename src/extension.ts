@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import * as path from "path";
-import { FeatureDetector } from "./featureDetector";
+import { BranchDetector } from "./branchDetector";
 import {
   sessionStore,
   setWorkspaceRoot,
@@ -56,7 +56,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   const statusBar = new StatusBar();
-  const featureDetector = new FeatureDetector(workspaceRoot);
+  const branchDetector = new BranchDetector(workspaceRoot);
   const commentManager = new CommentManager(workspaceRoot, outputChannel);
   const sessionWatcher = new SessionWatcher(outputChannel);
 
@@ -81,7 +81,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     statusBar,
-    featureDetector,
+    branchDetector,
     commentManager,
     sessionWatcher,
     diffPanelManager,
@@ -92,19 +92,20 @@ export function activate(context: vscode.ExtensionContext): void {
   // Wire up comment creation/reply/resolve commands.
   commentManager.setupCommentHandlers(
     context,
-    () => featureDetector.featureId,
+    () => branchDetector.sessionId,
     outputChannel,
+    () => branchDetector.branchName,
   );
 
-  let currentFeatureId: string | null = null;
+  let currentSessionId: string | null = null;
 
   // Subscribe to file watcher events (replaces WS session-updated)
   context.subscriptions.push(
     sessionWatcher.onDidSessionChange((session) => {
-      if (!currentFeatureId) return;
+      if (!currentSessionId) return;
       const threads = session.threads ?? [];
       outputChannel.appendLine(
-        `Session file changed: reconciling ${threads.length} threads for ${currentFeatureId}`,
+        `Session file changed: reconciling ${threads.length} threads for ${currentSessionId}`,
       );
       commentManager.loadThreads(threads);
       const openCount = threads.filter(
@@ -119,8 +120,8 @@ export function activate(context: vscode.ExtensionContext): void {
   // Refresh threads tree after in-process status changes (resolve, wontfix, etc.)
   // File watcher is suppressed for self-writes, so we refresh manually here.
   context.subscriptions.push(
-    commentManager.onDidUpdateThread(async (featureId) => {
-      const session = await sessionStore.getSession(featureId);
+    commentManager.onDidUpdateThread(async (sessionId) => {
+      const session = await sessionStore.getSession(sessionId);
       if (!session) return;
       const threads = session.threads ?? [];
       const openCount = threads.filter(
@@ -152,17 +153,16 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   };
 
-  const loadSession = async (featureId: string) => {
+  const loadSession = async (sessionId: string) => {
     try {
-      let session = await sessionStore.getSession(featureId);
+      let session = await sessionStore.getSession(sessionId);
 
       // Auto-create session if none exists — extension works immediately
       if (!session) {
-        const sourceBranch = `feature/${featureId}`;
         session = {
-          featureId,
+          sessionId,
           worktreePath: workspaceRoot,
-          sourceBranch,
+          sourceBranch: branchDetector.branchName ?? sessionId,
           targetBranch: "main",
           verdict: null,
           threads: [],
@@ -171,9 +171,9 @@ export function activate(context: vscode.ExtensionContext): void {
             updatedAt: new Date().toISOString(),
           },
         };
-        sessionStore.saveSession(featureId, session);
+        sessionStore.saveSession(sessionId, session);
         outputChannel.appendLine(
-          `Auto-created review session for ${featureId}`,
+          `Auto-created review session for ${sessionId}`,
         );
       }
 
@@ -189,17 +189,17 @@ export function activate(context: vscode.ExtensionContext): void {
       );
 
       // Start watching the session file for external changes
-      sessionWatcher.watch(getSessionFilePath(featureId));
+      sessionWatcher.watch(getSessionFilePath(sessionId));
 
       // Populate sidebar tree with changed files
-      await diffPanelManager.populate(featureId);
+      await diffPanelManager.populate(sessionId);
       diffPanelManager.updateThreadCounts(threads);
 
       // Generate agent skill files (.review/AGENTS.md, .review/CLAUDE.md)
       try {
         const skillContext = await skillGenerator.buildContext(
-          featureId,
-          getSessionFilePath(featureId),
+          sessionId,
+          getSessionFilePath(sessionId),
           session,
         );
         await skillGenerator.generate(skillContext, session);
@@ -212,7 +212,7 @@ export function activate(context: vscode.ExtensionContext): void {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       outputChannel.appendLine(
-        `Failed to load session for ${featureId}: ${msg}`,
+        `Failed to load session for ${sessionId}: ${msg}`,
       );
       void vscode.window.showErrorMessage(
         `Resolvr: Failed to load review session — ${msg}`,
@@ -223,36 +223,36 @@ export function activate(context: vscode.ExtensionContext): void {
   // Initialize feature detection
   const init = async () => {
     await resolveWorkspace();
-    const featureId = await featureDetector.initialize();
-    currentFeatureId = featureId;
+    const sessionId = await branchDetector.initialize();
+    currentSessionId = sessionId;
 
-    if (!featureId) {
-      statusBar.setNoFeature();
-      outputChannel.appendLine("No feature branch detected — dormant");
+    if (!sessionId) {
+      statusBar.setNoBranch();
+      outputChannel.appendLine("No working branch detected — dormant");
       return;
     }
 
-    outputChannel.appendLine(`Feature detected: ${featureId}`);
-    await loadSession(featureId);
+    outputChannel.appendLine(`Working branch detected: ${sessionId}`);
+    await loadSession(sessionId);
   };
 
   // Listen for branch changes
-  featureDetector.onDidChangeFeature(async (newFeatureId) => {
+  branchDetector.onDidChangeBranch(async (newSessionId) => {
     outputChannel.appendLine(
-      `Branch changed — new feature: ${newFeatureId ?? "none"}`,
+      `Branch changed — session: ${newSessionId ?? "none"}`,
     );
-    currentFeatureId = newFeatureId;
+    currentSessionId = newSessionId;
     sessionWatcher.unwatch();
 
-    if (!newFeatureId) {
+    if (!newSessionId) {
       commentManager.loadThreads([]);
       threadsTree.updateThreads([]);
       diffPanelManager.close();
-      statusBar.setNoFeature();
+      statusBar.setNoBranch();
       return;
     }
 
-    await loadSession(newFeatureId);
+    await loadSession(newSessionId);
   });
 
   // Register commands
@@ -262,28 +262,27 @@ export function activate(context: vscode.ExtensionContext): void {
       void init();
     }),
     vscode.commands.registerCommand("resolvr.startReview", async () => {
-      const featureId = featureDetector.featureId;
-      if (!featureId) {
+      const sessionId = branchDetector.sessionId;
+      if (!sessionId) {
         void vscode.window.showWarningMessage(
-          "No feature branch detected. Switch to a feature/* branch first.",
+          "No working branch detected. Switch to a non-default branch first.",
         );
         return;
       }
 
-      const existing = await sessionStore.getSession(featureId);
+      const existing = await sessionStore.getSession(sessionId);
       if (existing) {
         void vscode.window.showInformationMessage(
-          "Review session already exists for this feature.",
+          "Review session already exists for this branch.",
         );
         return;
       }
 
-      outputChannel.appendLine(`Creating new review session for ${featureId}`);
-      const branch = `feature/${featureId}`;
+      outputChannel.appendLine(`Creating new review session for ${sessionId}`);
       const session = {
-        featureId,
+        sessionId,
         worktreePath: workspaceRoot,
-        sourceBranch: branch,
+        sourceBranch: branchDetector.branchName ?? sessionId,
         targetBranch: "main",
         verdict: null as "approved" | "changes_requested" | null,
         threads: [] as SessionThread[],
@@ -294,15 +293,15 @@ export function activate(context: vscode.ExtensionContext): void {
       };
 
       try {
-        sessionStore.saveSession(featureId, session);
+        sessionStore.saveSession(sessionId, session);
         commentManager.loadThreads([]);
         statusBar.setReady(0);
-        sessionWatcher.watch(getSessionFilePath(featureId));
-        currentFeatureId = featureId;
-        await diffPanelManager.populate(featureId);
+        sessionWatcher.watch(getSessionFilePath(sessionId));
+        currentSessionId = sessionId;
+        await diffPanelManager.populate(sessionId);
         outputChannel.appendLine("Review session created");
         void vscode.window.showInformationMessage(
-          `Review session created for ${featureId}`,
+          `Review session created for ${sessionId}`,
         );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -313,18 +312,18 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     }),
     vscode.commands.registerCommand("resolvr.requestChanges", async () => {
-      const featureId = featureDetector.featureId;
-      if (!featureId) {
-        void vscode.window.showWarningMessage("No active feature.");
+      const sessionId = branchDetector.sessionId;
+      if (!sessionId) {
+        void vscode.window.showWarningMessage("No active working branch.");
         return;
       }
 
       outputChannel.appendLine(
-        `Request Changes: setting verdict for ${featureId}`,
+        `Request Changes: setting verdict for ${sessionId}`,
       );
 
       try {
-        await sessionStore.setVerdict(featureId, "changes_requested");
+        await sessionStore.setVerdict(sessionId, "changes_requested");
         void vscode.window.showInformationMessage(
           "Verdict saved. Run /resolve in your Claude session to process threads.",
         );
@@ -338,15 +337,15 @@ export function activate(context: vscode.ExtensionContext): void {
 
     // Diff panel commands
     vscode.commands.registerCommand("resolvr.openDiff", async () => {
-      const featureId = featureDetector.featureId;
-      if (!featureId) {
+      const sessionId = branchDetector.sessionId;
+      if (!sessionId) {
         void vscode.window.showWarningMessage(
-          "No feature branch detected. Switch to a feature/* branch first.",
+          "No working branch detected. Switch to a non-default branch first.",
         );
         return;
       }
       try {
-        await diffPanelManager.open(featureId);
+        await diffPanelManager.open(sessionId);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         outputChannel.appendLine(`openDiff failed: ${msg}`);
@@ -396,10 +395,10 @@ export function activate(context: vscode.ExtensionContext): void {
     ),
 
     vscode.commands.registerCommand("resolvr.refreshDiff", async () => {
-      const featureId = featureDetector.featureId;
-      if (!featureId) return;
+      const sessionId = branchDetector.sessionId;
+      if (!sessionId) return;
       try {
-        await diffPanelManager.refresh(featureId);
+        await diffPanelManager.refresh(sessionId);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         outputChannel.appendLine(`refreshDiff failed: ${msg}`);
@@ -417,14 +416,14 @@ export function activate(context: vscode.ExtensionContext): void {
 
     // Resolve open threads with AI agent
     vscode.commands.registerCommand("resolvr.resolveWithAI", async () => {
-      const featureId = featureDetector.featureId;
-      if (!featureId) {
+      const sessionId = branchDetector.sessionId;
+      if (!sessionId) {
         void vscode.window.showWarningMessage(
-          "No feature branch detected. Switch to a feature/* branch first.",
+          "No working branch detected. Switch to a non-default branch first.",
         );
         return;
       }
-      const session = await sessionStore.getSession(featureId);
+      const session = await sessionStore.getSession(sessionId);
       if (!session) {
         void vscode.window.showWarningMessage(
           "No review session found. Start a review first.",
@@ -452,14 +451,14 @@ export function activate(context: vscode.ExtensionContext): void {
 
       if (choice.mode === "existing") {
         await resolveInExistingTerminal(
-          getSessionFilePath(featureId),
+          getSessionFilePath(sessionId),
           session,
           workspaceRoot,
           outputChannel,
         );
       } else {
         resolveWithNewAgent(
-          getSessionFilePath(featureId),
+          getSessionFilePath(sessionId),
           session,
           workspaceRoot,
           outputChannel,
@@ -468,35 +467,32 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
 
     // Regenerate agent skill files
-    vscode.commands.registerCommand(
-      "resolvr.regenerateSkills",
-      async () => {
-        const featureId = featureDetector.featureId;
-        if (!featureId) {
-          void vscode.window.showWarningMessage(
-            "No feature branch detected. Switch to a feature/* branch first.",
-          );
-          return;
-        }
-        try {
-          const session = await sessionStore.getSession(featureId);
-          const skillContext = await skillGenerator.buildContext(
-            featureId,
-            getSessionFilePath(featureId),
-            session,
-          );
-          await skillGenerator.generate(skillContext, session);
-          void vscode.window.showInformationMessage(
-            "Agent skill files regenerated in .review/",
-          );
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          void vscode.window.showErrorMessage(
-            `Failed to regenerate skills: ${msg}`,
-          );
-        }
-      },
-    ),
+    vscode.commands.registerCommand("resolvr.regenerateSkills", async () => {
+      const sessionId = branchDetector.sessionId;
+      if (!sessionId) {
+        void vscode.window.showWarningMessage(
+          "No working branch detected. Switch to a non-default branch first.",
+        );
+        return;
+      }
+      try {
+        const session = await sessionStore.getSession(sessionId);
+        const skillContext = await skillGenerator.buildContext(
+          sessionId,
+          getSessionFilePath(sessionId),
+          session,
+        );
+        await skillGenerator.generate(skillContext, session);
+        void vscode.window.showInformationMessage(
+          "Agent skill files regenerated in .review/",
+        );
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        void vscode.window.showErrorMessage(
+          `Failed to regenerate skills: ${msg}`,
+        );
+      }
+    }),
   );
 
   // Run initialization
