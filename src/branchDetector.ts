@@ -2,10 +2,11 @@ import * as vscode from "vscode";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import * as path from "path";
+import { getDefaultTargetBranch } from "./config";
 
 const execFileAsync = promisify(execFile);
 
-const DEFAULT_BRANCHES = new Set(["main", "master", "HEAD"]);
+const BASE_DEFAULT_BRANCHES = new Set(["main", "master", "HEAD"]);
 
 export class BranchDetector implements vscode.Disposable {
   private readonly _onDidChangeBranch = new vscode.EventEmitter<
@@ -52,7 +53,10 @@ export class BranchDetector implements vscode.Disposable {
         },
       );
       const branch = stdout.trim();
-      if (DEFAULT_BRANCHES.has(branch)) {
+      const configuredTarget = getDefaultTargetBranch();
+      const defaultBranches = new Set(BASE_DEFAULT_BRANCHES);
+      defaultBranches.add(configuredTarget);
+      if (defaultBranches.has(branch)) {
         this._currentSessionId = null;
         this._currentBranchName = null;
         return;

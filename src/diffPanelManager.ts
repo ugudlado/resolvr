@@ -15,6 +15,7 @@ import type { DiffFileEntry } from "./diffParser";
 import { ReviewFileDecorationProvider } from "./fileDecorationProvider";
 import { getLocalDiff } from "./gitDiff";
 import type { SessionThread } from "./sessionStore";
+import { getDefaultTargetBranch } from "./config";
 
 /** Minimal file identity needed for opening a diff — no stats required */
 type DiffFileRef = Pick<
@@ -106,7 +107,12 @@ export class DiffPanelManager implements vscode.Disposable {
     this._decorationProvider.clear();
 
     try {
-      const diff = await getLocalDiff(this._workspaceRoot, sessionId);
+      const defaultTarget = getDefaultTargetBranch();
+      const diff = await getLocalDiff(
+        this._workspaceRoot,
+        sessionId,
+        defaultTarget,
+      );
       this._files = parseDiffFileList(diff.allDiff);
 
       this._treeProvider.setFiles(this._files);
@@ -134,7 +140,7 @@ export class DiffPanelManager implements vscode.Disposable {
 
     if (this._files.length === 0) {
       void vscode.window.showInformationMessage(
-        "No changes found between main and working tree.",
+        "No changes found between target branch and working tree.",
       );
       return;
     }

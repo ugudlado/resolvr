@@ -17,9 +17,17 @@ export class BaseContentProvider
   private _cache = new Map<string, string>();
   private _mergeBaseSha: string | null = null;
   private _workspaceRoot: string;
+  private _targetBranch: string;
 
-  constructor(workspaceRoot: string) {
+  constructor(workspaceRoot: string, targetBranch: string = "main") {
     this._workspaceRoot = workspaceRoot;
+    this._targetBranch = targetBranch;
+  }
+
+  setTargetBranch(branch: string): void {
+    if (this._targetBranch === branch) return;
+    this._targetBranch = branch;
+    this.invalidate();
   }
 
   async resolveMergeBase(): Promise<string> {
@@ -27,13 +35,13 @@ export class BaseContentProvider
     try {
       const { stdout } = await execFileAsync(
         "git",
-        ["merge-base", "HEAD", "main"],
+        ["merge-base", "HEAD", this._targetBranch],
         { cwd: this._workspaceRoot },
       );
       this._mergeBaseSha = stdout.trim();
     } catch {
-      // Fallback to "main" if merge-base fails (e.g., no common ancestor)
-      this._mergeBaseSha = "main";
+      // Fallback to target branch ref if merge-base fails (e.g., no common ancestor)
+      this._mergeBaseSha = this._targetBranch;
     }
     return this._mergeBaseSha;
   }

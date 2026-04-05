@@ -109,6 +109,11 @@
         "command": "resolvr.resolveWithAI",
         "title": "Resolvr: Resolve with AI",
         "icon": "$(robot)"
+      },
+      {
+        "command": "resolvr.changeTargetBranch",
+        "title": "Resolvr: Change Target Branch",
+        "icon": "$(git-branch)"
       }
     ],
     "views": {
@@ -165,6 +170,11 @@
         },
         {
           "command": "resolvr.toggleFileViewMode",
+          "when": "view == resolvr.changedFiles && resolvr.hasDiffPanel",
+          "group": "navigation"
+        },
+        {
+          "command": "resolvr.changeTargetBranch",
           "when": "view == resolvr.changedFiles && resolvr.hasDiffPanel",
           "group": "navigation"
         },
@@ -241,6 +251,11 @@
           ],
           "default": "claude",
           "description": "Which coding agent CLI to use for resolving review threads."
+        },
+        "resolvr.defaultTargetBranch": {
+          "type": "string",
+          "default": "main",
+          "description": "Default target branch for diff comparisons (e.g. 'main', 'master', 'develop'). New review sessions use this as their base branch."
         }
       }
     }
