@@ -49,12 +49,21 @@ export async function getLocalDiff(
     await gitExec(["rev-parse", "--abbrev-ref", "HEAD"], workspaceRoot)
   ).trim();
 
-  // Detect target branch from session file, fallback to main
+  // Detect target branch from session file, fallback to main/master
   let targetBranch = "main";
   if (sessionId) {
     const session = await sessionStore.getSession(sessionId);
     if (session?.targetBranch) {
       targetBranch = session.targetBranch;
+    }
+  }
+
+  // Verify the target branch ref exists; fall back to master if main is missing
+  try {
+    await gitExec(["rev-parse", "--verify", targetBranch], workspaceRoot);
+  } catch {
+    if (targetBranch === "main") {
+      targetBranch = "master";
     }
   }
 
