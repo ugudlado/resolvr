@@ -39,7 +39,7 @@ function writeResolvePrompt(
 
   const prompt = `# Resolve Review Threads
 
-Resolve the open code review threads for the \`${session.featureId}\` feature.
+Resolve the open code review threads for the \`${session.sessionId}\` branch.
 
 ## Session File
 

@@ -8,7 +8,7 @@ const execFileAsync = promisify(execFile);
 
 export interface SkillContext {
   repoName: string;
-  featureId: string;
+  sessionId: string;
   sessionFilePath: string;
   sourceBranch: string;
   targetBranch: string;
@@ -52,18 +52,18 @@ export class SkillGenerator {
    * Build a SkillContext from the current workspace state.
    */
   async buildContext(
-    featureId: string,
+    sessionId: string,
     sessionFilePath: string,
     session: SessionData | null,
   ): Promise<SkillContext> {
     const repoName = await this._getRepoName();
-    const sourceBranch = session?.sourceBranch ?? `feature/${featureId}`;
+    const sourceBranch = session?.sourceBranch ?? sessionId;
     const targetBranch = session?.targetBranch ?? "main";
     const changedFiles = await this._getChangedFiles(targetBranch);
 
     return {
       repoName,
-      featureId,
+      sessionId,
       sessionFilePath,
       sourceBranch,
       targetBranch,
@@ -113,12 +113,12 @@ export class SkillGenerator {
 
     return `# Code Review — ${ctx.repoName}
 
-You are participating in a code review for the \`${ctx.featureId}\` feature.
+You are participating in a code review for the \`${ctx.sessionId}\` branch.
 Your role is to review code changes, respond to review threads, and resolve issues.
 
 ## Current State
 
-- **Feature**: \`${ctx.featureId}\`
+- **Branch**: \`${ctx.sessionId}\`
 - **Branch**: \`${ctx.sourceBranch}\` → \`${ctx.targetBranch}\`
 - **Session file**: \`${ctx.sessionFilePath}\`
 - **Open threads**: ${openThreads.length}
@@ -141,9 +141,9 @@ automatically when you make changes.
 
 \`\`\`json
 {
-  "featureId": "string — feature identifier",
+  "sessionId": "string — session identifier (sanitized branch name)",
   "worktreePath": "string — absolute path to workspace",
-  "sourceBranch": "string — feature branch name",
+  "sourceBranch": "string — working branch name",
   "targetBranch": "string — merge target (usually main)",
   "verdict": "null | 'approved' | 'changes_requested'",
   "threads": [

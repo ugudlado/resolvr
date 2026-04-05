@@ -11,7 +11,7 @@ import { SCHEME_BASE } from "./baseContentProvider";
 
 export class CommentManager implements vscode.Disposable {
   private readonly _onDidUpdateThread = new vscode.EventEmitter<string>();
-  /** Fires after a thread status change with the featureId. */
+  /** Fires after a thread status change with the sessionId. */
   readonly onDidUpdateThread = this._onDidUpdateThread.event;
 
   private static readonly STATUS_LABELS: Record<string, string | undefined> = {
@@ -67,13 +67,16 @@ export class CommentManager implements vscode.Disposable {
   }
 
   /**
-   * Ensure a code review session exists for the given feature.
+   * Ensure a code review session exists for the given branch.
    * Creates one automatically if none exists (first-comment UX).
    */
-  private async _ensureSession(featureId: string): Promise<void> {
+  private async _ensureSession(
+    sessionId: string,
+    branchName: string | null,
+  ): Promise<void> {
     let existing: SessionData | null;
     try {
-      existing = await sessionStore.getSession(featureId);
+      existing = await sessionStore.getSession(sessionId);
     } catch (err) {
       // Session file exists but is unreadable — do not overwrite
       throw new Error(
@@ -83,9 +86,9 @@ export class CommentManager implements vscode.Disposable {
     if (existing) return;
 
     const session: SessionData = {
-      featureId,
+      sessionId,
       worktreePath: this._workspaceRoot,
-      sourceBranch: `feature/${featureId}`,
+      sourceBranch: branchName ?? sessionId,
       targetBranch: "main",
       verdict: null,
       threads: [],
@@ -94,22 +97,23 @@ export class CommentManager implements vscode.Disposable {
         updatedAt: new Date().toISOString(),
       },
     };
-    sessionStore.saveSession(featureId, session);
+    sessionStore.saveSession(sessionId, session);
     this._outputChannel.appendLine(
-      `Auto-created review session for ${featureId}`,
+      `Auto-created review session for ${sessionId}`,
     );
   }
 
   /**
    * Register the comment action commands (create, reply, resolve, unresolve).
-   * Must be called after the extension context is ready and a featureId is known.
-   * The getFeatureId callback is used at command invocation time so it always
-   * reflects the current branch's featureId.
+   * Must be called after the extension context is ready and a sessionId is known.
+   * The getSessionId callback is used at command invocation time so it always
+   * reflects the current branch's sessionId.
    */
   setupCommentHandlers(
     context: vscode.ExtensionContext,
-    getFeatureId: () => string | null,
+    getSessionId: () => string | null,
     outputChannel: vscode.OutputChannel,
+    getBranchName?: () => string | null,
   ): void {
     context.subscriptions.push(
       // Create a new thread (user types in the "+" gutter inline box)
@@ -118,10 +122,10 @@ export class CommentManager implements vscode.Disposable {
         "resolvr.createComment",
         async (reply: vscode.CommentReply) => {
           const thread = reply.thread;
-          const featureId = getFeatureId();
-          if (!featureId) {
+          const sessionId = getSessionId();
+          if (!sessionId) {
             void vscode.window.showWarningMessage(
-              "Resolvr: No active feature branch.",
+              "Resolvr: No active working branch.",
             );
             return;
           }
@@ -130,14 +134,14 @@ export class CommentManager implements vscode.Disposable {
           }
           try {
             // Auto-create session on first comment
-            await this._ensureSession(featureId);
+            await this._ensureSession(sessionId, getBranchName?.() ?? null);
 
             const sessionThread = await this._buildNewThread(
               thread,
               reply.text.trim(),
             );
             const updated = await sessionStore.createThread(
-              featureId,
+              sessionId,
               sessionThread,
             );
 
@@ -146,7 +150,7 @@ export class CommentManager implements vscode.Disposable {
             thread.dispose();
             this.loadThreads(updated.threads);
 
-            this._onDidUpdateThread.fire(featureId);
+            this._onDidUpdateThread.fire(sessionId);
             outputChannel.appendLine(
               `Created thread ${sessionThread.id} on ${sessionThread.anchor.path}:${sessionThread.anchor.line}`,
             );
@@ -164,18 +168,18 @@ export class CommentManager implements vscode.Disposable {
         "resolvr.replyToComment",
         async (reply: vscode.CommentReply) => {
           const thread = reply.thread;
-          const featureId = getFeatureId();
-          if (!featureId) {
+          const sessionId = getSessionId();
+          if (!sessionId) {
             void vscode.window.showWarningMessage(
-              "Resolvr: No active feature branch.",
+              "Resolvr: No active working branch.",
             );
             return;
           }
           if (!reply.text?.trim()) {
             return;
           }
-          const sessionId = this._threadMapper.getSessionId(thread);
-          if (!sessionId) {
+          const threadId = this._threadMapper.getSessionId(thread);
+          if (!threadId) {
             outputChannel.appendLine(
               "replyToComment: thread not found in mapper — no session ID",
             );
@@ -191,7 +195,7 @@ export class CommentManager implements vscode.Disposable {
           };
           try {
             // Send only the new message — sessionStore appends to existing messages
-            await sessionStore.updateThread(featureId, sessionId, {
+            await sessionStore.updateThread(sessionId, threadId, {
               messages: [newMessage],
             });
 
@@ -201,8 +205,8 @@ export class CommentManager implements vscode.Disposable {
               this._createComment(newMessage),
             ];
 
-            this._onDidUpdateThread.fire(featureId);
-            outputChannel.appendLine(`Replied to thread ${sessionId}`);
+            this._onDidUpdateThread.fire(sessionId);
+            outputChannel.appendLine(`Replied to thread ${threadId}`);
           } catch (err) {
             outputChannel.appendLine(`Failed to reply: ${String(err)}`);
             void vscode.window.showErrorMessage(
@@ -213,13 +217,13 @@ export class CommentManager implements vscode.Disposable {
       ),
 
       // Thread status commands — consolidated handler
-      ...this._registerStatusCommands(getFeatureId, outputChannel),
+      ...this._registerStatusCommands(getSessionId, outputChannel),
     );
   }
 
   /** Register all thread status change commands (resolve, reopen, wontfix, outdated). */
   private _registerStatusCommands(
-    getFeatureId: () => string | null,
+    getSessionId: () => string | null,
     outputChannel: vscode.OutputChannel,
   ): vscode.Disposable[] {
     const statusCommands: Array<{
@@ -251,12 +255,12 @@ export class CommentManager implements vscode.Disposable {
 
     return statusCommands.map(({ command, status, label }) =>
       vscode.commands.registerCommand(command, async (arg: unknown) => {
-        const featureId = getFeatureId();
-        if (!featureId) return;
+        const sessionId = getSessionId();
+        if (!sessionId) return;
 
         // Determine session thread ID — arg is either a VS Code CommentThread
         // (from inline comments) or a TreeNode (from threads tree view)
-        let sessionId: string | undefined;
+        let threadId: string | undefined;
         let commentThread: vscode.CommentThread | undefined;
 
         if (
@@ -266,17 +270,17 @@ export class CommentManager implements vscode.Disposable {
           (arg as { kind: string }).kind === "thread"
         ) {
           // Tree view item
-          sessionId = (arg as unknown as { thread: { id: string } }).thread.id;
+          threadId = (arg as unknown as { thread: { id: string } }).thread.id;
         } else if (arg) {
           // Inline comment thread
           commentThread = arg as vscode.CommentThread;
-          sessionId = this._threadMapper.getSessionId(commentThread);
+          threadId = this._threadMapper.getSessionId(commentThread);
         }
 
-        if (!sessionId) return;
+        if (!threadId) return;
         const closed = status !== "open";
         try {
-          await sessionStore.updateThread(featureId, sessionId, { status });
+          await sessionStore.updateThread(sessionId, threadId, { status });
 
           // Update inline comment thread UI if available
           if (commentThread) {
@@ -288,8 +292,8 @@ export class CommentManager implements vscode.Disposable {
             commentThread.label = CommentManager._statusLabel(status);
           }
 
-          this._onDidUpdateThread.fire(featureId);
-          outputChannel.appendLine(`${label} thread ${sessionId}`);
+          this._onDidUpdateThread.fire(sessionId);
+          outputChannel.appendLine(`${label} thread ${threadId}`);
         } catch (err) {
           outputChannel.appendLine(
             `Failed to set ${label.toLowerCase()}: ${String(err)}`,

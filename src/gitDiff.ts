@@ -42,7 +42,7 @@ async function gitExec(args: string[], cwd: string): Promise<string> {
  */
 export async function getLocalDiff(
   workspaceRoot: string,
-  featureId?: string,
+  sessionId?: string,
 ): Promise<LocalDiffResult> {
   // Detect source branch
   const sourceBranch = (
@@ -51,8 +51,8 @@ export async function getLocalDiff(
 
   // Detect target branch from session file, fallback to main
   let targetBranch = "main";
-  if (featureId) {
-    const session = await sessionStore.getSession(featureId);
+  if (sessionId) {
+    const session = await sessionStore.getSession(sessionId);
     if (session?.targetBranch) {
       targetBranch = session.targetBranch;
     }

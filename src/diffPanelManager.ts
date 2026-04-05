@@ -101,12 +101,12 @@ export class DiffPanelManager implements vscode.Disposable {
    * Populate the sidebar tree with changed files without opening a diff tab.
    * Used on activation so the activity bar shows file list immediately.
    */
-  async populate(featureId: string): Promise<void> {
+  async populate(sessionId: string): Promise<void> {
     // Clear stale decorations before fetch to prevent leftover badges on early return
     this._decorationProvider.clear();
 
     try {
-      const diff = await getLocalDiff(this._workspaceRoot, featureId);
+      const diff = await getLocalDiff(this._workspaceRoot, sessionId);
       this._files = parseDiffFileList(diff.allDiff);
 
       this._treeProvider.setFiles(this._files);
@@ -120,7 +120,7 @@ export class DiffPanelManager implements vscode.Disposable {
       );
 
       this._outputChannel.appendLine(
-        `Diff tree populated for ${featureId}: ${this._files.length} files`,
+        `Diff tree populated for ${sessionId}: ${this._files.length} files`,
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -129,8 +129,8 @@ export class DiffPanelManager implements vscode.Disposable {
     }
   }
 
-  async open(featureId: string): Promise<void> {
-    await this.populate(featureId);
+  async open(sessionId: string): Promise<void> {
+    await this.populate(sessionId);
 
     if (this._files.length === 0) {
       void vscode.window.showInformationMessage(
@@ -194,9 +194,9 @@ export class DiffPanelManager implements vscode.Disposable {
         : `Changed Files (${total})`;
   }
 
-  async refresh(featureId: string): Promise<void> {
+  async refresh(sessionId: string): Promise<void> {
     this._baseProvider.invalidate();
-    await this.populate(featureId);
+    await this.populate(sessionId);
   }
 
   close(): void {

@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 export interface SessionData {
-  featureId: string;
+  sessionId: string;
   worktreePath: string;
   sourceBranch: string;
   targetBranch: string;
@@ -62,8 +62,8 @@ function getSessionsDir(): string {
   return path.join(_workspaceRoot, ".review", "sessions");
 }
 
-export function getSessionFilePath(featureId: string): string {
-  return path.join(getSessionsDir(), `${featureId}-code.json`);
+export function getSessionFilePath(sessionId: string): string {
+  return path.join(getSessionsDir(), `${sessionId}-code.json`);
 }
 
 /** Atomic write: temp file + rename to prevent corruption on concurrent writes. */
@@ -92,8 +92,8 @@ function stampAndSerialize(session: SessionData): string {
 }
 
 export const sessionStore = {
-  async getSession(featureId: string): Promise<SessionData | null> {
-    const filePath = getSessionFilePath(featureId);
+  async getSession(sessionId: string): Promise<SessionData | null> {
+    const filePath = getSessionFilePath(sessionId);
     try {
       const raw = await fs.promises.readFile(filePath, "utf-8");
       return JSON.parse(raw) as SessionData;
@@ -103,37 +103,37 @@ export const sessionStore = {
         return null;
       }
       throw new Error(
-        `Failed to read session for ${featureId}: ${String(err)}`,
+        `Failed to read session for ${sessionId}: ${String(err)}`,
       );
     }
   },
 
-  saveSession(featureId: string, session: SessionData): void {
-    const filePath = getSessionFilePath(featureId);
+  saveSession(sessionId: string, session: SessionData): void {
+    const filePath = getSessionFilePath(sessionId);
     atomicWrite(filePath, stampAndSerialize(session));
   },
 
   async createThread(
-    featureId: string,
+    sessionId: string,
     thread: SessionThread,
   ): Promise<SessionData> {
-    const session = await this.getSession(featureId);
-    if (!session) throw new Error(`No session found for ${featureId}`);
+    const session = await this.getSession(sessionId);
+    if (!session) throw new Error(`No session found for ${sessionId}`);
     session.threads.push(thread);
-    const filePath = getSessionFilePath(featureId);
+    const filePath = getSessionFilePath(sessionId);
     atomicWrite(filePath, stampAndSerialize(session));
     return session;
   },
 
   async updateThread(
-    featureId: string,
+    sessionId: string,
     threadId: string,
     patch: Partial<
       Pick<SessionThread, "status" | "severity" | "messages" | "labels">
     >,
   ): Promise<void> {
-    const session = await this.getSession(featureId);
-    if (!session) throw new Error(`No session found for ${featureId}`);
+    const session = await this.getSession(sessionId);
+    if (!session) throw new Error(`No session found for ${sessionId}`);
     const thread = session.threads.find((t) => t.id === threadId);
     if (!thread) throw new Error(`Thread ${threadId} not found`);
 
@@ -148,18 +148,18 @@ export const sessionStore = {
     }
     thread.lastUpdatedAt = new Date().toISOString();
 
-    const filePath = getSessionFilePath(featureId);
+    const filePath = getSessionFilePath(sessionId);
     atomicWrite(filePath, stampAndSerialize(session));
   },
 
   async setVerdict(
-    featureId: string,
+    sessionId: string,
     verdict: "approved" | "changes_requested",
   ): Promise<void> {
-    const session = await this.getSession(featureId);
-    if (!session) throw new Error(`No session found for ${featureId}`);
+    const session = await this.getSession(sessionId);
+    if (!session) throw new Error(`No session found for ${sessionId}`);
     session.verdict = verdict;
-    const filePath = getSessionFilePath(featureId);
+    const filePath = getSessionFilePath(sessionId);
     atomicWrite(filePath, stampAndSerialize(session));
   },
 };
