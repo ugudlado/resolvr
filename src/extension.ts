@@ -118,6 +118,12 @@ export function activate(context: vscode.ExtensionContext): void {
 
   let currentSessionId: string | null = null;
 
+  /** Resolve the target branch: workspace state override > config setting. */
+  const resolveTargetBranch = (): string => {
+    const override = context.workspaceState.get<string>("targetBranchOverride");
+    return override ?? getDefaultTargetBranch();
+  };
+
   // Sync baseProvider and branchDetector when the target branch setting changes
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
@@ -187,29 +193,22 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   };
 
-  const loadSession = async (sessionId: string) => {
-    try {
-      let session = await sessionStore.getSession(sessionId);
+  /** Populate the Changed Files tree — no session file required. */
+  const populateDiffs = async (sessionId?: string) => {
+    const targetBranch = resolveTargetBranch();
+    baseProvider.setTargetBranch(targetBranch);
+    await diffPanelManager.populate(sessionId, targetBranch);
+    statusBar.setNoBranch();
+    outputChannel.appendLine(
+      `Diffs populated (target: ${targetBranch}, session: ${sessionId ?? "none"})`,
+    );
+  };
 
-      // Auto-create session if none exists — extension works immediately
-      if (!session) {
-        session = {
-          sessionId,
-          worktreePath: workspaceRoot,
-          sourceBranch: branchDetector.branchName ?? sessionId,
-          targetBranch: getDefaultTargetBranch(),
-          verdict: null,
-          threads: [],
-          metadata: {
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        };
-        sessionStore.saveSession(sessionId, session);
-        outputChannel.appendLine(
-          `Auto-created review session for ${sessionId}`,
-        );
-      }
+  /** Hydrate session-dependent features — only call when session file exists. */
+  const hydrateSession = async (sessionId: string) => {
+    try {
+      const session = await sessionStore.getSession(sessionId);
+      if (!session) return;
 
       // Re-hydrate baseProvider from session's persisted target branch
       if (session.targetBranch) {
@@ -230,7 +229,7 @@ export function activate(context: vscode.ExtensionContext): void {
       // Start watching the session file for external changes
       sessionWatcher.watch(getSessionFilePath(sessionId));
 
-      // Populate sidebar tree with changed files
+      // Refresh diff tree with session's target branch and overlay thread counts
       await diffPanelManager.populate(sessionId);
       diffPanelManager.updateThreadCounts(threads);
 
@@ -272,7 +271,15 @@ export function activate(context: vscode.ExtensionContext): void {
     }
 
     outputChannel.appendLine(`Working branch detected: ${sessionId}`);
-    await loadSession(sessionId);
+
+    // Always populate diffs — no session required
+    await populateDiffs(sessionId);
+
+    // Hydrate session-dependent features only if session file exists
+    const existingSession = await sessionStore.getSession(sessionId);
+    if (existingSession) {
+      await hydrateSession(sessionId);
+    }
   };
 
   // Listen for branch changes
@@ -291,7 +298,14 @@ export function activate(context: vscode.ExtensionContext): void {
       return;
     }
 
-    await loadSession(newSessionId);
+    // Always populate diffs — no session required
+    await populateDiffs(newSessionId);
+
+    // Hydrate session-dependent features only if session file exists
+    const existingSession = await sessionStore.getSession(newSessionId);
+    if (existingSession) {
+      await hydrateSession(newSessionId);
+    }
   });
 
   // Register commands
@@ -322,7 +336,7 @@ export function activate(context: vscode.ExtensionContext): void {
         sessionId,
         worktreePath: workspaceRoot,
         sourceBranch: branchDetector.branchName ?? sessionId,
-        targetBranch: getDefaultTargetBranch(),
+        targetBranch: resolveTargetBranch(),
         verdict: null as "approved" | "changes_requested" | null,
         threads: [] as SessionThread[],
         metadata: {
@@ -333,11 +347,8 @@ export function activate(context: vscode.ExtensionContext): void {
 
       try {
         sessionStore.saveSession(sessionId, session);
-        commentManager.loadThreads([]);
-        statusBar.setReady(0);
-        sessionWatcher.watch(getSessionFilePath(sessionId));
         currentSessionId = sessionId;
-        await diffPanelManager.populate(sessionId);
+        await hydrateSession(sessionId);
         outputChannel.appendLine("Review session created");
         void vscode.window.showInformationMessage(
           `Review session created for ${sessionId}`,
@@ -384,7 +395,7 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       try {
-        await diffPanelManager.open(sessionId);
+        await diffPanelManager.open(sessionId ?? undefined);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         outputChannel.appendLine(`openDiff failed: ${msg}`);
@@ -435,9 +446,8 @@ export function activate(context: vscode.ExtensionContext): void {
 
     vscode.commands.registerCommand("resolvr.refreshDiff", async () => {
       const sessionId = branchDetector.sessionId;
-      if (!sessionId) return;
       try {
-        await diffPanelManager.refresh(sessionId);
+        await diffPanelManager.refresh(sessionId ?? undefined);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         outputChannel.appendLine(`refreshDiff failed: ${msg}`);
@@ -503,9 +513,9 @@ export function activate(context: vscode.ExtensionContext): void {
         }
       }
 
-      // Get current target for pre-selection
+      // Get current target for pre-selection (session > workspace state > config)
       const session = await sessionStore.getSession(sessionId);
-      const currentTarget = session?.targetBranch ?? getDefaultTargetBranch();
+      const currentTarget = session?.targetBranch ?? resolveTargetBranch();
 
       const items = branchNames.map((name) => ({
         label: name === currentTarget ? `$(check) ${name}` : name,
@@ -525,20 +535,18 @@ export function activate(context: vscode.ExtensionContext): void {
         `Changing target branch to ${newTarget} for session ${sessionId}`,
       );
 
-      // Update session — persist the new target branch
+      // Persist to session file if one exists, otherwise to workspace state
       if (session) {
         session.targetBranch = newTarget;
         session.metadata.updatedAt = new Date().toISOString();
         sessionStore.saveSession(sessionId, session);
       } else {
-        outputChannel.appendLine(
-          `Warning: no session found for ${sessionId} — target branch change will not persist`,
-        );
+        await context.workspaceState.update("targetBranchOverride", newTarget);
       }
 
       // Update base content provider and refresh diff
       baseProvider.setTargetBranch(newTarget);
-      await diffPanelManager.refresh(sessionId);
+      await diffPanelManager.refresh(sessionId ?? undefined, newTarget);
 
       void vscode.window.showInformationMessage(
         `Target branch changed to ${newTarget}`,
