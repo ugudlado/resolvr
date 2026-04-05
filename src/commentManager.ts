@@ -8,6 +8,7 @@ import type {
 import { sessionStore } from "./sessionStore";
 import { ThreadMapper } from "./threadMapper";
 import { SCHEME_BASE } from "./baseContentProvider";
+import { getDefaultTargetBranch } from "./config";
 
 export class CommentManager implements vscode.Disposable {
   private readonly _onDidUpdateThread = new vscode.EventEmitter<string>();
@@ -89,7 +90,7 @@ export class CommentManager implements vscode.Disposable {
       sessionId,
       worktreePath: this._workspaceRoot,
       sourceBranch: branchName ?? sessionId,
-      targetBranch: "main",
+      targetBranch: getDefaultTargetBranch(),
       verdict: null,
       threads: [],
       metadata: {

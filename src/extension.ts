@@ -25,8 +25,24 @@ import {
 import { DiffPanelManager } from "./diffPanelManager";
 import { DiffStatus } from "./diffParser";
 import { ThreadsTreeProvider } from "./threadsTree";
+import { getDefaultTargetBranch } from "./config";
 
 const execFileAsync = promisify(execFile);
+
+// Minimal types for the VS Code built-in Git extension API
+interface GitExtensionAPI {
+  getRepository(uri: vscode.Uri): GitRepository | null;
+}
+interface GitRepository {
+  getBranches(query: { remote?: boolean; sort?: string }): Promise<GitRef[]>;
+}
+interface GitRef {
+  readonly name?: string;
+  readonly remote?: string;
+}
+interface GitExtension {
+  getAPI(version: 1): GitExtensionAPI;
+}
 
 export function activate(context: vscode.ExtensionContext): void {
   const outputChannel = vscode.window.createOutputChannel("Resolvr");
@@ -41,7 +57,10 @@ export function activate(context: vscode.ExtensionContext): void {
   // CRITICAL: Register content providers BEFORE CommentManager.
   // CommentManager._buildNewThread calls openTextDocument on virtual URIs,
   // which requires the provider to already be registered.
-  const baseProvider = new BaseContentProvider(workspaceRoot);
+  const baseProvider = new BaseContentProvider(
+    workspaceRoot,
+    getDefaultTargetBranch(),
+  );
   const emptyProvider = new EmptyContentProvider();
   context.subscriptions.push(
     vscode.workspace.registerTextDocumentContentProvider(
@@ -98,6 +117,21 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   let currentSessionId: string | null = null;
+
+  // Sync baseProvider and branchDetector when the target branch setting changes
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("resolvr.defaultTargetBranch")) {
+        const newTarget = getDefaultTargetBranch();
+        outputChannel.appendLine(
+          `Target branch setting changed to "${newTarget}"`,
+        );
+        baseProvider.setTargetBranch(newTarget);
+        // Re-detect in case current branch now matches the new default
+        void branchDetector.initialize();
+      }
+    }),
+  );
 
   // Subscribe to file watcher events (replaces WS session-updated)
   context.subscriptions.push(
@@ -163,7 +197,7 @@ export function activate(context: vscode.ExtensionContext): void {
           sessionId,
           worktreePath: workspaceRoot,
           sourceBranch: branchDetector.branchName ?? sessionId,
-          targetBranch: "main",
+          targetBranch: getDefaultTargetBranch(),
           verdict: null,
           threads: [],
           metadata: {
@@ -175,6 +209,11 @@ export function activate(context: vscode.ExtensionContext): void {
         outputChannel.appendLine(
           `Auto-created review session for ${sessionId}`,
         );
+      }
+
+      // Re-hydrate baseProvider from session's persisted target branch
+      if (session.targetBranch) {
+        baseProvider.setTargetBranch(session.targetBranch);
       }
 
       const threads = session.threads ?? [];
@@ -283,7 +322,7 @@ export function activate(context: vscode.ExtensionContext): void {
         sessionId,
         worktreePath: workspaceRoot,
         sourceBranch: branchDetector.branchName ?? sessionId,
-        targetBranch: "main",
+        targetBranch: getDefaultTargetBranch(),
         verdict: null as "approved" | "changes_requested" | null,
         threads: [] as SessionThread[],
         metadata: {
@@ -412,6 +451,98 @@ export function activate(context: vscode.ExtensionContext): void {
     // View mode toggle: flat ↔ compact-tree
     vscode.commands.registerCommand("resolvr.toggleFileViewMode", () => {
       diffPanelManager.toggleViewMode();
+    }),
+
+    // Change target branch for diff comparisons
+    vscode.commands.registerCommand("resolvr.changeTargetBranch", async () => {
+      const sessionId = branchDetector.sessionId;
+      if (!sessionId) {
+        void vscode.window.showWarningMessage(
+          "No working branch detected. Switch to a non-default branch first.",
+        );
+        return;
+      }
+
+      // List branches using VS Code Git extension API, fallback to git CLI
+      let branchNames: string[] = [];
+      try {
+        const gitExt =
+          vscode.extensions.getExtension<GitExtension>("vscode.git");
+        if (gitExt) {
+          const git = gitExt.isActive
+            ? gitExt.exports
+            : await gitExt.activate();
+          const api = git.getAPI(1);
+          const repo = api.getRepository(vscode.Uri.file(workspaceRoot));
+          if (repo) {
+            const refs = await repo.getBranches({
+              remote: true,
+              sort: "committerdate",
+            });
+            branchNames = refs
+              .map((r) => r.name ?? "")
+              .filter((n) => n.length > 0);
+          }
+        }
+      } catch {
+        // Git extension unavailable — fall back to CLI
+      }
+
+      if (branchNames.length === 0) {
+        try {
+          const { stdout } = await execFileAsync("git", ["branch", "-a"], {
+            cwd: workspaceRoot,
+          });
+          branchNames = stdout
+            .split("\n")
+            .map((l) => l.replace(/^\*?\s+/, "").trim())
+            .filter((l) => l.length > 0 && !l.includes("->"));
+        } catch {
+          void vscode.window.showErrorMessage("Failed to list branches.");
+          return;
+        }
+      }
+
+      // Get current target for pre-selection
+      const session = await sessionStore.getSession(sessionId);
+      const currentTarget = session?.targetBranch ?? getDefaultTargetBranch();
+
+      const items = branchNames.map((name) => ({
+        label: name === currentTarget ? `$(check) ${name}` : name,
+        description: name === currentTarget ? "current" : undefined,
+        branch: name.replace(/^remotes\//, ""),
+      }));
+
+      const picked = await vscode.window.showQuickPick(items, {
+        placeHolder: `Current target: ${currentTarget}`,
+        title: "Select Target Branch",
+      });
+
+      if (!picked) return;
+
+      const newTarget = picked.branch;
+      outputChannel.appendLine(
+        `Changing target branch to ${newTarget} for session ${sessionId}`,
+      );
+
+      // Update session — persist the new target branch
+      if (session) {
+        session.targetBranch = newTarget;
+        session.metadata.updatedAt = new Date().toISOString();
+        sessionStore.saveSession(sessionId, session);
+      } else {
+        outputChannel.appendLine(
+          `Warning: no session found for ${sessionId} — target branch change will not persist`,
+        );
+      }
+
+      // Update base content provider and refresh diff
+      baseProvider.setTargetBranch(newTarget);
+      await diffPanelManager.refresh(sessionId);
+
+      void vscode.window.showInformationMessage(
+        `Target branch changed to ${newTarget}`,
+      );
     }),
 
     // Resolve open threads with AI agent

@@ -3,6 +3,7 @@ import * as path from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import type { SessionData } from "./sessionStore";
+import { getDefaultTargetBranch } from "./config";
 
 const execFileAsync = promisify(execFile);
 
@@ -58,7 +59,7 @@ export class SkillGenerator {
   ): Promise<SkillContext> {
     const repoName = await this._getRepoName();
     const sourceBranch = session?.sourceBranch ?? sessionId;
-    const targetBranch = session?.targetBranch ?? "main";
+    const targetBranch = session?.targetBranch ?? getDefaultTargetBranch();
     const changedFiles = await this._getChangedFiles(targetBranch);
 
     return {

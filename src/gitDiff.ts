@@ -43,14 +43,15 @@ async function gitExec(args: string[], cwd: string): Promise<string> {
 export async function getLocalDiff(
   workspaceRoot: string,
   sessionId?: string,
+  defaultTargetBranch: string = "main",
 ): Promise<LocalDiffResult> {
   // Detect source branch
   const sourceBranch = (
     await gitExec(["rev-parse", "--abbrev-ref", "HEAD"], workspaceRoot)
   ).trim();
 
-  // Detect target branch from session file, fallback to main/master
-  let targetBranch = "main";
+  // Detect target branch from session file, fallback to configured default
+  let targetBranch = defaultTargetBranch;
   if (sessionId) {
     const session = await sessionStore.getSession(sessionId);
     if (session?.targetBranch) {
@@ -58,14 +59,8 @@ export async function getLocalDiff(
     }
   }
 
-  // Verify the target branch ref exists; fall back to master if main is missing
-  try {
-    await gitExec(["rev-parse", "--verify", targetBranch], workspaceRoot);
-  } catch {
-    if (targetBranch === "main") {
-      targetBranch = "master";
-    }
-  }
+  // Verify the target branch ref exists
+  await gitExec(["rev-parse", "--verify", targetBranch], workspaceRoot);
 
   // Force standard a/b prefixes regardless of diff.mnemonicprefix config
   const prefixArgs = ["--src-prefix=a/", "--dst-prefix=b/"];
