@@ -29,7 +29,6 @@ function makeSchemeUri(scheme: string, relativePath: string): vscode.Uri {
 
 export class DiffPanelManager implements vscode.Disposable {
   private _files: DiffFileEntry[] = [];
-  private _viewedFiles = new Set<string>();
   private _baseProvider: BaseContentProvider;
   private _treeProvider: ChangedFilesTreeProvider;
   private _decorationProvider: ReviewFileDecorationProvider;
@@ -38,6 +37,7 @@ export class DiffPanelManager implements vscode.Disposable {
   private _outputChannel: vscode.OutputChannel;
   private _treeView: vscode.TreeView<TreeNode>;
   private _context: vscode.ExtensionContext;
+  private _targetBranch: string | undefined;
 
   get treeProvider(): ChangedFilesTreeProvider {
     return this._treeProvider;
@@ -108,6 +108,7 @@ export class DiffPanelManager implements vscode.Disposable {
 
     try {
       const defaultTarget = targetBranch ?? getDefaultTargetBranch();
+      this._targetBranch = defaultTarget;
       const diff = await getLocalDiff(
         this._workspaceRoot,
         sessionId,
@@ -184,20 +185,13 @@ export class DiffPanelManager implements vscode.Disposable {
         : `${file.path} (Review Diff)`;
 
     await vscode.commands.executeCommand("vscode.diff", oldUri, newUri, title);
-
-    // Track viewed files for progress indicator
-    this._viewedFiles.add(file.path);
-    this._updateTitle();
   }
 
   private _updateTitle(): void {
-    if (this._files.length === 0) return;
-    const viewed = this._viewedFiles.size;
-    const total = this._files.length;
-    this._treeView.title =
-      viewed > 0
-        ? `Changed Files (${viewed}/${total} viewed)`
-        : `Changed Files (${total})`;
+    this._treeView.title = `Changed Files (${this._files.length})`;
+    this._treeView.description = this._targetBranch
+      ? `vs ${this._targetBranch}`
+      : undefined;
   }
 
   async refresh(sessionId?: string, targetBranch?: string): Promise<void> {
@@ -210,7 +204,6 @@ export class DiffPanelManager implements vscode.Disposable {
     this._treeProvider.setFiles([]);
     this._decorationProvider.clear();
     this._files = [];
-    this._viewedFiles.clear();
     void vscode.commands.executeCommand(
       "setContext",
       "resolvr.hasDiffPanel",
