@@ -16,22 +16,31 @@ pnpm type-check     # Type-check
 ## Project Structure
 
 ```
-src/                — Extension source (TypeScript)
-  extension.ts      — Extension entry point (activate/deactivate)
-  sessionStore.ts   — File-based session CRUD
-  sessionWatcher.ts — FileSystemWatcher for live updates
-  changedFilesTree.ts — TreeDataProvider for SCM sidebar
-  threadsTree.ts    — TreeDataProvider for review threads
-  diffPanelManager.ts — Webview panel for diff rendering
-  commentManager.ts — VS Code CommentController integration
-  agentInvoker.ts   — AI agent spawner for thread resolution
-  skillGenerator.ts — Agent skill file generator
-dist/               — esbuild bundle output (NOT committed, gitignored)
-.claude/commands/   — Project-level slash commands (release-prep)
-.claude/skills/     — Project-level skill guides (vscode-ext, github)
-openspec/           — Feature specifications (archived)
-docs/images/        — Screenshots for README
-.review/            — Runtime session storage (gitignored)
+src/                        — Extension source (TypeScript)
+  extension.ts              — Extension entry point (activate/deactivate)
+  config.ts                 — VS Code settings reader (target branch, coding agent)
+  sessionStore.ts           — File-based session CRUD
+  sessionWatcher.ts         — FileSystemWatcher for live session updates
+  branchDetector.ts         — Watches .git/HEAD for branch changes
+  statusBar.ts              — Status bar state machine (detecting → ready → review)
+  changedFilesTree.ts       — TreeDataProvider for Changed Files sidebar
+  threadsTree.ts            — TreeDataProvider for review threads sidebar
+  diffPanelManager.ts       — Diff tree population and tab opening
+  diffParser.ts             — Git diff output parser
+  gitDiff.ts                — Git diff subprocess runner
+  baseContentProvider.ts    — TextDocumentContentProvider for base-revision files
+  fileDecorationProvider.ts — File decoration badges (added/modified/deleted)
+  commentManager.ts         — VS Code CommentController integration
+  threadMapper.ts           — Maps session threads to VS Code comment ranges
+  agentInvoker.ts           — AI agent spawner for thread resolution
+  skillGenerator.ts         — Generates .review/AGENTS.md for AI agents
+dist/                       — esbuild bundle output (NOT committed, gitignored)
+Makefile                    — Build/package/install shortcuts (run `make` for help)
+.claude/commands/           — Project-level slash commands (release-prep)
+.claude/skills/             — Project-level skill guides (vscode-ext, github)
+openspec/                   — Feature specifications (archived)
+docs/images/                — Screenshots for README
+.review/                    — Runtime session storage (gitignored)
 ```
 
 ## Commands
@@ -44,7 +53,13 @@ pnpm package        # Package .vsix for distribution
 pnpm format         # Format all source files (Prettier)
 pnpm knip           # Dead code detection (run before merge, not pre-commit)
 pnpm knip:fix       # Auto-remove safe unused exports
+make                # Show all Makefile targets
+make install        # Build + package + install into VS Code
 ```
+
+## Development
+
+Press **F5** in VS Code to launch the Extension Development Host for testing. The `Output` panel → "Resolvr" channel shows runtime logs.
 
 ## Architecture
 
@@ -55,9 +70,12 @@ pnpm knip:fix       # Auto-remove safe unused exports
 - **File watching**: `vscode.workspace.createFileSystemWatcher` for live session updates
 - **AI resolution**: "Resolve with AI" command spawns configured coding agent via terminal
 
-## Environment
+## Settings
 
-No environment variables required. The extension reads configuration from VS Code settings.
+No environment variables required. The extension reads from VS Code settings:
+
+- **`resolvr.defaultTargetBranch`** — Branch to diff against (default: auto-detected `main`/`master`)
+- **`resolvr.codingAgent`** — AI agent for "Resolve with AI" (`claude` | `codex` | `gemini`)
 
 ## Code Quality
 
@@ -75,3 +93,5 @@ No environment variables required. The extension reads configuration from VS Cod
 
 - **Never edit `dist/`**: Always work in `src/`
 - **Worktree `.git` is a file**: Git worktrees have a `.git` file (not directory) pointing to the parent repo. Use `git rev-parse --git-common-dir` to find the real repo root
+- **AI review flow**: `skillGenerator.ts` writes `.review/AGENTS.md` at runtime with session context so AI agents can read thread data. The `.review/` directory is gitignored.
+- **Activation**: Extension activates on `workspaceContains:.review/` or `onStartupFinished` — effectively always-on once installed
