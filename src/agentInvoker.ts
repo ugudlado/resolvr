@@ -21,7 +21,7 @@ const AGENTS: Record<string, AgentConfig> = {
   },
   codex: {
     command: "codex",
-    buildArgs: (prompt) => [prompt],
+    buildArgs: (prompt) => ["exec", prompt],
   },
 };
 
@@ -196,6 +196,7 @@ export function resolveWithNewAgent(
   const readPrompt = `Read and follow instructions in ${promptPath}`;
   const args = agentConfig.buildArgs(readPrompt);
   const cmd = `${agentConfig.command} ${args.map(shellEscape).join(" ")}`;
+
   terminal.sendText(cmd);
 
   void vscode.window.showInformationMessage(
