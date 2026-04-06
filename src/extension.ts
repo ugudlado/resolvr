@@ -173,6 +173,38 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
   );
 
+  let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+  const isNoisyPath = (fsPath: string) =>
+    !fsPath.startsWith(workspaceRoot) ||
+    fsPath.includes(`${path.sep}node_modules${path.sep}`) ||
+    fsPath.includes(`${path.sep}.review${path.sep}`);
+  const debouncedRefreshDiffs = () => {
+    if (!currentSessionId) return;
+    const sid = currentSessionId;
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => {
+      outputChannel.appendLine("File change detected — refreshing diff tree");
+      void diffPanelManager.refresh(sid, resolveTargetBranch());
+    }, 1000);
+  };
+
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument((doc) => {
+      if (!isNoisyPath(doc.uri.fsPath)) debouncedRefreshDiffs();
+    }),
+    vscode.workspace.onDidCreateFiles((e) => {
+      if (e.files.some((f) => !isNoisyPath(f.fsPath))) debouncedRefreshDiffs();
+    }),
+    vscode.workspace.onDidDeleteFiles((e) => {
+      if (e.files.some((f) => !isNoisyPath(f.fsPath))) debouncedRefreshDiffs();
+    }),
+    vscode.workspace.onDidRenameFiles((e) => {
+      if (e.files.some((f) => !isNoisyPath(f.newUri.fsPath)))
+        debouncedRefreshDiffs();
+    }),
+    { dispose: () => refreshTimer && clearTimeout(refreshTimer) },
+  );
+
   // Resolve workspace name from git repo root (handles worktrees).
   const resolveWorkspace = async () => {
     setWorkspaceRoot(workspaceRoot);
