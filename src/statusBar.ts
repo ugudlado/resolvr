@@ -1,8 +1,13 @@
 import * as vscode from "vscode";
 
+const enum StatusBarState {
+  Ready = "ready",
+  NoBranch = "no-branch",
+}
+
 export class StatusBar implements vscode.Disposable {
   private _item: vscode.StatusBarItem;
-  private _state: "ready" | "no-branch" | "no-session" = "no-branch";
+  private _state: StatusBarState = StatusBarState.NoBranch;
   private _threadCount = 0;
   private _openThreadCount = 0;
 
@@ -16,7 +21,7 @@ export class StatusBar implements vscode.Disposable {
   }
 
   setReady(threadCount: number, openCount?: number): void {
-    this._state = "ready";
+    this._state = StatusBarState.Ready;
     this._threadCount = threadCount;
     if (openCount !== undefined) {
       this._openThreadCount = openCount;
@@ -25,12 +30,7 @@ export class StatusBar implements vscode.Disposable {
   }
 
   setNoBranch(): void {
-    this._state = "no-branch";
-    this._update();
-  }
-
-  setNoSession(): void {
-    this._state = "no-session";
+    this._state = StatusBarState.NoBranch;
     this._update();
   }
 
@@ -39,14 +39,14 @@ export class StatusBar implements vscode.Disposable {
     if (openCount !== undefined) {
       this._openThreadCount = openCount;
     }
-    if (this._state === "ready") {
+    if (this._state === StatusBarState.Ready) {
       this._update();
     }
   }
 
   private _update(): void {
     switch (this._state) {
-      case "ready":
+      case StatusBarState.Ready:
         if (this._openThreadCount > 0) {
           this._item.text = `$(sparkle) Resolvr: ${this._openThreadCount} open · Resolve with AI`;
           this._item.tooltip =
@@ -61,22 +61,16 @@ export class StatusBar implements vscode.Disposable {
           this._item.command = "resolvr.refresh";
           this._item.backgroundColor = undefined;
         } else {
-          this._item.text = "$(comment-discussion) Resolvr";
+          this._item.text = "$(comment-discussion) Resolvr: No active threads";
           this._item.tooltip = "No review threads yet";
           this._item.command = "resolvr.refresh";
           this._item.backgroundColor = undefined;
         }
         break;
-      case "no-branch":
+      case StatusBarState.NoBranch:
         this._item.text = "$(git-branch) Resolvr: No active branch";
         this._item.tooltip = "Switch to a non-default branch to activate";
         this._item.command = undefined;
-        this._item.backgroundColor = undefined;
-        break;
-      case "no-session":
-        this._item.text = "$(add) Resolvr: Start Review";
-        this._item.tooltip = "Click to create a new review session";
-        this._item.command = "resolvr.startReview";
         this._item.backgroundColor = undefined;
         break;
     }

@@ -198,7 +198,8 @@ export function activate(context: vscode.ExtensionContext): void {
     const targetBranch = resolveTargetBranch();
     baseProvider.setTargetBranch(targetBranch);
     await diffPanelManager.populate(sessionId, targetBranch);
-    statusBar.setNoBranch();
+    // Show "ready" with 0 threads — branch is active, just no session yet
+    statusBar.setReady(0);
     outputChannel.appendLine(
       `Diffs populated (target: ${targetBranch}, session: ${sessionId ?? "none"})`,
     );

@@ -60,7 +60,11 @@ export async function getLocalDiff(
   }
 
   // Verify the target branch ref exists
-  await gitExec(["rev-parse", "--verify", targetBranch], workspaceRoot);
+  try {
+    await gitExec(["rev-parse", "--verify", targetBranch], workspaceRoot);
+  } catch {
+    throw new Error(`Target branch "${targetBranch}" not found`);
+  }
 
   // Force standard a/b prefixes regardless of diff.mnemonicprefix config
   const prefixArgs = ["--src-prefix=a/", "--dst-prefix=b/"];

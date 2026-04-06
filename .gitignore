@@ -49,3 +49,4 @@ specs-completed/
 .claude/marketplace/
 .claude/worktrees/
 .verify-screenshots/
+.tmp
