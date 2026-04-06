@@ -1,7 +1,7 @@
 {
   "name": "resolvr",
   "displayName": "Resolvr",
-  "description": "Review code, leave threaded comments, and let Claude resolve them — right in VS Code.",
+  "description": "Open a diff, leave comments, and let Claude work through them.",
   "version": "1.0.1",
   "publisher": "ugudlado",
   "repository": {
@@ -131,7 +131,7 @@
     "viewsWelcome": [
       {
         "view": "resolvr.changedFiles",
-        "contents": "No review session active.\n[Open Diff](command:resolvr.openDiff)",
+        "contents": "No changed files detected.\nSwitch to a non-default branch to see diffs.\n[Refresh](command:resolvr.refresh)",
         "when": "!resolvr.hasDiffPanel"
       }
     ],
