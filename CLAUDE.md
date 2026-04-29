@@ -8,10 +8,12 @@
 ## Quick Start
 
 ```bash
-pnpm install        # Install dependencies
-pnpm build          # Build extension bundle
-pnpm type-check     # Type-check
+make build          # Builds (and installs deps automatically if needed)
+make type-check     # Type-check (also auto-installs deps)
+make                # List all available targets
 ```
+
+> Most `make` targets depend on a `node_modules` sentinel that re-runs `pnpm install` whenever `package.json` or `pnpm-lock.yaml` is newer — so you rarely need to install manually. If you want to force it, run `make deps` (or `pnpm install` directly).
 
 ## Project Structure
 
@@ -38,23 +40,27 @@ dist/                       — esbuild bundle output (NOT committed, gitignored
 Makefile                    — Build/package/install shortcuts (run `make` for help)
 .claude/commands/           — Project-level slash commands (release-prep)
 .claude/skills/             — Project-level skill guides (vscode-ext, github)
-openspec/                   — Feature specifications (archived)
+specs/                      — Feature specifications (archived)
 docs/images/                — Screenshots for README
 .review/                    — Runtime session storage (gitignored)
 ```
 
 ## Commands
 
+Prefer `make` targets — they wrap the underlying `pnpm` scripts so contributors and agents share one entry point.
+
 ```bash
-pnpm build          # Build extension bundle (esbuild → dist/extension.js)
-pnpm watch          # Watch mode for development
-pnpm type-check     # TypeScript type checking
-pnpm package        # Package .vsix for distribution
-pnpm format         # Format all source files (Prettier)
-pnpm knip           # Dead code detection (run before merge, not pre-commit)
-pnpm knip:fix       # Auto-remove safe unused exports
-make                # Show all Makefile targets
+make                # Show all Makefile targets (default)
+make build          # Build extension bundle (esbuild → dist/extension.js)
+make watch          # Watch mode for development
+make type-check     # TypeScript type checking
+make package        # Package .vsix for distribution (builds first)
 make install        # Build + package + install into VS Code
+make format         # Format all source files (Prettier)
+make knip           # Dead code detection (run before merge, not pre-commit)
+make knip-fix       # Auto-remove safe unused exports
+make dev            # Type-check then build
+make clean          # Remove build artifacts (dist/, *.vsix)
 ```
 
 ## Development
@@ -80,14 +86,14 @@ No environment variables required. The extension reads from VS Code settings:
 ## Code Quality
 
 - **Prettier**: Config at `.prettierrc`
-- **Pre-commit**: Husky runs lint-staged (Prettier on staged files) then `pnpm type-check`
-- **Knip**: Run `pnpm knip` before merging to detect dead exports, unused files, and unused dependencies
+- **Pre-commit**: Husky runs lint-staged (Prettier on staged files) then `make type-check`
+- **Knip**: Run `make knip` before merging to detect dead exports, unused files, and unused dependencies
 
 ## Important Reminders
 
 1. **Package manager**: Use `pnpm` (not npm); dependencies locked via pnpm-lock.yaml
 2. **Session files**: Live in `.review/sessions/` (gitignored); created when user saves review sessions
-3. **dist/ is NOT committed**: Always run `pnpm build` before `pnpm package`
+3. **dist/ is NOT committed**: Always run `make build` before `make package` (or just `make package`, which builds first)
 
 ## Gotchas
 

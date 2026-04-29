@@ -1,14 +1,22 @@
-.PHONY: build watch type-check package install format knip knip-fix clean dev
+.PHONY: build watch type-check package install format knip knip-fix clean dev deps
+
+## Deps
+
+node_modules: package.json pnpm-lock.yaml
+	pnpm install
+	@touch node_modules
+
+deps: node_modules ## Install dependencies if needed (idempotent)
 
 ## Core
 
-build:          ## Build extension bundle
+build: node_modules ## Build extension bundle (installs deps if needed)
 	pnpm build
 
-watch:          ## Watch mode for development
+watch: node_modules ## Watch mode for development
 	pnpm watch
 
-type-check:     ## TypeScript type checking
+type-check: node_modules ## TypeScript type checking
 	pnpm type-check
 
 package: build  ## Package .vsix (builds first)
@@ -19,13 +27,13 @@ install: package ## Build, package, and install into VS Code
 
 ## Quality
 
-format:         ## Format all source files
+format: node_modules ## Format all source files
 	pnpm format
 
-knip:           ## Dead code detection
+knip: node_modules ## Dead code detection
 	pnpm knip
 
-knip-fix:       ## Auto-remove safe unused exports
+knip-fix: node_modules ## Auto-remove safe unused exports
 	pnpm knip:fix
 
 ## Shortcuts
