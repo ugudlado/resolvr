@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.0 — 2026-04-29
+
+- Toggle comment visibility from the status bar (eye icon)
+- Working-tree changes now render on the default branch instead of an empty tree
+- Add comments on any branch — the default branch no longer blocks new threads
+
+* Comment views moved from Source Control to the Explorer sidebar
+* Empty Changed Files state simplified to "No changes detected."
+  ! Comments resolved by Claude reflect immediately, no window reload needed
+  ! Resolving from the threads tree now updates the inline editor widget too
+  ! First-comment auto-created sessions hydrate the file watcher right away
+
 ## 1.0.2 — 2026-04-06
 
 - Diff tree refreshes automatically on file save, create, delete, or rename

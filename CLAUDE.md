@@ -40,6 +40,7 @@ dist/                       — esbuild bundle output (NOT committed, gitignored
 Makefile                    — Build/package/install shortcuts (run `make` for help)
 .claude/commands/           — Project-level slash commands (release-prep)
 .claude/skills/             — Project-level skill guides (vscode-ext, github)
+assets/                     — Extension marketplace assets (icon.png, demo.gif)
 specs/                      — Feature specifications (archived)
 docs/images/                — Screenshots for README
 .review/                    — Runtime session storage (gitignored)

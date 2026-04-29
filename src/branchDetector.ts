@@ -29,6 +29,11 @@ export class BranchDetector implements vscode.Disposable {
     return this._currentBranchName;
   }
 
+  /** Branch-derived session key usable on any branch (including default). */
+  get commentSessionId(): string | null {
+    return this._currentBranchName?.replace(/\//g, "--") ?? null;
+  }
+
   get workspaceRoot(): string {
     return this._workspaceRoot;
   }
@@ -56,13 +61,10 @@ export class BranchDetector implements vscode.Disposable {
       const configuredTarget = getDefaultTargetBranch();
       const defaultBranches = new Set(BASE_DEFAULT_BRANCHES);
       defaultBranches.add(configuredTarget);
-      if (defaultBranches.has(branch)) {
-        this._currentSessionId = null;
-        this._currentBranchName = null;
-        return;
-      }
       this._currentBranchName = branch;
-      this._currentSessionId = branch.replace(/\//g, "--");
+      this._currentSessionId = defaultBranches.has(branch)
+        ? null
+        : branch.replace(/\//g, "--");
     } catch {
       this._currentSessionId = null;
       this._currentBranchName = null;

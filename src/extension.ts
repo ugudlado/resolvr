@@ -109,9 +109,12 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   // Wire up comment creation/reply/resolve commands.
+  // Use commentSessionId (always set when on any branch) so comments work
+  // on default branches too — separate from sessionId, which gates status-bar
+  // dormancy and remains null on default branches.
   commentManager.setupCommentHandlers(
     context,
-    () => branchDetector.sessionId,
+    () => branchDetector.commentSessionId,
     outputChannel,
     () => branchDetector.branchName,
   );
@@ -435,7 +438,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     }),
     vscode.commands.registerCommand("resolvr.requestChanges", async () => {
-      const sessionId = branchDetector.sessionId;
+      const sessionId = branchDetector.commentSessionId;
       if (!sessionId) {
         void vscode.window.showWarningMessage("No active working branch.");
         return;
@@ -628,10 +631,10 @@ export function activate(context: vscode.ExtensionContext): void {
 
     // Resolve open threads with AI agent
     vscode.commands.registerCommand("resolvr.resolveWithAI", async () => {
-      const sessionId = branchDetector.sessionId;
+      const sessionId = branchDetector.commentSessionId;
       if (!sessionId) {
         void vscode.window.showWarningMessage(
-          "No working branch detected. Switch to a non-default branch first.",
+          "No active branch — open a workspace with a git branch first.",
         );
         return;
       }
@@ -680,10 +683,10 @@ export function activate(context: vscode.ExtensionContext): void {
 
     // Regenerate agent skill files
     vscode.commands.registerCommand("resolvr.regenerateSkills", async () => {
-      const sessionId = branchDetector.sessionId;
+      const sessionId = branchDetector.commentSessionId;
       if (!sessionId) {
         void vscode.window.showWarningMessage(
-          "No working branch detected. Switch to a non-default branch first.",
+          "No active branch — open a workspace with a git branch first.",
         );
         return;
       }

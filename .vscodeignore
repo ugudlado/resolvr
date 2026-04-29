@@ -2,6 +2,7 @@
 .claude/**
 .husky/**
 .review/**
+.tmp/**
 .nx/**
 .mcp.json
 src/**
