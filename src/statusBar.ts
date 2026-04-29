@@ -7,9 +7,11 @@ const enum StatusBarState {
 
 export class StatusBar implements vscode.Disposable {
   private _item: vscode.StatusBarItem;
+  private _toggleItem: vscode.StatusBarItem;
   private _state: StatusBarState = StatusBarState.NoBranch;
   private _threadCount = 0;
   private _openThreadCount = 0;
+  private _commentsVisible = true;
 
   constructor() {
     this._item = vscode.window.createStatusBarItem(
@@ -17,6 +19,17 @@ export class StatusBar implements vscode.Disposable {
       100,
     );
     this._item.show();
+    this._toggleItem = vscode.window.createStatusBarItem(
+      vscode.StatusBarAlignment.Left,
+      99,
+    );
+    this._toggleItem.command = "resolvr.toggleCommentsVisible";
+    this._toggleItem.show();
+    this._update();
+  }
+
+  setCommentsVisible(visible: boolean): void {
+    this._commentsVisible = visible;
     this._update();
   }
 
@@ -74,9 +87,15 @@ export class StatusBar implements vscode.Disposable {
         this._item.backgroundColor = undefined;
         break;
     }
+
+    this._toggleItem.text = this._commentsVisible ? "$(eye)" : "$(eye-closed)";
+    this._toggleItem.tooltip = this._commentsVisible
+      ? "Hide Resolvr comments"
+      : "Show Resolvr comments";
   }
 
   dispose(): void {
     this._item.dispose();
+    this._toggleItem.dispose();
   }
 }

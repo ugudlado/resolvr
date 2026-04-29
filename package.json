@@ -101,6 +101,11 @@
         "icon": "$(list-tree)"
       },
       {
+        "command": "resolvr.toggleCommentsVisible",
+        "title": "Resolvr: Toggle Comment Visibility",
+        "icon": "$(eye)"
+      },
+      {
         "command": "resolvr.regenerateSkills",
         "title": "Resolvr: Regenerate Agent Skills",
         "icon": "$(sparkle)"
@@ -117,7 +122,7 @@
       }
     ],
     "views": {
-      "scm": [
+      "explorer": [
         {
           "id": "resolvr.changedFiles",
           "name": "Resolvr: Changed Files"
@@ -131,7 +136,7 @@
     "viewsWelcome": [
       {
         "view": "resolvr.changedFiles",
-        "contents": "No changed files detected.\nSwitch to a non-default branch to see diffs.\n[Refresh](command:resolvr.refresh)",
+        "contents": "No changes detected.",
         "when": "!resolvr.hasDiffPanel"
       }
     ],

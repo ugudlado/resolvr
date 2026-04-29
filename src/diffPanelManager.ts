@@ -188,7 +188,7 @@ export class DiffPanelManager implements vscode.Disposable {
   }
 
   private _updateTitle(): void {
-    this._treeView.title = `Changed Files (${this._files.length})`;
+    this._treeView.title = `Resolvr: Changed Files (${this._files.length})`;
     this._treeView.description = this._targetBranch
       ? `vs ${this._targetBranch}`
       : undefined;

@@ -116,6 +116,27 @@ export function activate(context: vscode.ExtensionContext): void {
     () => branchDetector.branchName,
   );
 
+  // Restore comment visibility from workspace state (default: visible).
+  const initialVisible = context.workspaceState.get<boolean>(
+    "commentsVisible",
+    true,
+  );
+  commentManager.setVisible(initialVisible);
+  statusBar.setCommentsVisible(initialVisible);
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "resolvr.toggleCommentsVisible",
+      async () => {
+        const next = !commentManager.visible;
+        commentManager.setVisible(next);
+        statusBar.setCommentsVisible(next);
+        await context.workspaceState.update("commentsVisible", next);
+        outputChannel.appendLine(`Comments ${next ? "shown" : "hidden"}`);
+      },
+    ),
+  );
+
   let currentSessionId: string | null = null;
 
   /** Resolve the target branch: workspace state override > config setting. */
@@ -157,6 +178,16 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
   );
 
+  // When a session is auto-created on first comment, hydrate it so the
+  // file watcher starts and external edits (e.g. Claude resolving threads)
+  // propagate live without requiring a window reload.
+  context.subscriptions.push(
+    commentManager.onDidCreateSession(async (sessionId) => {
+      currentSessionId = sessionId;
+      await hydrateSession(sessionId);
+    }),
+  );
+
   // Refresh threads tree after in-process status changes (resolve, wontfix, etc.)
   // File watcher is suppressed for self-writes, so we refresh manually here.
   context.subscriptions.push(
@@ -170,6 +201,9 @@ export function activate(context: vscode.ExtensionContext): void {
       statusBar.updateThreadCount(threads.length, openCount);
       diffPanelManager.updateThreadCounts(threads);
       threadsTree.updateThreads(threads);
+      // Reconcile inline editor comments — needed when the status change
+      // originated from the threads tree view (no inline thread to mutate).
+      commentManager.loadThreads(threads);
     }),
   );
 
@@ -179,12 +213,13 @@ export function activate(context: vscode.ExtensionContext): void {
     fsPath.includes(`${path.sep}node_modules${path.sep}`) ||
     fsPath.includes(`${path.sep}.review${path.sep}`);
   const debouncedRefreshDiffs = () => {
-    if (!currentSessionId) return;
-    const sid = currentSessionId;
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = setTimeout(() => {
       outputChannel.appendLine("File change detected — refreshing diff tree");
-      void diffPanelManager.refresh(sid, resolveTargetBranch());
+      void diffPanelManager.refresh(
+        currentSessionId ?? undefined,
+        resolveTargetBranch(),
+      );
     }, 1000);
   };
 
@@ -299,7 +334,11 @@ export function activate(context: vscode.ExtensionContext): void {
 
     if (!sessionId) {
       statusBar.setNoBranch();
-      outputChannel.appendLine("No working branch detected — dormant");
+      outputChannel.appendLine(
+        "On default branch — populating working-tree diffs",
+      );
+      // Still populate diffs so working-tree changes are visible on main/master
+      await populateDiffs();
       return;
     }
 
@@ -326,8 +365,9 @@ export function activate(context: vscode.ExtensionContext): void {
     if (!newSessionId) {
       commentManager.loadThreads([]);
       threadsTree.updateThreads([]);
-      diffPanelManager.close();
       statusBar.setNoBranch();
+      // On default branch — show working-tree diffs instead of closing the panel
+      await populateDiffs();
       return;
     }
 

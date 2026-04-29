@@ -15,6 +15,10 @@ export class CommentManager implements vscode.Disposable {
   /** Fires after a thread status change with the sessionId. */
   readonly onDidUpdateThread = this._onDidUpdateThread.event;
 
+  private readonly _onDidCreateSession = new vscode.EventEmitter<string>();
+  /** Fires when a session is auto-created on first comment, with the sessionId. */
+  readonly onDidCreateSession = this._onDidCreateSession.event;
+
   private static readonly STATUS_LABELS: Record<string, string | undefined> = {
     open: undefined,
     resolved: "Resolved",
@@ -30,6 +34,8 @@ export class CommentManager implements vscode.Disposable {
   private _threadMapper: ThreadMapper;
   private _workspaceRoot: string;
   private _outputChannel: vscode.OutputChannel;
+  private _lastThreads: SessionThread[] = [];
+  private _visible = true;
 
   get threadMapper(): ThreadMapper {
     return this._threadMapper;
@@ -64,7 +70,26 @@ export class CommentManager implements vscode.Disposable {
   }
 
   loadThreads(threads: SessionThread[]): void {
+    this._lastThreads = threads;
+    if (!this._visible) return;
     this._threadMapper.reconcile(threads, (t) => this._createVSCodeThread(t));
+  }
+
+  /** Show/hide all comment threads in the editor without losing state. */
+  setVisible(visible: boolean): void {
+    if (this._visible === visible) return;
+    this._visible = visible;
+    if (visible) {
+      this._threadMapper.reconcile(this._lastThreads, (t) =>
+        this._createVSCodeThread(t),
+      );
+    } else {
+      this._threadMapper.clear();
+    }
+  }
+
+  get visible(): boolean {
+    return this._visible;
   }
 
   /**
@@ -102,6 +127,7 @@ export class CommentManager implements vscode.Disposable {
     this._outputChannel.appendLine(
       `Auto-created review session for ${sessionId}`,
     );
+    this._onDidCreateSession.fire(sessionId);
   }
 
   /**
@@ -449,6 +475,7 @@ export class CommentManager implements vscode.Disposable {
 
   dispose(): void {
     this._onDidUpdateThread.dispose();
+    this._onDidCreateSession.dispose();
     this._threadMapper.dispose();
     this._controller.dispose();
   }
