@@ -2,7 +2,7 @@
 
 Code review inside VS Code. Open diffs, leave threaded comments on any line, then hand the open threads to your AI agent to work through. Session files live on your machine. No account needed, no server to run.
 
-<video src="assets/demo.mp4" autoplay loop muted playsinline width="720" alt="Resolvr demo — changed files tree, inline review comments, and AI thread resolution"></video>
+![Resolvr demo — changed files tree, inline review comments, and AI thread resolution](assets/demo.gif)
 
 ## Features
 

@@ -2,7 +2,7 @@
   "name": "resolvr",
   "displayName": "Resolvr",
   "description": "Open a diff, leave comments, and let Claude work through them.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "publisher": "ugudlado",
   "repository": {
     "type": "git",

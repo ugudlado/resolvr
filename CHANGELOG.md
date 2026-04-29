@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1 — 2026-04-30
+
+! Restore demo media on the marketplace listing (switched back to GIF since marketplace strips video tags)
+
 ## 1.1.0 — 2026-04-29
 
 - Toggle comment visibility from the status bar (eye icon)
